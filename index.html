@@ -518,6 +518,12 @@ td{padding:10px 10px;vertical-align:middle;}
 }
 
 
+/* ── Season entry rows in org detail ── */
+.ss-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;cursor:pointer;transition:all .15s;}
+.ss-row:hover{border-color:var(--green);background:var(--green-light);}
+.ss-add-btn{background:var(--green);color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;transition:opacity .15s;white-space:nowrap;flex-shrink:0;}
+.ss-add-btn:hover{opacity:.85;}
+
 /* ── NEW: Prospect / org status badges ── */
 .ostatus{display:inline-block;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;}
 .ostatus.active{background:var(--green-light);color:var(--green);}
@@ -816,49 +822,80 @@ td{padding:10px 10px;vertical-align:middle;}
 </div>
 
 <!-- SEASON ENTRY MODAL (add/edit a season sponsorship for an org) -->
-<div class="moverlay" id="ss-modal">
-  <div class="modal" style="max-width:420px;">
+<div class="moverlay" id="ss-modal" style="z-index:250;">
+  <div class="modal" style="max-width:440px;">
     <div class="modal-handle"></div>
     <button class="mclose" id="ss-mclose">×</button>
     <div class="mtitle" id="ss-m-title">Add Season Sponsorship</div>
     <div class="msub" id="ss-m-sub"></div>
+
     <div class="frow two">
       <div class="fg"><label>Season *</label><select id="sf-year"></select></div>
-      <div class="fg"><label>Tier *</label>
+      <div class="fg"><label>Tier / Package *</label>
         <select id="sf-tier">
           <option value="">Select tier</option>
-          <option value="gold">Gold</option>
-          <option value="silver">Silver</option>
-          <option value="bronze">Bronze</option>
-          <option value="community">Community</option>
+          <option value="gold">🥇 Gold</option>
+          <option value="silver">🥈 Silver</option>
+          <option value="bronze">🥉 Bronze</option>
+          <option value="community">🤝 Community</option>
         </select>
       </div>
     </div>
+
     <div class="frow two">
       <div class="fg"><label>Payment Status *</label>
         <select id="sf-status">
           <option value="">Select status</option>
-          <option value="paid">Paid</option>
-          <option value="outstanding">Outstanding</option>
-          <option value="partial">Partial</option>
-          <option value="inkind">In-Kind</option>
+          <option value="paid">✅ Paid in full</option>
+          <option value="outstanding">⏳ Outstanding</option>
+          <option value="partial">💛 Partial payment</option>
+          <option value="inkind">🤝 In-Kind (no cash)</option>
         </select>
       </div>
-      <div class="fg" id="sf-amount-wrap"><label>Amount ($) *</label><input type="number" id="sf-amount" placeholder="2000" min="0" inputmode="numeric"></div>
+      <div class="fg" id="sf-amount-wrap">
+        <label>Agreed Amount ($) *</label>
+        <input type="number" id="sf-amount" placeholder="e.g. 2000" min="0" inputmode="numeric">
+      </div>
     </div>
-    <div class="frow" id="sf-partial-wrap" style="display:none;">
-      <div class="fg"><label>Amount Received ($)</label><input type="number" id="sf-paid" placeholder="500" min="0" inputmode="numeric"></div>
+
+    <!-- Partial: amount received -->
+    <div class="frow two" id="sf-partial-wrap" style="display:none;">
+      <div class="fg">
+        <label>Amount Received ($)</label>
+        <input type="number" id="sf-paid" placeholder="e.g. 500" min="0" inputmode="numeric">
+      </div>
+      <div class="fg">
+        <label>Balance Owing</label>
+        <div id="sf-balance" style="padding:11px 12px;background:var(--orange-light);border:1.5px solid #f5c6a0;border-radius:7px;font-size:14px;font-weight:700;color:var(--orange);">—</div>
+      </div>
     </div>
+
+    <!-- In-kind: description of what's being provided -->
+    <div class="frow" id="sf-inkind-wrap" style="display:none;">
+      <div class="fg">
+        <label>What are they providing? *</label>
+        <input type="text" id="sf-inkind-desc" placeholder="e.g. Printing services, catering for finals day…">
+      </div>
+    </div>
+
+    <!-- Package notes -->
+    <div class="frow">
+      <div class="fg">
+        <label>Package Notes / Benefits</label>
+        <textarea id="sf-notes" rows="2" placeholder="e.g. Logo on jerseys, banner at ground, social media mentions…"></textarea>
+      </div>
+    </div>
+
     <div class="mactions">
-      <button class="mprimary" id="ss-m-save">Add</button>
+      <button class="mprimary" id="ss-m-save">Add Sponsorship</button>
       <button class="msecondary" id="ss-m-cancel">Cancel</button>
-      <button class="mdanger" id="ss-m-del" style="display:none">Remove</button>
+      <button class="mdanger" id="ss-m-del" style="display:none">Remove Entry</button>
     </div>
   </div>
 </div>
 
 <!-- CONTACT LOG MODAL -->
-<div class="moverlay" id="cl-modal">
+<div class="moverlay" id="cl-modal" style="z-index:250;">
   <div class="modal" style="max-width:400px;">
     <div class="modal-handle"></div>
     <button class="mclose" id="cl-mclose">×</button>
@@ -878,7 +915,7 @@ td{padding:10px 10px;vertical-align:middle;}
 </div>
 
 <!-- ORG DETAIL PANEL -->
-<div class="moverlay" id="org-detail-overlay" style="align-items:flex-start;padding-top:20px;">
+<div class="moverlay" id="org-detail-overlay" style="align-items:flex-start;padding-top:20px;z-index:200;">
   <div class="modal" style="max-width:680px;max-height:90vh;overflow-y:auto;">
     <div class="modal-handle"></div>
     <button class="mclose" id="od-close">×</button>
@@ -987,7 +1024,7 @@ td{padding:10px 10px;vertical-align:middle;}
 //  CONFIG
 // ════════════════════════════════════════════════════════
 const GOOGLE_CLIENT_ID = '127701976947-881utr0ljs1eqrfmuoqrsbqh5635vtfl.apps.googleusercontent.com';
-const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbx4KydnDFJplWv2ODdSd9PAzd0yKumsJjNG4jixajxMEy3sbCyf9npgvqsy7PqAsjmx/exec';
+const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbz4_R_1T_T9rUY0SmbiM6iEYDtlY4oMlxn3czghSdbjIB6OS1_3CGTKc0S8ErtiQqfK/exec';
 
 // ════════════════════════════════════════════════════════
 //  STATE
@@ -1294,10 +1331,14 @@ function renderTable() {
       const lastContact = ''; // shown in detail
       return `<tr onclick="openOrgDetail('${o.id}')" style="cursor:pointer">
         <td><strong>${o.name}</strong></td>
-        <td colspan="3" style="color:var(--text-dim);font-size:12px">${o.primaryContact||'—'} ${o.email?'· '+o.email:''}</td>
+        <td style="color:var(--text-dim);font-size:12px">${o.primaryContact||'—'}</td>
+        <td style="color:var(--text-dim);font-size:12px">${o.phone||'—'}</td>
         <td><span class="ostatus prospect">Prospect</span></td>
-        <td>${o.phone||'—'}</td>
-        <td><button class="actbtn" onclick="event.stopPropagation();openEditOrg('${o.id}')">Edit</button></td>
+        <td colspan="2"></td>
+        <td style="display:flex;gap:4px;">
+          ${me?.edit ? `<button class="actbtn" style="background:var(--green);color:#fff;border-color:var(--green);font-size:10px;" onclick="event.stopPropagation();openAddSS('${o.id}')">+ Add Season</button>` : ''}
+          <button class="actbtn" onclick="event.stopPropagation();openEditOrg('${o.id}')">Edit</button>
+        </td>
       </tr>`;
     }).join('');
     return;
@@ -1348,88 +1389,159 @@ async function openOrgDetail(orgId) {
   renderOrgDetail(org, clog, false);
 }
 
+// Render a single season-entry row (no nested template literals)
+function renderSSRow(s, orgId) {
+  const tierCol  = TH[s.tier] || 'inherit';
+  const tierLbl  = TL[s.tier] || cap(s.tier);
+  const isInKind = s.status === 'inkind';
+
+  const amtHtml = isInKind
+    ? '<span style="font-size:11px;color:#6d28d9;font-weight:700;background:#f3e8ff;padding:2px 8px;border-radius:10px;">In-Kind 🤝</span>'
+    : '<span style="font-size:14px;font-weight:800;">' + fmt(s.amount) + '</span>';
+
+  const paidHtml = (s.status === 'partial' && +s.paidAmount > 0)
+    ? ' <span style="font-size:10px;color:var(--orange);">(' + fmt(s.paidAmount) + ' recv)</span>'
+    : '';
+
+  const sBg  = {paid:'#e6f4ec', outstanding:'#fef6ec', partial:'#fef9e6', inkind:'#f3e8ff'}[s.status] || 'var(--bg)';
+  const sCol = {paid:'var(--green)', outstanding:'var(--orange)', partial:'#b45309', inkind:'#6d28d9'}[s.status] || 'var(--text-dim)';
+  const statusBadge = '<span style="font-size:9px;font-weight:800;background:' + sBg + ';color:' + sCol + ';padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.4px;">' + cap(s.status) + '</span>';
+
+  const editHint = (me && me.edit)
+    ? '<span style="font-size:11px;color:var(--text-dim);padding:2px 8px;background:var(--bg);border-radius:4px;border:1px solid var(--border);flex-shrink:0;margin-left:2px;">Edit →</span>'
+    : '';
+
+  const subLine = (isInKind && s.inkindDesc)
+    ? '<div style="font-size:11px;color:#6d28d9;margin-top:3px;">📦 ' + s.inkindDesc + '</div>'
+    : (s.notes ? '<div style="font-size:11px;color:var(--text-dim);margin-top:3px;">📋 ' + s.notes + '</div>' : '');
+
+  return '<div class="ss-row" onclick="openEditSS(\'' + s.id + '\',\'' + orgId + '\')">'
+    + '<div style="flex:1;min-width:0;">'
+    +   '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+    +     '<div class="tdot ' + s.tier + '" style="flex-shrink:0;"></div>'
+    +     '<span style="font-weight:800;font-size:14px;color:' + tierCol + ';">' + tierLbl + '</span>'
+    +     '<span style="font-size:12px;color:var(--text-dim);font-weight:600;">' + s.year + '</span>'
+    +   '</div>'
+    +   subLine
+    + '</div>'
+    + '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
+    +   amtHtml + paidHtml + statusBadge + editHint
+    + '</div>'
+    + '</div>';
+}
+
 function renderOrgDetail(org, clog, loading) {
-  const ssList  = ssForOrg(org.id).sort((a,b) => +b.year - +a.year);
-  const editBtn = me?.edit ? `<button class="actbtn" onclick="openEditOrg('${org.id}')">Edit</button>` : '';
+  const ssList = ssForOrg(org.id).sort((a, b) => +b.year - +a.year);
 
-  const addrSection = (org.physAddr || org.postAddr) ? `
-    <div style="margin-bottom:12px;">
-      ${org.physAddr ? `<div style="font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Physical Address</div><div style="font-size:13px;margin-bottom:6px;">${org.physAddr}</div>` : ''}
-      ${org.postAddr && !org.postSameAsPhys ? `<div style="font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Postal Address</div><div style="font-size:13px;">${org.postAddr}</div>` : ''}
-      ${org.postSameAsPhys ? `<div style="font-size:11px;color:var(--text-dim);font-style:italic;">Postal same as physical</div>` : ''}
-    </div>` : '';
+  // ── Header buttons ──────────────────────────────────────
+  const editOrgBtn = (me && me.edit)
+    ? '<button class="actbtn" onclick="openEditOrg(\'' + org.id + '\')">Edit Details</button>'
+    : '';
+  const addSSBtn = (me && me.edit)
+    ? '<button class="ss-add-btn" onclick="openAddSS(\'' + org.id + '\')">+ Add Season Sponsorship</button>'
+    : '';
 
-  const seasonHtml = ssList.length ? ssList.map(s =>
-    `<span class="season-pill" onclick="openEditSS('${s.id}','${org.id}')">
-      <span class="sp-tier" style="color:${TH[s.tier]||'inherit'}">${TL[s.tier]||s.tier}</span>
-      <span class="sp-yr">${s.year}</span>
-      <span class="sbadge ${s.status}" style="font-size:8px;padding:1px 5px;">${cap(s.status)}</span>
-    </span>`
-  ).join(' ') : '<span style="color:var(--text-dim);font-size:12px">No season entries</span>';
+  // ── Address ─────────────────────────────────────────────
+  let addrHtml = '';
+  if (org.physAddr || org.postAddr) {
+    addrHtml = '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">';
+    if (org.physAddr) addrHtml += '<div style="font-size:10px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Physical</div><div style="font-size:12px;margin-bottom:6px;">' + org.physAddr + '</div>';
+    if (org.postAddr && !org.postSameAsPhys) addrHtml += '<div style="font-size:10px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Postal</div><div style="font-size:12px;">' + org.postAddr + '</div>';
+    if (org.postSameAsPhys) addrHtml += '<div style="font-size:11px;color:var(--text-dim);font-style:italic;">Postal same as physical</div>';
+    addrHtml += '</div>';
+  }
 
-  const addSSBtn = me?.edit ? `<span class="add-season-pill" onclick="openAddSS('${org.id}')">+ Add Season</span>` : '';
+  // ── Season rows ─────────────────────────────────────────
+  let seasonBodyHtml = '';
+  if (ssList.length) {
+    for (let i = 0; i < ssList.length; i++) {
+      seasonBodyHtml += renderSSRow(ssList[i], org.id);
+    }
+  } else {
+    seasonBodyHtml = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;text-align:center;">No season entries yet — click <strong>Add Season Sponsorship</strong> to get started.</div>';
+  }
 
-  const clogHtml = loading ? '<div style="color:var(--text-dim);font-size:12px;padding:8px 0;">Loading contact log…</div>' :
-    !clog.length ? '<div style="color:var(--text-dim);font-size:12px;padding:8px 0;">No contact history yet.</div>' :
-    clog.map(c => `
-      <div class="clog-entry">
-        <div class="clog-dot"></div>
-        <div class="clog-body">
-          <div class="clog-meta">${c.date} · ${c.contactedBy}
-            ${me?.edit ? `<button onclick="deleteContactEntry('${c.id}','${org.id}')" style="margin-left:8px;font-size:10px;color:var(--red);background:none;border:none;cursor:pointer;">✕</button>` : ''}
-          </div>
-          <div class="clog-notes">${c.notes}</div>
-        </div>
-      </div>`).join('');
+  // ── Contact log ─────────────────────────────────────────
+  let clogHtml = '';
+  if (loading) {
+    clogHtml = '<div style="color:var(--text-dim);font-size:12px;padding:8px 0;">Loading…</div>';
+  } else if (!clog.length) {
+    clogHtml = '<div style="color:var(--text-dim);font-size:12px;padding:8px 0;">No contact history yet.</div>';
+  } else {
+    for (let i = 0; i < clog.length; i++) {
+      const cl = clog[i];
+      const delBtn = (me && me.edit)
+        ? '<button onclick="deleteContactEntry(\'' + cl.id + '\',\'' + org.id + '\')" style="margin-left:auto;font-size:10px;color:var(--red);background:none;border:none;cursor:pointer;padding:2px 4px;">✕</button>'
+        : '';
+      clogHtml += '<div class="clog-entry"><div class="clog-dot"></div><div class="clog-body">'
+        + '<div class="clog-meta" style="display:flex;align-items:center;">' + cl.date + ' · ' + cl.contactedBy + delBtn + '</div>'
+        + '<div class="clog-notes">' + cl.notes + '</div>'
+        + '</div></div>';
+    }
+  }
 
-  const addLogBtn = me?.edit ? `<button class="actbtn" onclick="openContactLog('${org.id}')" style="margin-bottom:10px;">+ Log Contact</button>` : '';
+  const addLogBtn = (me && me.edit)
+    ? '<button class="actbtn" onclick="openContactLog(\'' + org.id + '\')" style="margin-bottom:10px;width:100%;">+ Log Contact</button>'
+    : '';
 
-  document.getElementById('od-content').innerHTML = `
-    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;">
-      <div class="dlogo" style="flex-shrink:0;">${org.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>
-      <div style="flex:1;min-width:0;">
-        <h2 style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;">${org.name}</h2>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px;">
-          <span class="ostatus ${org.orgStatus}">${cap(org.orgStatus)}</span>
-          ${org.website ? `<a href="https://${org.website}" target="_blank" rel="noopener" style="color:var(--green);font-size:11px;">${org.website} ↗</a>` : ''}
-        </div>
-      </div>
-      ${editBtn}
-    </div>
+  const contactHasData = org.primaryContact || org.email || org.phone || org.physAddr || org.postAddr;
+  let contactHtml = '';
+  if (contactHasData) {
+    contactHtml = '<div class="panel" style="margin-bottom:12px;">'
+      + '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:8px;">Contact Details</div>'
+      + (org.primaryContact ? '<div style="font-size:13px;font-weight:600;margin-bottom:4px;">👤 ' + org.primaryContact + '</div>' : '')
+      + (org.email ? '<div style="font-size:12px;margin-bottom:3px;">✉ <a href="mailto:' + org.email + '" style="color:var(--green)">' + org.email + '</a></div>' : '')
+      + (org.phone ? '<div style="font-size:12px;margin-bottom:3px;">📞 ' + org.phone + '</div>' : '')
+      + addrHtml
+      + '</div>';
+  }
 
-    <div class="org-detail-wrap">
-      <div class="org-detail-main">
-        ${org.primaryContact||org.email||org.phone ? `
-        <div class="panel" style="margin-bottom:12px;">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:8px;">Contact Details</div>
-          ${org.primaryContact ? `<div style="font-size:13px;font-weight:600;margin-bottom:4px;">👤 ${org.primaryContact}</div>` : ''}
-          ${org.email ? `<div style="font-size:12px;margin-bottom:3px;">✉ <a href="mailto:${org.email}" style="color:var(--green)">${org.email}</a></div>` : ''}
-          ${org.phone ? `<div style="font-size:12px;margin-bottom:3px;">📞 ${org.phone}</div>` : ''}
-          ${addrSection}
-        </div>` : ''}
+  const notesHtml = org.notes
+    ? '<div class="panel" style="margin-bottom:12px;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:6px;">Notes</div><div style="font-size:13px;color:var(--text-mid);">' + org.notes + '</div></div>'
+    : '';
 
-        <div class="panel" style="margin-bottom:12px;">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:8px;">Season History</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-            ${seasonHtml}
-            ${addSSBtn}
-          </div>
-        </div>
+  const initials = org.name.split(' ').map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
+  const websiteHtml = org.website
+    ? '<a href="https://' + org.website + '" target="_blank" rel="noopener" style="color:var(--green);font-size:11px;">' + org.website + ' ↗</a>'
+    : '';
 
-        ${org.notes ? `<div class="panel" style="margin-bottom:12px;">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:6px;">Notes</div>
-          <div style="font-size:13px;color:var(--text-mid);">${org.notes}</div>
-        </div>` : ''}
-      </div>
+  document.getElementById('od-content').innerHTML =
+    // Header
+    '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;">'
+    + '<div class="dlogo" style="flex-shrink:0;">' + initials + '</div>'
+    + '<div style="flex:1;min-width:0;">'
+    +   '<h2 style="font-family:\'Barlow Condensed\',sans-serif;font-size:22px;font-weight:900;line-height:1.1;">' + org.name + '</h2>'
+    +   '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px;">'
+    +     '<span class="ostatus ' + org.orgStatus + '">' + cap(org.orgStatus) + '</span>'
+    +     websiteHtml
+    +   '</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:6px;flex-shrink:0;">' + editOrgBtn + '</div>'
+    + '</div>'
 
-      <div class="org-detail-side">
-        <div class="panel">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:8px;">Contact Log</div>
-          ${addLogBtn}
-          <div id="clog-list-${org.id}">${clogHtml}</div>
-        </div>
-      </div>
-    </div>`;
+    // Season panel (full width, prominent)
+    + '<div class="panel" style="margin-bottom:12px;border-color:var(--border-s);">'
+    +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;">'
+    +     '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;">Sponsorship Packages</div>'
+    +     addSSBtn
+    +   '</div>'
+    +   '<div id="ss-list-' + org.id + '" style="display:flex;flex-direction:column;gap:6px;">' + seasonBodyHtml + '</div>'
+    + '</div>'
+
+    // Two-col below
+    + '<div class="org-detail-wrap">'
+    +   '<div class="org-detail-main">'
+    +     contactHtml
+    +     notesHtml
+    +   '</div>'
+    +   '<div class="org-detail-side">'
+    +     '<div class="panel">'
+    +       '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:8px;">Contact Log</div>'
+    +       addLogBtn
+    +       '<div id="clog-list-' + org.id + '">' + clogHtml + '</div>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>';
 }
 
 function closeOrgDetail() { document.getElementById('org-detail-overlay').classList.remove('open'); }
@@ -1542,79 +1654,107 @@ async function deleteOrg() {
 //  SEASON ENTRY MODAL
 // ════════════════════════════════════════════════════════
 function openAddSS(orgId) {
-  if (!me?.edit) return;
+  if (!me || !me.edit) return;
   editSSId  = null;
   editSSOrg = orgId;
-  const org = orgs.find(o=>o.id===orgId);
+  const org = orgs.find(o => o.id === orgId);
   document.getElementById('ss-m-title').textContent = 'Add Season Sponsorship';
   document.getElementById('ss-m-sub').textContent   = org ? org.name : '';
-  document.getElementById('ss-m-save').textContent  = 'Add';
+  document.getElementById('ss-m-save').textContent  = 'Add Sponsorship';
   document.getElementById('ss-m-del').style.display = 'none';
-  document.getElementById('sf-tier').value   = '';
-  document.getElementById('sf-status').value = '';
-  document.getElementById('sf-amount').value = '';
-  document.getElementById('sf-paid').value   = '';
-  document.getElementById('sf-partial-wrap').style.display = 'none';
-  document.getElementById('sf-amount-wrap').style.display  = '';
-  // Default to activeSeason
+  document.getElementById('sf-tier').value      = '';
+  document.getElementById('sf-status').value    = '';
+  document.getElementById('sf-amount').value    = '';
+  document.getElementById('sf-paid').value      = '';
+  document.getElementById('sf-notes').value     = '';
+  document.getElementById('sf-inkind-desc').value = '';
+  document.getElementById('sf-partial-wrap').style.display  = 'none';
+  document.getElementById('sf-inkind-wrap').style.display   = 'none';
+  document.getElementById('sf-amount-wrap').style.display   = '';
   const sel = document.getElementById('sf-year');
   if (sel) sel.value = activeSeason;
   document.getElementById('ss-modal').classList.add('open');
 }
 
 function openEditSS(ssId, orgId) {
-  if (!me?.edit) return;
-  const ss  = seasonEntries.find(s=>s.id===ssId); if (!ss) return;
-  const org = orgs.find(o=>o.id===orgId);
+  if (!me || !me.edit) return;
+  const ss  = seasonEntries.find(s => s.id === ssId); if (!ss) return;
+  const org = orgs.find(o => o.id === orgId);
   editSSId  = ssId;
   editSSOrg = orgId;
-  document.getElementById('ss-m-title').textContent = 'Edit Season Sponsorship';
-  document.getElementById('ss-m-sub').textContent   = (org?org.name:'') + ' · ' + ss.year;
-  document.getElementById('ss-m-save').textContent  = 'Save';
+  document.getElementById('ss-m-title').textContent = 'Edit Sponsorship Package';
+  document.getElementById('ss-m-sub').textContent   = (org ? org.name : '') + ' · ' + ss.year;
+  document.getElementById('ss-m-save').textContent  = 'Save Changes';
   document.getElementById('ss-m-del').style.display = 'block';
-  document.getElementById('sf-year').value   = ss.year;
-  document.getElementById('sf-tier').value   = ss.tier;
-  document.getElementById('sf-status').value = ss.status;
-  document.getElementById('sf-amount').value = ss.status==='inkind' ? '' : ss.amount;
-  document.getElementById('sf-paid').value   = ss.paidAmount || '';
-  document.getElementById('sf-partial-wrap').style.display = ss.status==='partial' ? '' : 'none';
-  document.getElementById('sf-amount-wrap').style.display  = ss.status==='inkind'  ? 'none' : '';
+  document.getElementById('sf-year').value      = ss.year;
+  document.getElementById('sf-tier').value      = ss.tier;
+  document.getElementById('sf-status').value    = ss.status;
+  document.getElementById('sf-amount').value    = ss.status === 'inkind' ? '' : ss.amount;
+  document.getElementById('sf-paid').value      = ss.paidAmount || '';
+  document.getElementById('sf-notes').value     = ss.notes || '';
+  document.getElementById('sf-inkind-desc').value = ss.inkindDesc || '';
+  updateSSFields();
   document.getElementById('ss-modal').classList.add('open');
 }
 
 function closeSSModal() { document.getElementById('ss-modal').classList.remove('open'); editSSId=null; editSSOrg=null; }
 
-document.getElementById('sf-status').addEventListener('change', function() {
-  const isPartial = this.value==='partial', isInKind = this.value==='inkind';
-  document.getElementById('sf-partial-wrap').style.display = isPartial ? '' : 'none';
-  document.getElementById('sf-amount-wrap').style.display  = isInKind  ? 'none' : '';
-  if (isInKind) document.getElementById('sf-amount').value = '0';
-});
+function updateSSFields() {
+  const status    = document.getElementById('sf-status').value;
+  const isPartial = status === 'partial';
+  const isInKind  = status === 'inkind';
+  document.getElementById('sf-partial-wrap').style.display  = isPartial ? '' : 'none';
+  document.getElementById('sf-inkind-wrap').style.display   = isInKind  ? '' : 'none';
+  document.getElementById('sf-amount-wrap').style.display   = isInKind  ? 'none' : '';
+  if (isInKind) { document.getElementById('sf-amount').value = '0'; }
+  updateBalance();
+}
+
+function updateBalance() {
+  const amount = +document.getElementById('sf-amount').value || 0;
+  const paid   = +document.getElementById('sf-paid').value   || 0;
+  const bal    = document.getElementById('sf-balance');
+  if (!bal) return;
+  const owing = amount - paid;
+  bal.textContent = owing > 0 ? '$' + owing.toLocaleString('en-AU') : owing === 0 ? '✓ Fully paid' : 'Overpaid';
+  bal.style.color = owing > 0 ? 'var(--orange)' : 'var(--green-bright)';
+}
+
+document.getElementById('sf-status').addEventListener('change', updateSSFields);
+document.getElementById('sf-amount').addEventListener('input',  updateBalance);
+document.getElementById('sf-paid').addEventListener('input',    updateBalance);
 
 async function saveSS() {
-  const tier   = document.getElementById('sf-tier').value;
-  const status = document.getElementById('sf-status').value;
-  const amount = document.getElementById('sf-amount').value;
-  if (!tier)   { showToast('Select a tier', 'warn'); return; }
+  const tier      = document.getElementById('sf-tier').value;
+  const status    = document.getElementById('sf-status').value;
+  const amount    = document.getElementById('sf-amount').value;
+  const notes     = document.getElementById('sf-notes').value.trim();
+  const inkindDesc= document.getElementById('sf-inkind-desc').value.trim();
+  if (!tier)   { showToast('Select a tier / package', 'warn'); return; }
   if (!status) { showToast('Select a payment status', 'warn'); return; }
-  const finalAmount = status==='inkind' ? 0 : +amount;
-  if (status!=='inkind' && (!amount || +amount<=0)) { showToast('Enter a valid amount', 'warn'); return; }
+  if (status === 'inkind' && !inkindDesc) { showToast('Describe what they\'re providing', 'warn'); return; }
+  const finalAmount = status === 'inkind' ? 0 : +amount;
+  if (status !== 'inkind' && (!amount || +amount <= 0)) { showToast('Enter the agreed amount', 'warn'); return; }
   const data = {
-    id: editSSId||'', orgId: editSSOrg,
+    id: editSSId || '', orgId: editSSOrg,
     year: +document.getElementById('sf-year').value,
     tier, status,
     amount: finalAmount,
-    paidAmount: +document.getElementById('sf-paid').value||0,
+    paidAmount: +document.getElementById('sf-paid').value || 0,
+    notes, inkindDesc,
   };
   setSyncState('loading', 'Saving…');
   btnLoading(document.getElementById('ss-m-save'), true);
   const res = await api('saveSeason', { data, isNew: !editSSId });
   btnLoading(document.getElementById('ss-m-save'), false);
-  if (res.error) { showToast('Error: ' + res.error, 'err'); setSyncState('err','Save failed'); return; }
-  if (!editSSId) { data.id=res.id; seasonEntries.push(data); }
-  else { const idx=seasonEntries.findIndex(s=>s.id===editSSId); if(idx>=0) seasonEntries[idx]={...seasonEntries[idx],...data}; }
+  if (res.error) { showToast('Error: ' + res.error, 'err'); setSyncState('err', 'Save failed'); return; }
+  if (!editSSId) { data.id = res.id; seasonEntries.push(data); }
+  else { const idx = seasonEntries.findIndex(s => s.id === editSSId); if (idx >= 0) seasonEntries[idx] = {...seasonEntries[idx], ...data}; }
+  setSyncState('ok', 'Saved');
+  const reopenOrgId = editSSOrg;
   closeSSModal(); render();
-  showToast(editSSId ? 'Updated ✓' : 'Season entry added ✓');
+  showToast(editSSId ? 'Package updated ✓' : 'Sponsorship added ✓');
+  if (reopenOrgId) setTimeout(() => openOrgDetail(reopenOrgId), 80);
   loadAll();
 }
 
@@ -1624,9 +1764,11 @@ async function deleteSS() {
   const res = await api('deleteSeason', { id: editSSId });
   btnLoading(document.getElementById('ss-m-del'), false);
   if (res.error) { showToast('Error: '+res.error, 'err'); return; }
+  const reopenOrgId = editSSOrg;
   seasonEntries = seasonEntries.filter(s=>s.id!==editSSId);
   closeSSModal(); render();
   showToast('Season entry removed');
+  if (reopenOrgId) setTimeout(() => openOrgDetail(reopenOrgId), 100);
   loadAll();
 }
 
