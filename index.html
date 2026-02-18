@@ -6,6 +6,7 @@
 <title>KJFC Exec Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
+
 /* ════════════════════════════════════════
    ROOT VARIABLES
    ════════════════════════════════════════ */
@@ -172,6 +173,7 @@ header{
 .role-tag-default{font-size:10px;color:var(--text-dim);font-style:italic;}
 .ptab-soon{opacity:.45;cursor:not-allowed!important;position:relative;}
 .ptab-soon:hover{background:var(--card)!important;color:var(--text-dim)!important;border-color:var(--border)!important;}
+.ptabs{padding:10px 16px;display:flex;gap:8px;border-top:1px solid var(--border);background:var(--card);}
 .soon-badge{display:inline-block;font-size:8px;font-weight:800;background:var(--yellow);color:var(--green);border-radius:3px;padding:1px 4px;margin-left:5px;vertical-align:middle;text-transform:uppercase;letter-spacing:.5px;}
 .ptab{padding:7px 14px;border-radius:6px;background:var(--card);color:var(--text-dim);border:1.5px solid var(--border);font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;flex-shrink:0;}
 .ptab.act{background:var(--green);color:#fff;border-color:var(--green);}
@@ -182,10 +184,14 @@ header{
 main{
   padding:16px max(16px,env(safe-area-inset-right)) calc(16px + var(--safe-bottom)) max(16px,env(safe-area-inset-left));
   max-width:1440px;
+  display:flex;
+  gap:20px;
+  align-items:flex-start;
 }
 .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;}
 .stitle{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;text-transform:uppercase;letter-spacing:1px;color:var(--text);}
 .stitle span{color:var(--green);}
+.section-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;text-transform:uppercase;letter-spacing:1px;}
 
 /* ════════════════════════════════════════
    SYNC STATUS BAR
@@ -508,218 +514,319 @@ td{padding:10px 10px;vertical-align:middle;}
   .dkpi{padding:10px 11px;}
   .dinfo h2{font-size:20px;}
 }
+
+
+/* ── NEW: Prospect / org status badges ── */
+.ostatus{display:inline-block;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;}
+.ostatus.active{background:var(--green-light);color:var(--green);}
+.ostatus.prospect{background:#fef9e6;color:#b45309;}
+.ostatus.lapsed{background:#f3f4f6;color:#6b7280;}
+
+/* ── Contact log ── */
+.clog-entry{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.clog-entry:last-child{border-bottom:none;}
+.clog-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:5px;}
+.clog-body{flex:1;min-width:0;}
+.clog-meta{font-size:10px;color:var(--text-dim);margin-bottom:2px;}
+.clog-notes{font-size:13px;color:var(--text-mid);}
+
+/* ── Address fields ── */
+.addr-same-wrap{display:flex;align-items:center;gap:8px;margin-top:4px;}
+.addr-same-wrap input[type=checkbox]{width:16px;height:16px;accent-color:var(--green);cursor:pointer;}
+.addr-same-wrap label{font-size:12px;color:var(--text-dim);cursor:pointer;}
+
+/* ── Two-panel layout for org detail ── */
+.org-detail-wrap{display:flex;gap:16px;flex-wrap:wrap;}
+.org-detail-main{flex:1;min-width:260px;}
+.org-detail-side{width:280px;flex-shrink:0;}
+@media(max-width:640px){.org-detail-side{width:100%;}}
+
+/* ── Season pills on org card ── */
+.season-pill{display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:1.5px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;cursor:pointer;transition:all .15s;}
+.season-pill:hover{border-color:var(--green);background:var(--green-light);}
+.season-pill .sp-tier{font-weight:800;}
+.season-pill .sp-yr{color:var(--text-dim);}
+
+/* ── Add season to org button ── */
+.add-season-pill{display:inline-flex;align-items:center;gap:4px;background:var(--yellow-pale);border:1.5px dashed var(--yellow-dark);border-radius:20px;padding:3px 10px;font-size:11px;cursor:pointer;color:var(--yellow-dark);font-weight:700;transition:all .15s;}
+.add-season-pill:hover{background:var(--yellow-mid);}
+
+/* ── Tabs for sponsor view: Active | Prospects ── */
+.view-tabs{display:flex;gap:6px;margin-bottom:14px;}
+.vtab{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid var(--border);background:var(--card);cursor:pointer;transition:all .15s;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.5px;}
+.vtab.act{background:var(--green);color:#fff;border-color:var(--green);}
+.vtab.prospect-tab.act{background:#b45309;border-color:#b45309;}
+
+
+/* ── MISSING LAYOUT CSS ── */
+.hright{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.season-head{display:flex;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap;}
+.sadd{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;}
+.sadd:hover{background:rgba(255,255,255,.25);}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px;}
+@media(min-width:600px){.kpis{grid-template-columns:repeat(4,1fr);}}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.ftab{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;border:1.5px solid var(--border);background:var(--card);cursor:pointer;transition:all .15s;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+.ftab.act{background:var(--green);color:#fff;border-color:var(--green);}
+.left-col{flex:1;min-width:0;}
+.right-col{width:300px;flex-shrink:0;}
+@media(max-width:900px){.right-col{width:100%;}}
+.panel-title{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--text);margin-bottom:10px;}
+.side-panel{position:fixed;top:0;right:-420px;width:min(420px,100vw);height:100vh;background:var(--card);box-shadow:-4px 0 24px rgba(0,0,0,.13);z-index:200;transition:right .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden;}
+.side-panel.open{right:0;}
+.spclose{position:absolute;top:14px;right:16px;background:var(--bg);border:1.5px solid var(--border);border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;}
+.sp-title{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;text-transform:uppercase;padding:16px 48px 0 16px;letter-spacing:.5px;}
+.stable{width:100%;border-collapse:collapse;font-size:13px;}
+.stable th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;padding:6px 8px;border-bottom:2px solid var(--border);}
+.stable td{padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.stable tr:last-child td{border-bottom:none;}
+.stable tbody tr{cursor:pointer;transition:background .12s;}
+.stable tbody tr:hover{background:var(--green-light);}
+#sync-state,.sync-ok,.sync-loading,.sync-err{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;}
+.sync-ok{background:var(--green-light);color:var(--green);}
+.sync-loading{background:var(--yellow-pale);color:var(--yellow-dark);}
+.sync-err{background:var(--red-light);color:var(--red);}
+
 </style>
 </head>
 <body>
 
-<!-- ════════ LOADING ════════ -->
+<!-- LOADING SCREEN -->
 <div id="loading-screen">
-  <div class="ls-crest" style="font-size:18px;">KJFC</div>
+  <div class="ls-crest">KJFC</div>
   <div class="ls-text">Loading…</div>
-  <div class="ls-spinner"></div>
+  <div class="ls-bar"><div class="ls-bar-fill"></div></div>
 </div>
 
-<!-- ════════ LOGIN ════════ -->
-<div id="login-screen">
-  <div class="lwrap">
-    <div class="lcrest">KJFC</div>
-    <div class="lclub">Kinglake Junior<br>Football Club</div>
-    <div class="ltag">Exec Dashboard</div>
-    <div class="lbox">
-      <h2>Sign In</h2>
-      <p>Use your approved Google account to access the executive dashboard.</p>
-      <div id="google-btn-container" style="display:flex;justify-content:center;min-height:44px;width:100%;"></div>
-      <button class="google-btn" id="google-sign-in-btn" style="display:none">Continue with Google</button>
-      <div class="lerr" id="lerr"></div>
+<!-- LOGIN -->
+<div id="login-view" style="display:none;min-height:100vh;display:none;align-items:center;justify-content:center;background:var(--green);">
+  <div class="lbox" style="background:#fff;border-radius:18px;padding:36px 28px;width:100%;max-width:380px;margin:24px;box-shadow:0 12px 40px rgba(0,0,0,.18);">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="width:64px;height:64px;background:var(--yellow);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:22px;color:var(--green);margin:0 auto 14px;">KJFC</div>
+      <h1 style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;">Executive Dashboard</h1>
+      <p style="font-size:13px;color:var(--text-dim);margin-top:4px;">Kinglake Junior Football Club</p>
     </div>
-    <div class="lfooter">Access is restricted to approved club members.<br>Sign-ins are recorded in the activity log.</div>
+    <div id="google-btn-container" style="margin-bottom:12px;"></div>
+    <button id="google-sign-in-btn" style="width:100%;padding:12px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;">Sign in with Google</button>
+    <div id="lerr" style="color:var(--red);font-size:12px;text-align:center;margin-top:10px;min-height:16px;"></div>
   </div>
 </div>
 
-<!-- ════════ APP ════════ -->
-<header>
-  <div class="logo-area">
-    <div class="logo-badge" style="font-size:11px;">KJFC</div>
-    <div class="logo-text">
-      <h1>Kinglake JFC</h1>
-      <small>Exec Dashboard</small>
+<!-- MAIN APP -->
+<div id="app" style="display:none;">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-area">
+      <div class="logo-badge">KJFC</div>
+      <div class="logo-text">
+        <h1>Exec Dashboard</h1>
+        <small>Kinglake JFC</small>
+      </div>
     </div>
-  </div>
-  <div class="huser">
-    <div class="uchip" onclick="openProfile()">
-      <div class="uav" id="uav"><span id="uav-init">?</span></div>
-      <div class="uname" id="uname">—</div>
+    <div class="hright">
+      <div id="sync-state" class="sync-ok">●&nbsp;Synced</div>
+      <button class="sync-refresh" onclick="loadAll()">↻ Refresh</button>
+      <div class="huser">
+        <img id="user-pic" src="" style="width:28px;height:28px;border-radius:50%;display:none;object-fit:cover;">
+        <span id="user-name"></span>
+      </div>
+      <button class="lobtn" onclick="doLogout()">Sign Out</button>
     </div>
-    <button class="lobtn" onclick="doLogout()">Sign Out</button>
-  </div>
-</header>
+  </header>
 
-<!-- SEASON BAR -->
-<div class="sbar">
-  <span class="slabel">Season:</span>
-  <div class="stabs" id="stabs"></div>
-  <button class="add-s-btn" id="addseasbtn" onclick="openSeasonModal()" style="display:none">+ Season</button>
-</div>
-
-<main>
-  <!-- PAGE TABS -->
-  <div class="ptabs-top" id="ptabs">
-    <button class="ptab act" onclick="setTab('overview',this)">Overview</button>
-    <button class="ptab" id="tab-access-btn" onclick="setTab('access',this)" style="display:none">Access Log</button>
-    <button class="ptab" id="tab-users-btn" onclick="setTab('users',this)" style="display:none">Users</button>
-    <button class="ptab ptab-soon" disabled title="Coming soon">Players <span class="soon-badge">Soon</span></button>
-    <button class="ptab ptab-soon" disabled title="Coming soon">Finance <span class="soon-badge">Soon</span></button>
+  <!-- SEASON BAR -->
+  <div class="sbar">
+    <div id="season-tabs" class="stabs"></div>
+    <button class="sadd" onclick="openSeasonModal()">+ Season</button>
   </div>
 
-  <!-- SYNC STATUS -->
-  <div class="sync-bar" id="sync-bar">
-    <div class="sync-dot loading" id="sync-dot"></div>
-    <span id="sync-text">Connecting to Google Sheets…</span>
-    <button class="sync-refresh" onclick="loadAll()">↻ Refresh</button>
-  </div>
-
-  <!-- ══ OVERVIEW ══ -->
-  <div id="tab-overview">
-    <div class="mainview" id="mainView">
-      <div class="sh">
-        <h2 class="stitle">Sponsorship <span id="season-span">Overview</span></h2>
-        <button class="abtn" id="add-btn" onclick="openAdd()" style="display:none">+ Add Sponsor</button>
+  <!-- MAIN -->
+  <main>
+    <!-- LEFT: KPIs + Charts -->
+    <div class="left-col">
+      <div class="season-head">
+        <h2 class="section-title" id="season-span">SPONSORSHIP</h2>
+        <button class="actbtn" onclick="openAddOrg()" id="add-sponsor-btn" style="margin-left:auto">+ Add Sponsor</button>
       </div>
 
-      <div class="krow">
-        <div class="kcard total" onclick="drillTotal()">
+      <!-- KPI CARDS -->
+      <div class="kpis">
+        <div class="kcard" onclick="drillTotal()" style="cursor:pointer">
           <div class="klbl">Total Committed</div>
-          <div class="kval" id="k-total">—</div>
-          <div class="ksub" id="k-count"></div>
+          <div class="kval" id="k-total" style="color:var(--yellow-dark)">$0</div>
+          <div class="ksub" id="k-count">0 sponsors</div>
           <div class="ktrend" id="k-trend"></div>
           <div class="klink">View all →</div>
         </div>
-        <div class="kcard paid" onclick="drillPaid()">
+        <div class="kcard" onclick="drillPaid()" style="cursor:pointer">
           <div class="klbl">Received</div>
-          <div class="kval" id="k-paid">—</div>
-          <div class="ksub" id="k-ppct"></div>
+          <div class="kval" id="k-paid" style="color:var(--green)">$0</div>
+          <div class="ksub" id="k-ppct">0% collected</div>
           <div class="pbtrack"><div class="pbfill" id="k-bar" style="width:0%"></div></div>
           <div class="klink">Paid &amp; partial →</div>
         </div>
-        <div class="kcard out" onclick="drillOut()">
+        <div class="kcard" onclick="drillOut()" style="cursor:pointer">
           <div class="klbl">Outstanding</div>
-          <div class="kval" id="k-out">—</div>
-          <div class="ksub" id="k-outc"></div>
+          <div class="kval" id="k-out" style="color:var(--red)">$0</div>
+          <div class="ksub" id="k-outc">0 invoices pending</div>
           <div class="klink">View outstanding →</div>
         </div>
-        <div class="kcard cnt">
+        <div class="kcard">
           <div class="klbl">By Tier</div>
           <div id="tier-mini" style="display:flex;flex-direction:column;gap:5px;margin-top:7px;"></div>
         </div>
       </div>
 
-      <!-- DRILL PANEL -->
-      <div class="drill-panel" id="drillPanel">
-        <div class="drill-header">
-          <div class="drill-title" id="drillTitle">Sponsors</div>
-          <button class="drill-close" onclick="closeDrill()">×</button>
-        </div>
-        <div class="stw">
-          <table>
-            <thead><tr><th>Sponsor</th><th>Tier</th><th>Amount</th><th>Status</th><th>Contact</th></tr></thead>
-            <tbody id="drill-body"></tbody>
-          </table>
-          <div class="sponsor-cards" id="drill-cards"></div>
+      <!-- IN-KIND STRIP -->
+      <div id="inkind-strip" style="display:none;background:var(--card);border:1.5px solid #e9d5ff;border-radius:11px;padding:12px 16px;margin-bottom:16px;align-items:center;gap:12px;">
+        <span style="font-size:18px;">🤝</span>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:.5px;">In-Kind Sponsors</div>
+          <div id="inkind-summary" style="font-size:13px;color:var(--text-mid);"></div>
         </div>
       </div>
 
-      <div class="twocol">
-        <div class="panel">
-          <div class="ptitle"><span>Year-on-Year</span> Comparison <span style="font-size:10px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--text-dim)">(tap to switch season)</span></div>
-          <div id="year-bars"></div>
-        </div>
-        <div class="panel">
-          <div class="ptitle"><span>Revenue</span> by Tier</div>
-          <div class="tlist" id="tier-list"></div>
-        </div>
+      <!-- YOY -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-title">Year-on-Year <span style="color:var(--green)">Comparison</span> <span style="font-size:10px;font-weight:400;color:var(--text-dim)">(tap to switch season)</span></div>
+        <div id="year-bars" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;"></div>
       </div>
 
+      <!-- PROSPECT PIPELINE -->
+      <div class="panel" style="margin-bottom:16px;" id="prospect-panel">
+        <div class="panel-title">🎯 Prospect Pipeline</div>
+        <div id="prospect-list" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Tier breakdown + Sponsor list -->
+    <div class="right-col">
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-title">Revenue <span style="color:var(--green)">by Tier</span></div>
+        <div class="tlist" id="tier-list"></div>
+      </div>
+
+      <!-- SPONSOR TABLE -->
       <div class="panel">
-        <div class="toolbar">
-          <button class="fbtn act" onclick="filterTable('all',this)">All</button>
-          <button class="fbtn" onclick="filterTable('gold',this)">Gold</button>
-          <button class="fbtn" onclick="filterTable('silver',this)">Silver</button>
-          <button class="fbtn" onclick="filterTable('bronze',this)">Bronze</button>
-          <button class="fbtn" onclick="filterTable('community',this)">Community</button>
-          <button class="fbtn" onclick="filterTable('outstanding',this)">⚠ Owing</button>
+        <!-- View toggle: Active | Prospects -->
+        <div class="view-tabs" id="view-tabs">
+          <button class="vtab act" onclick="setView('active')" id="vtab-active">Active</button>
+          <button class="vtab prospect-tab" onclick="setView('prospect')" id="vtab-prospect">Prospects</button>
         </div>
-        <!-- Desktop table -->
-        <div class="stw">
-          <table>
-            <thead><tr><th>Sponsor</th><th>Tier</th><th>Amount</th><th>Status</th><th>Yrs</th><th>Contact</th><th></th></tr></thead>
-            <tbody id="tbl-body"></tbody>
-          </table>
+        <!-- Tier filters -->
+        <div class="filters" id="filters" style="margin-bottom:12px;">
+          <button class="ftab act" onclick="filterTable('all')">All</button>
+          <button class="ftab" onclick="filterTable('gold')">Gold</button>
+          <button class="ftab" onclick="filterTable('silver')">Silver</button>
+          <button class="ftab" onclick="filterTable('bronze')">Bronze</button>
+          <button class="ftab" onclick="filterTable('community')">Community</button>
+          <button class="ftab" onclick="filterTable('outstanding')">⚠ Owing</button>
         </div>
-        <!-- Mobile cards -->
-        <div class="sponsor-cards" id="sponsor-cards"></div>
-        <div class="empty" id="tbl-empty" style="display:none">
-          <div class="icon">🏆</div>
-          <h3>No sponsors yet</h3>
-          <p>Tap "+ Add Sponsor" to get started.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="detailview" id="detailView">
-      <button class="backbtn" onclick="closeDetail()">← Back</button>
-      <div id="detail-content"></div>
-    </div>
-  </div>
-
-  <!-- ══ ACCESS LOG ══ -->
-  <div id="tab-access" style="display:none">
-    <div class="panel">
-      <div style="margin-bottom:12px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;text-transform:uppercase;margin-bottom:3px">Access &amp; Activity Log</div>
-        <div style="font-size:12px;color:var(--text-dim)">All sign-ins and data changes are recorded in Google Sheets.</div>
-      </div>
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
-        <table class="atable">
-          <thead><tr><th>Date &amp; Time</th><th>User</th><th>Role</th><th>Action</th><th>Details</th></tr></thead>
-          <tbody id="log-body"></tbody>
+        <table class="stable" id="stable">
+          <thead><tr>
+            <th>Sponsor</th><th>Tier</th><th>Amount</th><th>Status</th><th>Yrs</th><th>Contact</th><th></th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
         </table>
-        <div id="log-empty" style="display:none;padding:24px;text-align:center;color:var(--text-dim);font-size:13px">No activity logged yet.</div>
+        <div id="tbl-empty" style="display:none;text-align:center;padding:24px;color:var(--text-dim);font-size:13px;">No sponsors for this season yet.</div>
+        <div id="export-wrap" style="margin-top:10px;display:flex;justify-content:flex-end;">
+          <button class="actbtn" onclick="exportCSV()" style="font-size:11px;padding:5px 10px;">Export CSV</button>
+        </div>
       </div>
     </div>
+  </main>
+
+  <!-- TABS (Players, Finance coming soon) -->
+  <div class="ptabs">
+    <button class="ptab ptab-soon" disabled title="Coming soon">Players <span class="soon-badge">Soon</span></button>
+    <button class="ptab ptab-soon" disabled title="Coming soon">Finance <span class="soon-badge">Soon</span></button>
   </div>
 
-  <!-- ══ USERS ══ -->
-  <div id="tab-users" style="display:none">
-    <div class="sh" style="margin-bottom:12px">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;text-transform:uppercase">Users</div>
+  <!-- ADMIN PANEL -->
+  <div id="admin-section" style="display:none;">
+    <div class="panel" style="margin:16px;max-width:900px;margin-left:auto;margin-right:auto;">
+      <div class="panel-title">Admin Tools</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+        <button class="actbtn" onclick="renderAccessLog()">Access Log</button>
+        <button class="actbtn" onclick="renderUserGrid()">Manage Users</button>
+      </div>
+      <div id="access-log-wrap" style="margin-top:14px;display:none;"></div>
+      <div id="user-grid-wrap" style="margin-top:14px;display:none;"></div>
     </div>
-    <div style="background:var(--orange-light);border:1.5px solid var(--orange);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;line-height:1.5;">
-      <strong>⚠ To add or remove users:</strong> Edit <code>ALLOWED_EMAILS</code> and <code>PERMISSIONS</code> in <code>Code.gs</code> in Google Apps Script, then re-deploy. This keeps access control in your version-controlled code rather than the spreadsheet.
-    </div>
-    <div class="user-grid" id="user-grid"></div>
   </div>
-</main>
 
-<!-- ════════ SPONSOR MODAL ════════ -->
-<div class="moverlay" id="sponsor-modal">
-  <div class="modal">
+</div><!-- /app -->
+
+<!-- ═══════════════ MODALS ═══════════════ -->
+
+<!-- ORG MODAL (Add/Edit sponsor organisation) -->
+<div class="moverlay" id="org-modal">
+  <div class="modal" style="max-width:520px;">
     <div class="modal-handle"></div>
-    <button class="mclose" id="mclose-btn">×</button>
-    <div class="mtitle" id="m-title">Add Sponsor</div>
-    <div class="msub" id="m-sub">New entry for this season.</div>
+    <button class="mclose" id="org-mclose">×</button>
+    <div class="mtitle" id="org-m-title">Add Sponsor</div>
+    <div class="msub" id="org-m-sub">New sponsor organisation.</div>
 
-    <div class="copy-prev-wrap" id="copy-prev-wrap">
-      <label>📋 Copy from a previous season</label>
-      <div class="copy-prev-row">
-        <select id="copy-prev-select"><option value="">— Select past sponsor —</option></select>
-        <button class="cbtn" onclick="copyFromPrev()">Copy</button>
+    <div class="frow two">
+      <div class="fg"><label>Business Name *</label><input type="text" id="of-name" placeholder="Business name" autocomplete="organization"></div>
+      <div class="fg"><label>Status</label>
+        <select id="of-orgstatus">
+          <option value="prospect">Prospect</option>
+          <option value="active">Active Sponsor</option>
+          <option value="lapsed">Lapsed</option>
+        </select>
       </div>
     </div>
 
     <div class="frow two">
-      <div class="fg"><label>Sponsor Name *</label><input type="text" id="f-name" placeholder="Business name" autocomplete="organization"></div>
+      <div class="fg"><label>Primary Contact Name</label><input type="text" id="of-contact" placeholder="Contact name" autocomplete="name"></div>
+      <div class="fg"><label>Contact Email</label><input type="email" id="of-email" placeholder="email@biz.com.au" inputmode="email"></div>
+    </div>
+    <div class="frow two">
+      <div class="fg"><label>Phone</label><input type="tel" id="of-phone" placeholder="04xx xxx xxx" inputmode="tel"></div>
+      <div class="fg"><label>Website</label><input type="text" id="of-website" placeholder="www.example.com.au" inputmode="url"></div>
+    </div>
+
+    <div class="frow full">
+      <div class="fg">
+        <label>Physical Address</label>
+        <input type="text" id="of-physaddr" placeholder="123 Main St, Kinglake VIC 3763" autocomplete="street-address">
+      </div>
+    </div>
+    <div class="frow full">
+      <div class="fg">
+        <label>Postal Address</label>
+        <div class="addr-same-wrap" style="margin-bottom:6px;">
+          <input type="checkbox" id="of-postsame" onchange="togglePostalSame()">
+          <label for="of-postsame">Same as physical address</label>
+        </div>
+        <input type="text" id="of-postaddr" placeholder="PO Box or postal address" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="frow full">
+      <div class="fg"><label>Notes</label><textarea id="of-notes" placeholder="General notes about this organisation…"></textarea></div>
+    </div>
+    <div class="mactions">
+      <button class="mprimary" id="org-m-save">Add Sponsor</button>
+      <button class="msecondary" id="org-m-cancel">Cancel</button>
+      <button class="mdanger" id="org-m-del" style="display:none">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- SEASON ENTRY MODAL (add/edit a season sponsorship for an org) -->
+<div class="moverlay" id="ss-modal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-handle"></div>
+    <button class="mclose" id="ss-mclose">×</button>
+    <div class="mtitle" id="ss-m-title">Add Season Sponsorship</div>
+    <div class="msub" id="ss-m-sub"></div>
+    <div class="frow two">
+      <div class="fg"><label>Season *</label><select id="sf-year"></select></div>
       <div class="fg"><label>Tier *</label>
-        <select id="f-tier">
+        <select id="sf-tier">
           <option value="">Select tier</option>
           <option value="gold">Gold</option>
           <option value="silver">Silver</option>
@@ -729,12 +836,8 @@ td{padding:10px 10px;vertical-align:middle;}
       </div>
     </div>
     <div class="frow two">
-      <div class="fg"><label>Season</label><select id="f-year"></select></div>
-      <div class="fg" id="f-amount-wrap"><label>Amount ($) *</label><input type="number" id="f-amount" placeholder="2000" min="0" inputmode="numeric"></div>
-    </div>
-    <div class="frow two">
       <div class="fg"><label>Payment Status *</label>
-        <select id="f-status">
+        <select id="sf-status">
           <option value="">Select status</option>
           <option value="paid">Paid</option>
           <option value="outstanding">Outstanding</option>
@@ -742,203 +845,199 @@ td{padding:10px 10px;vertical-align:middle;}
           <option value="inkind">In-Kind</option>
         </select>
       </div>
-      <div class="fg" id="f-partial-wrap" style="display:none">
-        <label>Amount Received ($)</label>
-        <input type="number" id="f-paid" placeholder="500" min="0" inputmode="numeric">
-      </div>
+      <div class="fg" id="sf-amount-wrap"><label>Amount ($) *</label><input type="number" id="sf-amount" placeholder="2000" min="0" inputmode="numeric"></div>
     </div>
-    <div class="frow two">
-      <div class="fg"><label>Contact Name</label><input type="text" id="f-contact" placeholder="Name" autocomplete="name"></div>
-      <div class="fg"><label>Contact Email</label><input type="email" id="f-email" placeholder="email@biz.com.au" autocomplete="email" inputmode="email"></div>
-    </div>
-    <div class="frow two">
-      <div class="fg"><label>Phone</label><input type="tel" id="f-phone" placeholder="04xx xxx xxx" autocomplete="tel" inputmode="tel"></div>
-      <div class="fg"><label>Website</label><input type="text" id="f-website" placeholder="www.example.com.au" inputmode="url"></div>
-    </div>
-    <div class="frow full">
-      <div class="fg"><label>Notes / Benefits</label><textarea id="f-notes" placeholder="Signage, social posts, PA announcements…"></textarea></div>
+    <div class="frow" id="sf-partial-wrap" style="display:none;">
+      <div class="fg"><label>Amount Received ($)</label><input type="number" id="sf-paid" placeholder="500" min="0" inputmode="numeric"></div>
     </div>
     <div class="mactions">
-      <button class="mprimary" id="m-save">Add Sponsor</button>
-      <button class="msecondary" id="m-cancel">Cancel</button>
-      <button class="mdanger" id="m-del" style="display:none">Delete</button>
+      <button class="mprimary" id="ss-m-save">Add</button>
+      <button class="msecondary" id="ss-m-cancel">Cancel</button>
+      <button class="mdanger" id="ss-m-del" style="display:none">Remove</button>
     </div>
   </div>
 </div>
 
-<!-- ════════ SEASON MODAL ════════ -->
-<div class="moverlay" id="season-modal" style="align-items:center;padding:20px;">
-  <div class="smodal-inner">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;text-transform:uppercase;margin-bottom:4px">Add Season</div>
-    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.4">Create a new season. All historical data remains intact.</div>
-    <div class="fg" style="margin-bottom:14px">
-      <label>Season Year</label>
-      <input type="number" id="new-season-yr" placeholder="e.g. 2027" min="2020" max="2045" inputmode="numeric">
+<!-- CONTACT LOG MODAL -->
+<div class="moverlay" id="cl-modal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-handle"></div>
+    <button class="mclose" id="cl-mclose">×</button>
+    <div class="mtitle">Log Contact</div>
+    <div class="msub" id="cl-m-sub">Record an interaction with this sponsor.</div>
+    <div class="frow full">
+      <div class="fg"><label>Date</label><input type="date" id="clf-date"></div>
     </div>
-    <div style="display:flex;gap:8px">
+    <div class="frow full">
+      <div class="fg"><label>Notes *</label><textarea id="clf-notes" placeholder="What was discussed, next steps, outcome…" style="min-height:90px;"></textarea></div>
+    </div>
+    <div class="mactions">
+      <button class="mprimary" id="cl-m-save">Log Contact</button>
+      <button class="msecondary" id="cl-m-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ORG DETAIL PANEL -->
+<div class="moverlay" id="org-detail-overlay" style="align-items:flex-start;padding-top:20px;">
+  <div class="modal" style="max-width:680px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-handle"></div>
+    <button class="mclose" id="od-close">×</button>
+    <div id="od-content"></div>
+  </div>
+</div>
+
+<!-- DRILL DOWN PANEL -->
+<div id="drillPanel" class="side-panel">
+  <button class="spclose" onclick="closeDrill()">×</button>
+  <div class="sp-title" id="drill-title"></div>
+  <table class="stable" style="margin-top:10px;font-size:13px;">
+    <thead><tr><th>Sponsor</th><th>Tier</th><th>Amount</th><th>Status</th></tr></thead>
+    <tbody id="drill-tbody"></tbody>
+  </table>
+</div>
+
+<!-- SEASON MODAL -->
+<div class="moverlay" id="season-modal">
+  <div class="smodal-inner">
+    <div class="mtitle" style="margin-bottom:12px;">Add Season</div>
+    <div class="fg"><label>Year</label><input type="number" id="new-season-yr" min="2020" max="2040" inputmode="numeric"></div>
+    <div class="mactions" style="margin-top:14px;">
       <button class="mprimary" onclick="confirmAddSeason()">Add Season</button>
       <button class="msecondary" onclick="closeSeasonModal()">Cancel</button>
     </div>
   </div>
 </div>
 
-<!-- ════════ PROFILE MODAL ════════ -->
-<div class="moverlay" id="profile-modal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <button class="mclose" onclick="closeProfileModal()">×</button>
-    <div class="mtitle">My Profile</div>
-    <div class="msub">Manage your account.</div>
-
-    <div class="profile-sec">
-      <div class="profile-av-row">
-        <div class="profile-av" id="prof-av"><span id="prof-av-init">?</span></div>
-        <div class="profile-info">
-          <strong id="prof-name">—</strong>
-          <span id="prof-email">—</span>
-          <div class="profile-badges" id="prof-badges"></div>
-        </div>
-      </div>
-      <p style="font-size:12px;color:var(--text-dim);line-height:1.5">Your account is managed via Google Sign-In. To change your name or profile picture, update your Google account.</p>
-    </div>
-  </div>
-</div>
-
-<!-- ════════ EDIT USER MODAL ════════ -->
-<div class="moverlay" id="reset-modal" style="align-items:center;padding:20px;">
-  <div class="smodal-inner" style="max-width:420px;width:100%;overflow:hidden;">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;text-transform:uppercase;margin-bottom:4px">Edit User</div>
-    <div class="msub" id="reset-sub">Update display name, role and access level.</div>
-    <input type="hidden" id="reset-email">
-
-    <div class="fg" style="margin-bottom:10px">
-      <label>Display Name</label>
-      <input type="text" id="reset-name" placeholder="Display name">
-    </div>
-
-    <div class="fg" style="margin-bottom:10px">
-      <label>Role</label>
-      <div style="display:flex;gap:6px;">
-        <select id="reset-role" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);cursor:pointer;"></select>
-        <button onclick="openManageRoles()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;font-size:13px;color:var(--text-dim);white-space:nowrap;" title="Manage role list">⚙ Roles</button>
-      </div>
-    </div>
-
-    <div class="fg" style="margin-bottom:14px">
-      <label>Access Level</label>
-      <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px;width:100%;overflow:hidden;" id="access-level-group">
-        <label class="access-opt" id="opt-admin">
-          <input type="radio" name="access-level" value="admin">
-          <div class="access-opt-check"></div>
-          <div class="access-opt-body">
-            <div class="access-opt-title">Admin</div>
-            <div class="access-opt-desc">Full access — manage users, seasons, access log & all sponsor data</div>
-          </div>
-        </label>
-        <label class="access-opt" id="opt-edit">
-          <input type="radio" name="access-level" value="edit">
-          <div class="access-opt-check"></div>
-          <div class="access-opt-body">
-            <div class="access-opt-title">Can Edit</div>
-            <div class="access-opt-desc">Add, edit and delete sponsors. Cannot manage users or view logs.</div>
-          </div>
-        </label>
-        <label class="access-opt" id="opt-readonly">
-          <input type="radio" name="access-level" value="readonly">
-          <div class="access-opt-check"></div>
-          <div class="access-opt-body">
-            <div class="access-opt-title">Read Only</div>
-            <div class="access-opt-desc">View dashboard only. Cannot make any changes.</div>
-          </div>
-        </label>
-      </div>
-      <div style="margin-top:8px;font-size:11px;color:var(--text-dim);line-height:1.4;">
-        ⚠ Access level changes take effect after updating <code>PERMISSIONS</code> in Code.gs and re-deploying.
-      </div>
-    </div>
-
-    <div class="msg-ok" id="reset-ok">Saved successfully.</div>
-    <div class="msg-err" id="reset-err">Something went wrong.</div>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="mprimary" onclick="confirmEditUser()">Save</button>
+<!-- RESET MODAL -->
+<div class="moverlay" id="reset-modal">
+  <div class="smodal-inner">
+    <div class="mtitle" style="margin-bottom:8px;">Sign out everywhere?</div>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">This will clear your session on this device.</p>
+    <div class="mactions">
+      <button class="mprimary" onclick="confirmLogout()">Sign Out</button>
       <button class="msecondary" onclick="closeResetModal()">Cancel</button>
     </div>
   </div>
 </div>
 
-<!-- ════════ MANAGE ROLES MODAL ════════ -->
-<div class="moverlay" id="roles-modal" style="align-items:center;padding:20px;">
-  <div class="smodal-inner" style="max-width:360px;width:100%;">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;text-transform:uppercase;margin-bottom:4px">Manage Roles</div>
-    <div class="msub">Add or remove roles from the dropdown list.</div>
-    <div id="roles-list" style="margin:12px 0;display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;"></div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;">
-      <input type="text" id="new-role-input" placeholder="New role name…" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Barlow',sans-serif;">
-      <button class="mprimary" onclick="addCustomRole()" style="padding:8px 14px;">Add</button>
+<!-- USER / EDIT MODAL -->
+<div class="moverlay" id="user-modal">
+  <div class="smodal-inner" style="max-width:420px;width:100%;overflow:hidden;">
+    <div class="mtitle" style="margin-bottom:4px;" id="um-title">Edit User</div>
+    <div style="margin-bottom:14px;">
+      <div class="fg" style="margin-bottom:10px;"><label>Full Name</label><input type="text" id="um-name" placeholder="Full name"></div>
+      <div class="fg" style="margin-bottom:10px;"><label>Role</label>
+        <select id="um-role"></select>
+        <button onclick="openManageRoles()" style="margin-top:6px;font-size:11px;color:var(--text-dim);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">⚙ Manage roles</button>
+      </div>
+      <div class="fg">
+        <label>Access Level</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
+          <label class="access-opt"><input type="radio" name="access-level" value="admin"><div class="access-opt-check"></div><div class="access-opt-body"><div class="access-opt-title">Admin</div><div class="access-opt-desc">Full access: manage users, seasons, access log, all sponsor data</div></div></label>
+          <label class="access-opt"><input type="radio" name="access-level" value="edit"><div class="access-opt-check"></div><div class="access-opt-body"><div class="access-opt-title">Can Edit</div><div class="access-opt-desc">Add/edit/delete sponsors only</div></div></label>
+          <label class="access-opt"><input type="radio" name="access-level" value="readonly"><div class="access-opt-check"></div><div class="access-opt-body"><div class="access-opt-title">Read Only</div><div class="access-opt-desc">View dashboard only, no changes</div></div></label>
+        </div>
+        <p style="font-size:10px;color:var(--text-dim);margin-top:8px;">Access level changes require a Code.gs update and redeploy.</p>
+      </div>
     </div>
-    <button class="msecondary" onclick="closeManageRoles()" style="width:100%;">Done</button>
+    <div class="mactions">
+      <button class="mprimary" onclick="confirmEditUser()">Save</button>
+      <button class="msecondary" onclick="closeUserModal()">Cancel</button>
+    </div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- ROLES MODAL -->
+<div class="moverlay" id="roles-modal">
+  <div class="smodal-inner" style="max-width:360px;width:100%;">
+    <div class="mtitle" style="margin-bottom:12px;">Manage Roles</div>
+    <div id="roles-list" style="margin-bottom:14px;max-height:260px;overflow-y:auto;"></div>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="new-role-input" placeholder="New role name…" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+      <button class="mprimary" onclick="addCustomRole()" style="padding:8px 14px;">Add</button>
+    </div>
+    <div class="mactions" style="margin-top:12px;">
+      <button class="msecondary" onclick="closeManageRoles()">Done</button>
+    </div>
+  </div>
+</div>
 
-<!-- Google Identity Services -->
+<div id="toast" class="toast"></div>
+
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-
 <script>
-// ═══════════════════════════════════════════════════════
-//  CONFIG — REPLACE THESE TWO VALUES
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  CONFIG
+// ════════════════════════════════════════════════════════
 const GOOGLE_CLIENT_ID = '127701976947-881utr0ljs1eqrfmuoqrsbqh5635vtfl.apps.googleusercontent.com';
-const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbyyiL3Qovw2RkP-0_SieAFHmT7KXU5lf27DEtbiGXcdxBSHOjXhUOoqvYG5czUBW_pT/exec';
+const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbx4KydnDFJplWv2ODdSd9PAzd0yKumsJjNG4jixajxMEy3sbCyf9npgvqsy7PqAsjmx/exec';
 
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 //  STATE
-// ═══════════════════════════════════════════════════════
-let me          = null;    // current user object
-let token       = null;    // session token from backend
-let sponsors    = [];      // all sponsor records
-let seasons     = [];      // all seasons (sorted desc)
+// ════════════════════════════════════════════════════════
+let me           = null;
+let token        = null;
+let orgs         = [];      // SponsorOrgs — one per company
+let seasonEntries = [];     // SponsorSeasons — org × year
+let years        = [];      // available year list
 let activeSeason = null;
-let curFilter   = 'all';
-let editId      = null;
+let curFilter    = 'all';
+let curView      = 'active'; // 'active' | 'prospect'
+let editOrgId    = null;     // org being edited
+let editSSId     = null;     // season entry being edited
+let editSSOrg    = null;     // orgId for season edit
 
 const TO = {gold:1,silver:2,bronze:3,community:4};
 const TH = {gold:'#9a6700',silver:'#4a6070',bronze:'#7a4a28',community:'#013C1E'};
 const TL = {gold:'Gold',silver:'Silver',bronze:'Bronze',community:'Community'};
 
-// ═══════════════════════════════════════════════════════
-//  SESSION PERSISTENCE (localStorage — just the token)
-// ═══════════════════════════════════════════════════════
-function saveSession(t, user) {
-  localStorage.setItem('kjfc_token', t);
-  localStorage.setItem('kjfc_user', JSON.stringify(user));
+// ════════════════════════════════════════════════════════
+//  COMPUTED HELPERS
+// ════════════════════════════════════════════════════════
+// Get season entries for a given year
+function ssForYear(year) {
+  return seasonEntries.filter(s => +s.year === +year);
 }
-function loadSession() {
-  token = localStorage.getItem('kjfc_token');
-  try { me = JSON.parse(localStorage.getItem('kjfc_user')); } catch { me = null; }
+// Get season entries for an org
+function ssForOrg(orgId) {
+  return seasonEntries.filter(s => s.orgId === orgId);
 }
-function clearSession() {
-  localStorage.removeItem('kjfc_token');
-  localStorage.removeItem('kjfc_user');
-  token = null; me = null;
+// Get all orgs that have a season entry for the active year
+function activeOrgIds(year) {
+  return new Set(ssForYear(year).map(s => s.orgId));
+}
+// Count consecutive years for an org
+function consecYears(orgId) {
+  const ys = ssForOrg(orgId).map(s => +s.year).sort((a,b) => b-a);
+  let c = 0;
+  for (let i = 0; i < ys.length; i++) {
+    if (ys[i] === (years[0] - i)) c++; else break;
+  }
+  return c;
 }
 
-// ═══════════════════════════════════════════════════════
-//  API CALLS TO APPS SCRIPT
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  SESSION
+// ════════════════════════════════════════════════════════
+function saveSession(t, user) { localStorage.setItem('kjfc_token',t); localStorage.setItem('kjfc_user',JSON.stringify(user)); }
+function loadSession() { token=localStorage.getItem('kjfc_token'); try{me=JSON.parse(localStorage.getItem('kjfc_user'));}catch{me=null;} }
+function clearSession() { localStorage.removeItem('kjfc_token'); localStorage.removeItem('kjfc_user'); token=null; me=null; }
+
+// ════════════════════════════════════════════════════════
+//  API
+// ════════════════════════════════════════════════════════
 async function api(action, body = {}) {
-  // JSONP — bypasses CORS preflight which Apps Script can't handle
   return new Promise((resolve) => {
-    const cbName = '_kjfc_cb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    const cbName = '_kjfc_cb_' + Date.now() + '_' + Math.floor(Math.random()*1e6);
     const params = new URLSearchParams({ action, callback: cbName });
     if (token) params.set('token', token);
-    if (action === 'exchangeCode')   params.set('code', body.code || '');
-    else if (action === 'getAudit')  params.set('id', body.id || '');
+    if (action === 'exchangeCode')    params.set('code', body.code || '');
+    else if (action === 'getAudit')   params.set('id', body.id || '');
+    else if (action === 'getContactLog') params.set('orgId', body.orgId || '');
     else if (Object.keys(body).length > 0) params.set('payload', encodeURIComponent(JSON.stringify(body)));
-
-    const timer = setTimeout(() => { cleanup(); resolve({ error: 'Request timed out' }); }, 15000);
-    function cleanup() { clearTimeout(timer); delete window[cbName]; const el = document.getElementById(cbName); if (el) el.remove(); }
+    const timer = setTimeout(() => { cleanup(); resolve({ error: 'Request timed out' }); }, 20000);
+    function cleanup() { clearTimeout(timer); delete window[cbName]; const el=document.getElementById(cbName); if(el) el.remove(); }
     window[cbName] = (data) => { cleanup(); resolve(data); };
     const script = document.createElement('script');
     script.id = cbName;
@@ -948,912 +1047,853 @@ async function api(action, body = {}) {
   });
 }
 
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 //  GOOGLE SIGN-IN
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 function initGoogleSignIn() {
-  if (!window.google) {
-    setTimeout(initGoogleSignIn, 300);
-    return;
-  }
-  google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: handleGoogleCredential,
-    auto_select: false,
-    cancel_on_tap_outside: true,
-  });
+  if (!window.google) { setTimeout(initGoogleSignIn, 300); return; }
+  google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential, auto_select: false, cancel_on_tap_outside: true });
   function renderGoogleBtn() {
-    const container = document.getElementById('google-btn-container');
-    if (!container) return;
+    const container = document.getElementById('google-btn-container'); if (!container) return;
     container.innerHTML = '';
-    // Use lbox width or fallback to 300 — never rely on container.offsetWidth which can be 0
     const lbox = document.querySelector('.lbox');
     const w = Math.min((lbox ? lbox.offsetWidth - 48 : 0) || 300, 360);
-    google.accounts.id.renderButton(container, {
-      theme: 'outline', size: 'large', width: w,
-      text: 'continue_with', shape: 'rectangular'
-    });
+    google.accounts.id.renderButton(container, { theme:'outline', size:'large', width:w, text:'continue_with', shape:'rectangular' });
   }
-  // Render after a short delay to ensure DOM is laid out
   setTimeout(renderGoogleBtn, 100);
-  window.addEventListener('orientationchange', () => setTimeout(renderGoogleBtn, 300));
   window.addEventListener('resize', () => setTimeout(renderGoogleBtn, 100));
-  document.getElementById('google-sign-in-btn').addEventListener('click', () => {
-    google.accounts.id.prompt();
-  });
+  document.getElementById('google-sign-in-btn').addEventListener('click', () => google.accounts.id.prompt());
 }
 
 async function handleGoogleCredential(response) {
   setSyncState('loading', 'Verifying identity…');
   const result = await api('exchangeCode', { code: response.credential });
-  if (result.error) {
-    document.getElementById('lerr').textContent = result.error;
-    setSyncState('err', 'Sign-in failed');
-    return;
-  }
+  if (result.error) { document.getElementById('lerr').textContent = result.error; setSyncState('ok',''); return; }
   token = result.token;
   me = { email: result.email, name: result.name, role: result.role, edit: result.edit, admin: result.admin, picture: result.picture };
   saveSession(token, me);
   showApp();
 }
 
-async function doLogout() {
-  if (window.google) google.accounts.id.disableAutoSelect();
-  clearSession();
-  sponsors = []; seasons = [];
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('login-screen').classList.add('show');
-  document.getElementById('lerr').textContent = '';
-  hideLoading();
-}
-
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 //  LOAD DATA
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 async function loadAll() {
   setSyncState('loading', 'Loading data…');
   try {
-    const [spRes, seRes] = await Promise.all([
-      api('getSponsors'),
-      api('getSeasons'),
+    const [data, seasonsRes] = await Promise.all([
+      api('getAllData'),
+      Promise.resolve(null) // getAllData includes years
     ]);
-    if (spRes.error || seRes.error) throw new Error(spRes.error || seRes.error);
-    sponsors = spRes;
-    seasons  = seRes;
-    if (!activeSeason || !seasons.includes(activeSeason)) activeSeason = seasons[0];
+    if (data.error) throw new Error(data.error);
+    orgs          = data.orgs   || [];
+    seasonEntries = data.seasons || [];
+    years         = (data.years || []).sort((a,b) => b-a);
+    if (!activeSeason || !years.includes(activeSeason)) activeSeason = years[0] || null;
     renderSeasonTabs();
-    populateYearDropdown();
     render();
-    setSyncState('ok', 'Synced with Google Sheets · ' + fmtTime(new Date()));
-  } catch (e) {
-    setSyncState('err', 'Could not load data: ' + e.message);
-    showToast('Load failed — check connection', 'err');
+    setSyncState('ok', 'Synced · ' + fmtTime(new Date()));
+  } catch(e) {
+    setSyncState('err', 'Load failed: ' + e.message);
+    showToast('Load failed', 'err');
   }
 }
 
-function setSyncState(state, text) {
-  const dot  = document.getElementById('sync-dot');
-  const span = document.getElementById('sync-text');
-  dot.className = 'sync-dot ' + state;
-  span.textContent = text;
-}
-
-// ═══════════════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════════════
-async function init() {
-  loadSession();
-  initGoogleSignIn();
-  // Attach listeners safely now DOM is guaranteed ready
-  const _nri = document.getElementById('new-role-input');
-  if (_nri) _nri.addEventListener('keydown', e => { if (e.key === 'Enter') addCustomRole(); });
-  const _rm = document.getElementById('roles-modal');
-  if (_rm) _rm.addEventListener('click', e => { if (e.target === _rm) closeManageRoles(); });
-  const _rsm = document.getElementById('reset-modal');
-  if (_rsm) _rsm.addEventListener('click', e => { if (e.target === _rsm) closeResetModal(); });
-
-  if (token && me) {
-    // Verify token is still valid
-    const check = await api('getMe');
-    if (check.error) {
-      clearSession();
-      showLoginScreen();
-      hideLoading();
-      return;
-    }
-    me = { ...me, ...check };
-    showApp();
-  } else {
-    showLoginScreen();
-    hideLoading();
-  }
-}
-
-function showLoginScreen() {
-  document.getElementById('login-screen').classList.add('show');
-  document.getElementById('login-screen').style.display = 'flex';
-  hideLoading();
-}
-
+// ════════════════════════════════════════════════════════
+//  APP SHOW / HIDE
+// ════════════════════════════════════════════════════════
 function showApp() {
-  document.getElementById('login-screen').classList.remove('show');
-  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('login-view').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
   renderUserUI();
   loadAll();
-  hideLoading();
 }
 
-function hideLoading() {
-  const ls = document.getElementById('loading-screen');
-  ls.classList.add('fade');
-  setTimeout(() => ls.style.display = 'none', 450);
-}
-
-// ═══════════════════════════════════════════════════════
-//  RENDER USER
-// ═══════════════════════════════════════════════════════
 function renderUserUI() {
   if (!me) return;
-  const init = me.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  document.getElementById('uav-init').textContent = init;
-  document.getElementById('uname').textContent = me.name.split(' ')[0];
-  if (me.picture) {
-    document.getElementById('uav').innerHTML = `<img src="${me.picture}" alt="">`;
-  }
-  document.getElementById('add-btn').style.display      = me.edit  ? 'block' : 'none';
-  document.getElementById('addseasbtn').style.display   = me.admin ? 'inline-block' : 'none';
-  document.getElementById('tab-access-btn').style.display = me.admin ? 'inline-block' : 'none';
-  document.getElementById('tab-users-btn').style.display  = me.admin ? 'inline-block' : 'none';
+  document.getElementById('user-name').textContent = me.name || me.email;
+  const pic = document.getElementById('user-pic');
+  if (me.picture) { pic.src = me.picture; pic.style.display = 'block'; }
+  if (me.admin) document.getElementById('admin-section').style.display = 'block';
+  if (!me.edit) { const b = document.getElementById('add-sponsor-btn'); if(b) b.style.display='none'; }
 }
 
-// ═══════════════════════════════════════════════════════
-//  SEASONS
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  SEASON TABS
+// ════════════════════════════════════════════════════════
 function renderSeasonTabs() {
-  document.getElementById('stabs').innerHTML = seasons.map(y =>
-    `<button class="stab${y === activeSeason ? ' act' : ''}" onclick="switchSeason(${y})">${y}</button>`
+  document.getElementById('season-tabs').innerHTML = years.map(y =>
+    `<button class="stab${+y===+activeSeason?' act':''}" onclick="switchSeason(${y})">${y}</button>`
   ).join('');
+  const sel = document.getElementById('sf-year');
+  if (sel) { sel.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join(''); sel.value = activeSeason; }
 }
 
-function switchSeason(year) {
-  activeSeason = year;
-  closeDrill();
-  closeDetail();
-  renderSeasonTabs();
-  curFilter = 'all';
-  document.querySelectorAll('.fbtn').forEach((b, i) => b.classList.toggle('act', i === 0));
-  render();
-  populateYearDropdown();
-}
+function switchSeason(y) { activeSeason = +y; renderSeasonTabs(); render(); }
 
-function openSeasonModal() {
-  document.getElementById('new-season-yr').value = seasons[0] + 1;
-  document.getElementById('season-modal').classList.add('open');
-}
-function closeSeasonModal() { document.getElementById('season-modal').classList.remove('open'); }
-
-async function confirmAddSeason() {
-  const y = +document.getElementById('new-season-yr').value;
-  if (!y || y < 2020 || y > 2045) { showToast('Enter a valid year', 'warn'); return; }
-  if (seasons.includes(y)) { showToast(y + ' already exists', 'warn'); closeSeasonModal(); return; }
-  setSyncState('loading', 'Adding season…');
-  const res = await api('addSeason', { year: y });
-  if (res.error) { showToast('Error: ' + res.error, 'err'); return; }
-  closeSeasonModal();
-  showToast('Season ' + y + ' added ✓');
-  await loadAll();
-  activeSeason = y;
-  renderSeasonTabs();
-}
-
-function populateYearDropdown() {
-  const sel = document.getElementById('f-year');
-  sel.innerHTML = seasons.map(y => `<option value="${y}">${y}</option>`).join('');
-  sel.value = activeSeason;
-}
-
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 //  STATS
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 function calcStats(year) {
-  const rows     = sponsors.filter(s => +s.year === +year);
-  const cashRows = rows.filter(s => s.status !== 'inkind');
-  const ikRows   = rows.filter(s => s.status === 'inkind');
-  const total    = cashRows.reduce((a, s) => a + +s.amount, 0);
-  const recv     = cashRows.reduce((a, s) =>
-    s.status === 'paid' ? a + +s.amount :
-    s.status === 'partial' ? a + +(s.paidAmount || 0) : a, 0);
-  const outCount = cashRows.filter(s => s.status !== 'paid').length;
+  const ss       = ssForYear(year);
+  const cashSS   = ss.filter(s => s.status !== 'inkind');
+  const ikSS     = ss.filter(s => s.status === 'inkind');
+  const total    = cashSS.reduce((a,s) => a + +s.amount, 0);
+  const recv     = cashSS.reduce((a,s) =>
+    s.status==='paid' ? a + +s.amount :
+    s.status==='partial' ? a + +(s.paidAmount||0) : a, 0);
+  const outCount = cashSS.filter(s => s.status!=='paid').length;
   const byTier   = {};
   ['gold','silver','bronze','community'].forEach(t => {
-    const ts   = rows.filter(s => String(s.tier).toLowerCase() === t);
-    const cash = ts.filter(s => s.status !== 'inkind');
-    const ik   = ts.filter(s => s.status === 'inkind');
-    byTier[t] = { count: ts.length, cashCount: cash.length, ikCount: ik.length, amount: cash.reduce((a, s) => a + +s.amount, 0) };
+    const ts   = ss.filter(s => String(s.tier).toLowerCase()===t);
+    const cash = ts.filter(s => s.status!=='inkind');
+    const ik   = ts.filter(s => s.status==='inkind');
+    byTier[t]  = { count: ts.length, cashCount: cash.length, ikCount: ik.length,
+                   amount: cash.reduce((a,s)=>a+ +s.amount,0) };
   });
-  return { total, recv, outstanding: total - recv, outCount, count: rows.length, ikCount: ikRows.length, byTier };
+  return { total, recv, outstanding: total-recv, outCount, count: ss.length,
+           ikCount: ikSS.length, byTier };
 }
 
-function consecYears(name) {
-  const lower = name.toLowerCase();
-  const has = sponsors.filter(s => s.name.toLowerCase() === lower).map(s => s.year);
-  let c = 0, y = seasons[0];
-  for (const yr of seasons) {
-    if (yr === y && has.includes(yr)) { c++; y--; } else break;
-  }
-  return c;
-}
-
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 //  MAIN RENDER
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 function render() {
-  const cy = activeSeason;
-  if (!cy) return;
-  const s = calcStats(cy);
-  const prevYr = seasons[seasons.indexOf(cy) + 1];
-  const prev = prevYr ? calcStats(prevYr) : { total: 0 };
+  const cy = activeSeason; if (!cy) return;
+  const s    = calcStats(cy);
+  const prevYr = years[years.indexOf(cy)+1];
+  const prev = prevYr ? calcStats(prevYr) : { total:0 };
 
-  document.getElementById('season-span').textContent = cy + ' Season';
+  document.getElementById('season-span').textContent = 'Sponsorship ' + cy + ' Season';
   document.getElementById('k-total').textContent = fmt(s.total);
-  document.getElementById('k-count').textContent = s.count + ' sponsor' + (s.count !== 1 ? 's' : '');
-  document.getElementById('k-paid').textContent = fmt(s.recv);
-  const pct = s.total > 0 ? Math.round(s.recv / s.total * 100) : 0;
+  document.getElementById('k-count').textContent = s.count + ' sponsor' + (s.count!==1?'s':'');
+  document.getElementById('k-paid').textContent  = fmt(s.recv);
+  const pct = s.total>0 ? Math.round(s.recv/s.total*100) : 0;
   document.getElementById('k-ppct').textContent = pct + '% collected';
-  document.getElementById('k-bar').style.width = pct + '%';
-  document.getElementById('k-out').textContent = fmt(s.outstanding);
-  document.getElementById('k-outc').textContent = s.outCount + ' invoice' + (s.outCount !== 1 ? 's' : '') + ' pending';
+  document.getElementById('k-bar').style.width  = pct + '%';
+  document.getElementById('k-out').textContent  = fmt(s.outstanding);
+  document.getElementById('k-outc').textContent = s.outCount + ' invoice' + (s.outCount!==1?'s':'') + ' pending';
 
   const tEl = document.getElementById('k-trend');
-  if (prev.total > 0 && s.total > 0) {
-    const d = s.total - prev.total, pd = Math.round(d / prev.total * 100);
-    tEl.textContent = (d >= 0 ? '▲ ' : '▼ ') + Math.abs(pd) + '% vs ' + prevYr;
-    tEl.className = 'ktrend ' + (d >= 0 ? 'up' : 'dn');
+  if (prev.total>0 && s.total>0) {
+    const d = s.total-prev.total, pd = Math.round(d/prev.total*100);
+    tEl.textContent = (d>=0?'▲ ':'▼ ') + Math.abs(pd) + '% vs ' + prevYr;
+    tEl.className = 'ktrend ' + (d>=0?'up':'dn');
   } else tEl.textContent = '';
 
   // In-kind strip
   const ikStrip = document.getElementById('inkind-strip');
-  if (ikStrip) ikStrip.style.display = s.ikCount > 0 ? 'flex' : 'none';
-  const ikSumm = document.getElementById('inkind-summary');
-  if (ikSumm && s.ikCount > 0) ikSumm.textContent = s.ikCount + ' in-kind sponsor' + (s.ikCount !== 1 ? 's' : '') + ' this season';
+  const ikSumm  = document.getElementById('inkind-summary');
+  if (ikStrip) ikStrip.style.display = s.ikCount>0 ? 'flex' : 'none';
+  if (ikSumm && s.ikCount>0) ikSumm.textContent = s.ikCount+' in-kind sponsor'+(s.ikCount!==1?'s':'')+' this season';
 
+  // Tier mini
   document.getElementById('tier-mini').innerHTML = ['gold','silver','bronze','community'].map(t => {
     const d = s.byTier[t]; if (!d.count) return '';
-    const ikBit = d.ikCount > 0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:600"> (inc. ${d.ikCount} in-kind)</span>` : '';
+    const ikBit = d.ikCount>0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:600"> (inc. ${d.ikCount} in-kind)</span>` : '';
     return `<div style="display:flex;align-items:center;gap:7px"><div style="width:6px;height:6px;border-radius:50%;background:${TH[t]};flex-shrink:0"></div><span style="font-size:11px;flex:1">${TL[t]}</span><span style="font-size:12px;font-weight:800;color:${TH[t]}">${d.count}${ikBit}</span></div>`;
   }).join('');
 
-  // Year bars
-  const allSt = seasons.map(y => ({ year: y, ...calcStats(y) }));
-  const maxT = Math.max(...allSt.map(x => x.total), 1);
+  // YOY bars
+  const allSt = years.map(y => ({ year:y, ...calcStats(y) }));
+  const maxT  = Math.max(...allSt.map(x=>x.total), 1);
   document.getElementById('year-bars').innerHTML = allSt.map(ys => {
-    const p2 = Math.round(ys.total / maxT * 100);
-    const isCur = ys.year === cy;
+    const p2 = Math.round(ys.total/maxT*100);
+    const isCur = +ys.year===+cy;
     return `<div class="ybargrp" onclick="switchSeason(${ys.year})" title="View ${ys.year}">
-      <div class="ybarlbl">
-        <span class="yr" style="${isCur?'color:var(--text);font-weight:700':''}">${ys.year}${isCur?' ★':''}</span>
-        <span style="font-weight:700;color:${isCur?'var(--yellow-dark)':'var(--text-dim)'}">${fmt(ys.total)} <span style="font-size:9px;font-weight:400">(${ys.count})</span></span>
-      </div>
+      <div class="ybarlbl"><span class="yr" style="${isCur?'color:var(--text);font-weight:700':''}">${ys.year}${isCur?' ★':''}</span>
+      <span style="font-weight:700;color:${isCur?'var(--yellow-dark)':'var(--text-dim)'}">${fmt(ys.total)} <span style="font-size:9px;font-weight:400">(${ys.count})</span></span></div>
       <div class="btrack"><div class="bfill ${isCur?'cur':'prev'}" style="width:${p2}%"></div></div>
     </div>`;
   }).join('');
 
-  // Tier breakdown
+  // Tier list (revenue by tier)
   document.getElementById('tier-list').innerHTML = ['gold','silver','bronze','community'].map(t => {
     const d = s.byTier[t]; if (!d.count) return '';
-    const ikLabel = d.ikCount > 0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:700;margin-left:4px">(inc. ${d.ikCount} in-kind)</span>` : '';
-    return `<div class="trow" onclick="filterTable('${t}',null)">
-      <div class="tdot ${t}"></div>
-      <div class="tname">${TL[t]}${ikLabel}</div>
-      <div class="tcnt">${d.count}</div>
-      <div class="tamt" style="color:${TH[t]}">${fmt(d.amount)}</div>
+    const ikLabel = d.ikCount>0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:700;margin-left:4px">(inc. ${d.ikCount} in-kind)</span>` : '';
+    return `<div class="trow" onclick="filterTable('${t}')">
+      <div class="tdot ${t}"></div><div class="tname">${TL[t]}${ikLabel}</div>
+      <div class="tcnt">${d.count}</div><div class="tamt" style="color:${TH[t]}">${fmt(d.amount)}</div>
     </div>`;
   }).join('') || '<div style="color:var(--text-dim);font-size:13px;padding:6px">No sponsors yet.</div>';
 
+  // Prospect pipeline
+  renderProspects();
+
+  renderTable();
+}
+
+// ════════════════════════════════════════════════════════
+//  PROSPECT PIPELINE
+// ════════════════════════════════════════════════════════
+function renderProspects() {
+  const prospects = orgs.filter(o => o.orgStatus === 'prospect');
+  const panel = document.getElementById('prospect-panel');
+  const list  = document.getElementById('prospect-list');
+  if (!prospects.length) { panel.style.display='none'; return; }
+  panel.style.display='block';
+  list.innerHTML = prospects.map(o => {
+    const logs  = ''; // loaded on demand
+    const email = o.email ? `<a href="mailto:${o.email}" style="color:var(--green)">${o.email}</a>` : '—';
+    return `<div class="trow" onclick="openOrgDetail('${o.id}')" style="margin-bottom:4px;">
+      <div style="flex:1;min-width:0;">
+        <strong>${o.name}</strong>
+        ${o.primaryContact ? `<span style="color:var(--text-dim);font-size:12px;margin-left:6px">${o.primaryContact}</span>` : ''}
+      </div>
+      ${o.phone ? `<span style="font-size:11px;color:var(--text-dim)">${o.phone}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════
+//  SPONSOR TABLE
+// ════════════════════════════════════════════════════════
+function setView(v) {
+  curView = v;
+  document.getElementById('vtab-active').classList.toggle('act', v==='active');
+  document.getElementById('vtab-prospect').classList.toggle('act', v==='prospect');
+  // Hide tier filters for prospect view
+  document.getElementById('filters').style.display = v==='active' ? '' : 'none';
+  renderTable();
+}
+
+function filterTable(f) {
+  curFilter = f;
+  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('act'));
+  event.target.classList.add('act');
   renderTable();
 }
 
 function renderTable() {
-  const cy = activeSeason;
+  const cy    = activeSeason;
   const empty = document.getElementById('tbl-empty');
-  let rows = sponsors.filter(s => s.year === cy);
-  if (curFilter !== 'all' && curFilter !== 'outstanding') rows = rows.filter(s => s.tier === curFilter);
-  else if (curFilter === 'outstanding') rows = rows.filter(s => s.status !== 'paid' && s.status !== 'inkind');
-  rows.sort((a, b) => (TO[a.tier] || 5) - (TO[b.tier] || 5));
+  const tbody = document.getElementById('tbody');
 
-  if (!rows.length) {
-    document.getElementById('tbl-body').innerHTML = '';
-    document.getElementById('sponsor-cards').innerHTML = '';
-    empty.style.display = 'block';
+  if (curView === 'prospect') {
+    // Show prospects — orgs with status=prospect or no season entry this year
+    const prospects = orgs.filter(o => o.orgStatus==='prospect');
+    if (!prospects.length) { tbody.innerHTML=''; empty.style.display='block'; empty.textContent='No prospects yet. Add one with + Add Sponsor.'; return; }
+    empty.style.display='none';
+    tbody.innerHTML = prospects.map(o => {
+      const lastContact = ''; // shown in detail
+      return `<tr onclick="openOrgDetail('${o.id}')" style="cursor:pointer">
+        <td><strong>${o.name}</strong></td>
+        <td colspan="3" style="color:var(--text-dim);font-size:12px">${o.primaryContact||'—'} ${o.email?'· '+o.email:''}</td>
+        <td><span class="ostatus prospect">Prospect</span></td>
+        <td>${o.phone||'—'}</td>
+        <td><button class="actbtn" onclick="event.stopPropagation();openEditOrg('${o.id}')">Edit</button></td>
+      </tr>`;
+    }).join('');
     return;
   }
-  empty.style.display = 'none';
 
-  // Desktop table rows
-  document.getElementById('tbl-body').innerHTML = rows.map(s => {
-    const c   = consecYears(s.name);
-    const cH  = c > 1 ? `<span class="cbadge">★${c}</span>` : '<span style="color:var(--text-dim);font-size:10px">1st</span>';
-    const aH  = s.status === 'partial'
-      ? `<div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px">${fmt(s.amount)}</div><div style="font-size:10px;color:var(--orange)">${fmt(s.paidAmount||0)} recv</div>`
-      : `<div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px">${fmt(s.amount)}</div>`;
-    const eBtn = me?.edit ? `<button class="actbtn" onclick="event.stopPropagation();openEdit('${s.id}')">Edit</button>` : '';
-    return `<tr onclick="openDetail('${s.id}')">
-      <td><strong>${s.name}</strong></td>
-      <td><span class="tchip ${s.tier}">${TL[s.tier]}</span></td>
-      <td>${aH}</td>
+  // Active view — join season entries with orgs for activeSeason
+  let ss = ssForYear(cy);
+  if (curFilter!=='all' && curFilter!=='outstanding') ss = ss.filter(s => s.tier===curFilter);
+  if (curFilter==='outstanding') ss = ss.filter(s => s.status!=='paid' && s.status!=='inkind');
+  ss.sort((a,b) => (TO[a.tier]||5)-(TO[b.tier]||5));
+
+  if (!ss.length) { tbody.innerHTML=''; empty.style.display='block'; empty.textContent='No sponsors for this season yet.'; return; }
+  empty.style.display='none';
+
+  tbody.innerHTML = ss.map(s => {
+    const org   = orgs.find(o => o.id===s.orgId) || { name: s.orgId, primaryContact:'', phone:'' };
+    const c     = consecYears(s.orgId);
+    const cBadge = c>1 ? `<span class="cbadge">★ ${c} yrs</span>` : `<span style="color:var(--text-dim);font-size:11px">1st</span>`;
+    const amtH = s.status==='inkind' ? '<span style="color:#6d28d9;font-size:11px;font-weight:700">In-Kind</span>' :
+                 s.status==='partial' ? `${fmt(s.amount)}<br><span style="font-size:10px;color:var(--orange)">${fmt(s.paidAmount||0)} recv</span>` :
+                 fmt(s.amount);
+    return `<tr onclick="openOrgDetail('${org.id}')" style="cursor:pointer">
+      <td><strong>${org.name}</strong></td>
+      <td><span class="tchip ${s.tier}">${TL[s.tier]||cap(s.tier)}</span></td>
+      <td>${amtH}</td>
       <td><span class="sbadge ${s.status}">${cap(s.status)}</span></td>
-      <td>${cH}</td>
-      <td style="font-size:12px;color:var(--text-dim)">${s.contact || '—'}</td>
-      <td>${eBtn}</td>
+      <td>${cBadge}</td>
+      <td style="font-size:11px;color:var(--text-dim)">${org.primaryContact||'—'}</td>
+      <td><button class="actbtn" onclick="event.stopPropagation();openEditSS('${s.id}','${org.id}')">Edit</button></td>
     </tr>`;
   }).join('');
+}
 
-  // Mobile cards
-  document.getElementById('sponsor-cards').innerHTML = rows.map(s => {
-    const c   = consecYears(s.name);
-    const recv = s.status === 'paid' ? +s.amount : s.status === 'partial' ? +(s.paidAmount||0) : 0;
-    const eBtn = me?.edit ? `<button class="scard-edit" onclick="event.stopPropagation();openEdit('${s.id}')">Edit</button>` : '';
-    return `<div class="scard" onclick="openDetail('${s.id}')">
-      <div class="scard-top">
-        <div>
-          <div class="scard-name">${s.name}</div>
-          ${c > 1 ? `<span class="cbadge" style="margin-top:4px;display:inline-flex">★ ${c} yrs</span>` : ''}
+// ════════════════════════════════════════════════════════
+//  ORG DETAIL PANEL
+// ════════════════════════════════════════════════════════
+async function openOrgDetail(orgId) {
+  const org = orgs.find(o => o.id===orgId); if (!org) return;
+  const overlay = document.getElementById('org-detail-overlay');
+  overlay.classList.add('open');
+
+  // Render skeleton first
+  renderOrgDetail(org, [], true);
+
+  // Fetch contact log
+  const logRes = await api('getContactLog', { orgId });
+  const clog   = Array.isArray(logRes) ? logRes : [];
+  renderOrgDetail(org, clog, false);
+}
+
+function renderOrgDetail(org, clog, loading) {
+  const ssList  = ssForOrg(org.id).sort((a,b) => +b.year - +a.year);
+  const editBtn = me?.edit ? `<button class="actbtn" onclick="openEditOrg('${org.id}')">Edit</button>` : '';
+
+  const addrSection = (org.physAddr || org.postAddr) ? `
+    <div style="margin-bottom:12px;">
+      ${org.physAddr ? `<div style="font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Physical Address</div><div style="font-size:13px;margin-bottom:6px;">${org.physAddr}</div>` : ''}
+      ${org.postAddr && !org.postSameAsPhys ? `<div style="font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Postal Address</div><div style="font-size:13px;">${org.postAddr}</div>` : ''}
+      ${org.postSameAsPhys ? `<div style="font-size:11px;color:var(--text-dim);font-style:italic;">Postal same as physical</div>` : ''}
+    </div>` : '';
+
+  const seasonHtml = ssList.length ? ssList.map(s =>
+    `<span class="season-pill" onclick="openEditSS('${s.id}','${org.id}')">
+      <span class="sp-tier" style="color:${TH[s.tier]||'inherit'}">${TL[s.tier]||s.tier}</span>
+      <span class="sp-yr">${s.year}</span>
+      <span class="sbadge ${s.status}" style="font-size:8px;padding:1px 5px;">${cap(s.status)}</span>
+    </span>`
+  ).join(' ') : '<span style="color:var(--text-dim);font-size:12px">No season entries</span>';
+
+  const addSSBtn = me?.edit ? `<span class="add-season-pill" onclick="openAddSS('${org.id}')">+ Add Season</span>` : '';
+
+  const clogHtml = loading ? '<div style="color:var(--text-dim);font-size:12px;padding:8px 0;">Loading contact log…</div>' :
+    !clog.length ? '<div style="color:var(--text-dim);font-size:12px;padding:8px 0;">No contact history yet.</div>' :
+    clog.map(c => `
+      <div class="clog-entry">
+        <div class="clog-dot"></div>
+        <div class="clog-body">
+          <div class="clog-meta">${c.date} · ${c.contactedBy}
+            ${me?.edit ? `<button onclick="deleteContactEntry('${c.id}','${org.id}')" style="margin-left:8px;font-size:10px;color:var(--red);background:none;border:none;cursor:pointer;">✕</button>` : ''}
+          </div>
+          <div class="clog-notes">${c.notes}</div>
         </div>
-        <div>
-          <div class="scard-amount">${fmt(s.amount)}</div>
-          ${s.status === 'partial' ? `<div class="scard-recv">${fmt(recv)} recv</div>` : ''}
+      </div>`).join('');
+
+  const addLogBtn = me?.edit ? `<button class="actbtn" onclick="openContactLog('${org.id}')" style="margin-bottom:10px;">+ Log Contact</button>` : '';
+
+  document.getElementById('od-content').innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;">
+      <div class="dlogo" style="flex-shrink:0;">${org.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>
+      <div style="flex:1;min-width:0;">
+        <h2 style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;">${org.name}</h2>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px;">
+          <span class="ostatus ${org.orgStatus}">${cap(org.orgStatus)}</span>
+          ${org.website ? `<a href="https://${org.website}" target="_blank" rel="noopener" style="color:var(--green);font-size:11px;">${org.website} ↗</a>` : ''}
         </div>
       </div>
-      <div class="scard-meta">
-        <span class="tchip ${s.tier}">${TL[s.tier]}</span>
-        <span class="sbadge ${s.status}">${cap(s.status)}</span>
-        ${eBtn}
+      ${editBtn}
+    </div>
+
+    <div class="org-detail-wrap">
+      <div class="org-detail-main">
+        ${org.primaryContact||org.email||org.phone ? `
+        <div class="panel" style="margin-bottom:12px;">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:8px;">Contact Details</div>
+          ${org.primaryContact ? `<div style="font-size:13px;font-weight:600;margin-bottom:4px;">👤 ${org.primaryContact}</div>` : ''}
+          ${org.email ? `<div style="font-size:12px;margin-bottom:3px;">✉ <a href="mailto:${org.email}" style="color:var(--green)">${org.email}</a></div>` : ''}
+          ${org.phone ? `<div style="font-size:12px;margin-bottom:3px;">📞 ${org.phone}</div>` : ''}
+          ${addrSection}
+        </div>` : ''}
+
+        <div class="panel" style="margin-bottom:12px;">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:8px;">Season History</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+            ${seasonHtml}
+            ${addSSBtn}
+          </div>
+        </div>
+
+        ${org.notes ? `<div class="panel" style="margin-bottom:12px;">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:6px;">Notes</div>
+          <div style="font-size:13px;color:var(--text-mid);">${org.notes}</div>
+        </div>` : ''}
+      </div>
+
+      <div class="org-detail-side">
+        <div class="panel">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:8px;">Contact Log</div>
+          ${addLogBtn}
+          <div id="clog-list-${org.id}">${clogHtml}</div>
+        </div>
       </div>
     </div>`;
-  }).join('');
 }
 
-function filterTable(f, btn) {
-  curFilter = f;
-  closeDrill();
-  document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('act'));
-  if (btn) btn.classList.add('act');
-  renderTable();
+function closeOrgDetail() { document.getElementById('org-detail-overlay').classList.remove('open'); }
+
+// ════════════════════════════════════════════════════════
+//  ORG MODAL (add / edit organisation)
+// ════════════════════════════════════════════════════════
+function resetOrgModal() {
+  ['of-name','of-contact','of-email','of-phone','of-website','of-physaddr','of-postaddr','of-notes'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('of-orgstatus').value = 'prospect';
+  document.getElementById('of-postsame').checked = false;
+  document.getElementById('of-postaddr').disabled = false;
 }
 
-// ═══════════════════════════════════════════════════════
-//  DRILL-DOWN
-// ═══════════════════════════════════════════════════════
-function openDrill(title, rows) {
-  document.getElementById('drillTitle').textContent = title;
-  const body = rows.map(s => {
-    const aH = s.status === 'partial'
-      ? `${fmt(s.amount)} <span style="font-size:10px;color:var(--orange)">(${fmt(s.paidAmount||0)} recv)</span>`
-      : fmt(s.amount);
-    return `<tr onclick="openDetail('${s.id}')" style="cursor:pointer">
-      <td><strong>${s.name}</strong></td>
-      <td><span class="tchip ${s.tier}">${TL[s.tier]}</span></td>
-      <td style="font-family:'Barlow Condensed',sans-serif;font-weight:800">${aH}</td>
-      <td><span class="sbadge ${s.status}">${cap(s.status)}</span></td>
-      <td style="font-size:12px;color:var(--text-dim)">${s.contact||'—'}</td>
-    </tr>`;
-  }).join('');
-  document.getElementById('drill-body').innerHTML = body;
-
-  // Mobile cards for drill
-  document.getElementById('drill-cards').innerHTML = rows.map(s =>
-    `<div class="scard" onclick="openDetail('${s.id}')">
-      <div class="scard-top">
-        <div class="scard-name">${s.name}</div>
-        <div class="scard-amount">${fmt(s.amount)}</div>
-      </div>
-      <div class="scard-meta">
-        <span class="tchip ${s.tier}">${TL[s.tier]}</span>
-        <span class="sbadge ${s.status}">${cap(s.status)}</span>
-      </div>
-    </div>`
-  ).join('');
-
-  document.getElementById('drillPanel').classList.add('open');
-}
-function closeDrill() { document.getElementById('drillPanel').classList.remove('open'); }
-
-function drillTotal() {
-  const rows = sponsors.filter(s => s.year === activeSeason).sort((a,b) => (TO[a.tier]||5)-(TO[b.tier]||5));
-  openDrill(`All Sponsors — ${activeSeason} (${fmt(rows.reduce((a,s)=>a+ +s.amount,0))})`, rows);
-}
-function drillPaid() {
-  const rows = sponsors.filter(s => s.year === activeSeason && (s.status==='paid'||s.status==='partial') && s.status!=='inkind').sort((a,b) => (TO[a.tier]||5)-(TO[b.tier]||5));
-  const total = rows.reduce((a,s) => s.status==='paid' ? a+ +s.amount : a+(+(s.paidAmount||0)), 0);
-  openDrill(`Received — ${activeSeason} (${fmt(total)} across ${rows.length} sponsors)`, rows);
-}
-function drillOut() {
-  const rows = sponsors.filter(s => s.year === activeSeason && (s.status==='outstanding'||s.status==='partial') && s.status!=='inkind').sort((a,b) => (TO[a.tier]||5)-(TO[b.tier]||5));
-  const total = rows.reduce((a,s) => s.status==='partial' ? a+(+s.amount-(+s.paidAmount||0)) : a+ +s.amount, 0);
-  openDrill(`Outstanding — ${activeSeason} (${fmt(total)} still owing)`, rows);
+function togglePostalSame() {
+  const same = document.getElementById('of-postsame').checked;
+  const postEl = document.getElementById('of-postaddr');
+  postEl.disabled = same;
+  if (same) postEl.value = document.getElementById('of-physaddr').value;
 }
 
-// ═══════════════════════════════════════════════════════
-//  DETAIL VIEW
-// ═══════════════════════════════════════════════════════
-async function openDetail(id) {
-  const s = sponsors.find(x => x.id === id); if (!s) return;
-  const recv = s.status==='paid' ? +s.amount : s.status==='partial' ? +(s.paidAmount||0) : 0;
-  const pct  = s.amount > 0 ? Math.round(recv / s.amount * 100) : 0;
-  const init = s.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-  const c    = consecYears(s.name);
+document.getElementById('of-physaddr').addEventListener('input', function() {
+  if (document.getElementById('of-postsame').checked) document.getElementById('of-postaddr').value = this.value;
+});
 
-  const yPills = seasons.map(y => {
-    const r = sponsors.find(x => x.name.toLowerCase()===s.name.toLowerCase() && x.year===y);
-    return `<div class="ypill${r?' has':''}"><div class="ydot"></div><span>${y}</span>${r?`<span style="font-size:9px"> ${fmt(r.amount)}</span>`:''}</div>`;
-  }).join('');
-
-  // Load audit
-  const auditRes = await api('getAudit', { id });
-  const audits = Array.isArray(auditRes) ? auditRes : [];
-  const auditHtml = audits.length
-    ? audits.map(a => `<div class="aentry"><div class="adot ${a.action==='DELETED'?'del':a.action==='ADDED'?'add':'edit'}"></div><div><div class="aact">${a.action}${a.details?' — '+a.details:''}</div><div class="amet">${fmtD(a.timestamp||a.ts)} · ${a.user} (${a.role})</div></div></div>`).join('')
-    : '<div class="aempty">No changes recorded yet.</div>';
-
-  const eBtn = me?.edit ? `<button class="actbtn" style="margin-left:auto" onclick="openEdit('${s.id}')">Edit</button>` : '';
-
-  document.getElementById('detail-content').innerHTML = `
-    <div class="dheader">
-      <div class="dlogo">${init}</div>
-      <div class="dinfo">
-        <h2>${s.name}</h2>
-        <div class="dmeta">
-          <span class="tchip ${s.tier}">${TL[s.tier]}</span>
-          <span class="sbadge ${s.status}">${cap(s.status)}</span>
-          ${c>1?`<span class="cbadge">★ ${c} yrs</span>`:''}
-          ${s.website?`<a href="https://${s.website}" target="_blank" rel="noopener" style="color:var(--green);font-size:11px;font-weight:600">${s.website} ↗</a>`:''}
-        </div>
-      </div>
-      ${eBtn}
-    </div>
-
-    <div style="margin-bottom:13px">
-      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:7px">Sponsorship History</div>
-      <div class="ystrip">${yPills}</div>
-    </div>
-
-    <div class="dkpis">
-      <div class="dkpi"><div class="klbl">${s.year} Value</div><div class="kval" style="color:var(--yellow-dark);font-size:22px">${fmt(s.amount)}</div></div>
-      <div class="dkpi"><div class="klbl">Received</div><div class="kval" style="color:var(--green);font-size:22px">${fmt(recv)}</div><div class="ksub">${pct}%</div></div>
-      <div class="dkpi"><div class="klbl">Owing</div><div class="kval" style="color:${s.amount-recv>0?'var(--red)':'var(--green)'};font-size:22px">${fmt(s.amount-recv)}</div></div>
-    </div>
-
-    <div class="panel" style="margin-bottom:12px">
-      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:8px">Payment Progress</div>
-      <div class="pbtrack" style="height:8px"><div class="pbfill" style="width:${pct}%"></div></div>
-      <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:10px;color:var(--text-dim)"><span>${fmt(recv)} received</span><span>${fmt(s.amount-recv)} remaining</span></div>
-    </div>
-
-    ${s.contact||s.email||s.phone?`
-    <div class="panel" style="margin-bottom:12px">
-      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:8px">Contact</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
-        ${s.contact?`<div><div style="font-size:9px;color:var(--text-dim);margin-bottom:2px">NAME</div><div style="font-weight:600;font-size:13px">${s.contact}</div></div>`:''}
-        ${s.email?`<div><div style="font-size:9px;color:var(--text-dim);margin-bottom:2px">EMAIL</div><a href="mailto:${s.email}" style="color:var(--green);font-weight:600;font-size:12px;word-break:break-all">${s.email}</a></div>`:''}
-        ${s.phone?`<div><div style="font-size:9px;color:var(--text-dim);margin-bottom:2px">PHONE</div><a href="tel:${s.phone}" style="color:var(--green);font-weight:600;font-size:13px">${s.phone}</a></div>`:''}
-      </div>
-    </div>`:''}
-
-    ${s.notes?`
-    <div class="panel" style="margin-bottom:12px">
-      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:7px">Notes &amp; Benefits</div>
-      <p style="font-size:13px;line-height:1.6;color:var(--text-mid)">${s.notes}</p>
-    </div>`:''}
-
-    <div class="alog"><h3>Change History</h3>${auditHtml}</div>
-  `;
-
-  document.getElementById('mainView').classList.add('h');
-  document.getElementById('detailView').classList.add('open');
-  window.scrollTo(0, 0);
-}
-
-function closeDetail() {
-  document.getElementById('mainView').classList.remove('h');
-  document.getElementById('detailView').classList.remove('open');
-}
-
-// ═══════════════════════════════════════════════════════
-//  SPONSOR MODAL
-// ═══════════════════════════════════════════════════════
-function resetModal() {
-  ['f-name','f-amount','f-paid','f-contact','f-email','f-phone','f-website','f-notes'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('f-tier').value = '';
-  document.getElementById('f-status').value = '';
-  document.getElementById('f-partial-wrap').style.display = 'none';
-  document.getElementById('f-amount-wrap').style.display = '';
-}
-
-function openAdd() {
+function openAddOrg() {
   if (!me?.edit) return;
-  editId = null;
-  document.getElementById('m-title').textContent = 'Add Sponsor';
-  document.getElementById('m-save').textContent = 'Add Sponsor';
-  document.getElementById('m-del').style.display = 'none';
-  document.getElementById('m-sub').textContent = 'New entry for ' + activeSeason + ' season.';
-  document.getElementById('copy-prev-wrap').style.display = 'block';
-  resetModal();
-  populateYearDropdown();
-  populateCopyPrev();
-  document.getElementById('sponsor-modal').classList.add('open');
+  editOrgId = null;
+  resetOrgModal();
+  document.getElementById('org-m-title').textContent = 'Add Sponsor';
+  document.getElementById('org-m-save').textContent  = 'Add Sponsor';
+  document.getElementById('org-m-del').style.display = 'none';
+  document.getElementById('org-m-sub').textContent   = 'New sponsor organisation.';
+  document.getElementById('org-modal').classList.add('open');
 }
 
-function openEdit(id) {
+function openEditOrg(orgId) {
   if (!me?.edit) return;
-  const s = sponsors.find(x => x.id === id); if (!s) return;
-  editId = id;
-  document.getElementById('m-title').textContent = 'Edit Sponsor';
-  document.getElementById('m-save').textContent = 'Save Changes';
-  document.getElementById('m-del').style.display = 'block';
-  document.getElementById('m-sub').textContent = s.name + ' · ' + s.year;
-  document.getElementById('copy-prev-wrap').style.display = 'none';
-  populateYearDropdown();
-  document.getElementById('f-name').value    = s.name;
-  document.getElementById('f-tier').value    = s.tier;
-  document.getElementById('f-year').value    = s.year;
-  document.getElementById('f-amount').value  = s.amount;
-  document.getElementById('f-status').value  = s.status;
-  document.getElementById('f-paid').value    = s.paidAmount || '';
-  document.getElementById('f-contact').value = s.contact || '';
-  document.getElementById('f-email').value   = s.email || '';
-  document.getElementById('f-phone').value   = s.phone || '';
-  document.getElementById('f-website').value = s.website || '';
-  document.getElementById('f-notes').value   = s.notes || '';
-  document.getElementById('f-partial-wrap').style.display = s.status === 'partial' ? 'flex' : 'none';
-  document.getElementById('f-amount-wrap').style.display  = s.status === 'inkind'  ? 'none' : '';
-  document.getElementById('sponsor-modal').classList.add('open');
+  const org = orgs.find(o => o.id===orgId); if (!org) return;
+  editOrgId = orgId;
+  resetOrgModal();
+  document.getElementById('org-m-title').textContent    = 'Edit Sponsor';
+  document.getElementById('org-m-save').textContent     = 'Save Changes';
+  document.getElementById('org-m-del').style.display    = 'block';
+  document.getElementById('org-m-sub').textContent      = org.name;
+  document.getElementById('of-name').value              = org.name;
+  document.getElementById('of-orgstatus').value         = org.orgStatus || 'prospect';
+  document.getElementById('of-contact').value           = org.primaryContact || '';
+  document.getElementById('of-email').value             = org.email || '';
+  document.getElementById('of-phone').value             = org.phone || '';
+  document.getElementById('of-website').value           = org.website || '';
+  document.getElementById('of-physaddr').value          = org.physAddr || '';
+  document.getElementById('of-postaddr').value          = org.postAddr || '';
+  document.getElementById('of-notes').value             = org.notes || '';
+  document.getElementById('of-postsame').checked        = !!org.postSameAsPhys;
+  document.getElementById('of-postaddr').disabled       = !!org.postSameAsPhys;
+  document.getElementById('org-modal').classList.add('open');
 }
 
-function closeModal() { document.getElementById('sponsor-modal').classList.remove('open'); editId = null; }
+function closeOrgModal() { document.getElementById('org-modal').classList.remove('open'); editOrgId=null; }
 
-
-function btnLoading(el, isLoading) {
-  if (!el) return;
-  if (isLoading) { el.classList.add('btn-loading'); el.disabled = true; }
-  else           { el.classList.remove('btn-loading'); el.disabled = false; }
-}
-
-async function saveSponsor() {
-  if (!me?.edit) return;
-  const name   = document.getElementById('f-name').value.trim();
-  const tier   = document.getElementById('f-tier').value;
-  const amount = document.getElementById('f-amount').value;
-  const status = document.getElementById('f-status').value;
-  if (!name)             { showToast('Enter a sponsor name', 'warn'); return; }
-  if (!tier)             { showToast('Select a tier', 'warn'); return; }
-  if (!status)           { showToast('Select a payment status', 'warn'); return; }
-  if (status !== 'inkind' && (!amount || +amount <= 0)) { showToast('Enter a valid amount', 'warn'); return; }
-  // For inkind, force amount to 0 after validation
-  const finalAmount = status === 'inkind' ? 0 : +amount;
-
+async function saveOrg() {
+  const name = document.getElementById('of-name').value.trim();
+  if (!name) { showToast('Enter a business name', 'warn'); return; }
   const data = {
-    id:         editId || '',
-    name, tier,
-    year:       +document.getElementById('f-year').value,
-    amount:     finalAmount,
-    status,
-    paidAmount: +document.getElementById('f-paid').value || 0,
-    contact:    document.getElementById('f-contact').value.trim(),
-    email:      document.getElementById('f-email').value.trim(),
-    phone:      document.getElementById('f-phone').value.trim(),
-    website:    document.getElementById('f-website').value.trim(),
-    notes:      document.getElementById('f-notes').value.trim(),
+    id:             editOrgId || '',
+    name,
+    orgStatus:      document.getElementById('of-orgstatus').value,
+    primaryContact: document.getElementById('of-contact').value.trim(),
+    email:          document.getElementById('of-email').value.trim(),
+    phone:          document.getElementById('of-phone').value.trim(),
+    website:        document.getElementById('of-website').value.trim(),
+    physAddr:       document.getElementById('of-physaddr').value.trim(),
+    postAddr:       document.getElementById('of-postaddr').value.trim(),
+    postSameAsPhys: document.getElementById('of-postsame').checked,
+    notes:          document.getElementById('of-notes').value.trim(),
   };
-
   setSyncState('loading', 'Saving…');
-  const saveBtn = document.getElementById('m-save');
-  btnLoading(saveBtn, true);
-  const res = await api('saveSponsor', { data, isNew: !editId });
-  btnLoading(saveBtn, false);
-
-  if (res.error) { showToast('Error: ' + res.error, 'err'); setSyncState('err', 'Save failed'); return; }
-
-  // Instant local update — patch sponsors array and re-render immediately
-  if (!editId) {
-    // New sponsor: add with server-assigned id (or temp id)
-    data.id = res.id || ('tmp_' + Date.now());
-    sponsors.push(data);
-  } else {
-    // Edit: replace in array
-    const idx = sponsors.findIndex(x => x.id === editId);
-    if (idx >= 0) sponsors[idx] = { ...sponsors[idx], ...data };
-  }
-  closeModal();
+  btnLoading(document.getElementById('org-m-save'), true);
+  const res = await api('saveOrg', { data, isNew: !editOrgId });
+  btnLoading(document.getElementById('org-m-save'), false);
+  if (res.error) { showToast('Error: ' + res.error, 'err'); setSyncState('err','Save failed'); return; }
+  // Local update
+  if (!editOrgId) { data.id = res.id; orgs.push(data); }
+  else { const idx=orgs.findIndex(o=>o.id===editOrgId); if(idx>=0) orgs[idx]={...orgs[idx],...data}; }
+  closeOrgModal();
   render();
-  showToast(editId ? 'Sponsor updated ✓' : 'Sponsor added ✓');
-  if (editId && document.getElementById('detailView').classList.contains('open')) openDetail(editId);
-  // Background refresh to confirm server state
+  showToast(editOrgId ? 'Sponsor updated ✓' : 'Sponsor added ✓');
   loadAll();
 }
 
-async function deleteSponsor() {
-  if (!me?.edit || !editId) return;
-  const s = sponsors.find(x => x.id === editId);
-  if (!confirm(`Delete ${s?.name || 'this sponsor'}? This cannot be undone.`)) return;
-  setSyncState('loading', 'Deleting…');
-  const delBtn = document.getElementById('m-del');
-  btnLoading(delBtn, true);
-  const res = await api('deleteSponsor', { id: editId });
-  btnLoading(delBtn, false);
+async function deleteOrg() {
+  const org = orgs.find(o => o.id===editOrgId); if (!org) return;
+  if (!confirm(`Delete ${org.name} and all their season records? This cannot be undone.`)) return;
+  btnLoading(document.getElementById('org-m-del'), true);
+  const res = await api('deleteOrg', { id: editOrgId });
+  btnLoading(document.getElementById('org-m-del'), false);
   if (res.error) { showToast('Error: ' + res.error, 'err'); return; }
-  // Instant local update
-  sponsors = sponsors.filter(x => x.id !== editId);
-  closeModal(); closeDetail();
+  orgs = orgs.filter(o => o.id!==editOrgId);
+  seasonEntries = seasonEntries.filter(s => s.orgId!==editOrgId);
+  closeOrgModal(); closeOrgDetail();
   render();
   showToast('Sponsor deleted');
   loadAll();
 }
 
-// Wire modal buttons
-document.getElementById('m-save').addEventListener('click', saveSponsor);
-document.getElementById('m-cancel').addEventListener('click', closeModal);
-document.getElementById('mclose-btn').addEventListener('click', closeModal);
-document.getElementById('m-del').addEventListener('click', deleteSponsor);
-document.getElementById('f-status').addEventListener('change', function() {
-  const isPartial = this.value === 'partial';
-  const isInKind  = this.value === 'inkind';
-  document.getElementById('f-partial-wrap').style.display = isPartial ? 'flex' : 'none';
-  document.getElementById('f-amount-wrap').style.display  = isInKind  ? 'none' : '';
-  if (isInKind) document.getElementById('f-amount').value = '0';
+// ════════════════════════════════════════════════════════
+//  SEASON ENTRY MODAL
+// ════════════════════════════════════════════════════════
+function openAddSS(orgId) {
+  if (!me?.edit) return;
+  editSSId  = null;
+  editSSOrg = orgId;
+  const org = orgs.find(o=>o.id===orgId);
+  document.getElementById('ss-m-title').textContent = 'Add Season Sponsorship';
+  document.getElementById('ss-m-sub').textContent   = org ? org.name : '';
+  document.getElementById('ss-m-save').textContent  = 'Add';
+  document.getElementById('ss-m-del').style.display = 'none';
+  document.getElementById('sf-tier').value   = '';
+  document.getElementById('sf-status').value = '';
+  document.getElementById('sf-amount').value = '';
+  document.getElementById('sf-paid').value   = '';
+  document.getElementById('sf-partial-wrap').style.display = 'none';
+  document.getElementById('sf-amount-wrap').style.display  = '';
+  // Default to activeSeason
+  const sel = document.getElementById('sf-year');
+  if (sel) sel.value = activeSeason;
+  document.getElementById('ss-modal').classList.add('open');
+}
+
+function openEditSS(ssId, orgId) {
+  if (!me?.edit) return;
+  const ss  = seasonEntries.find(s=>s.id===ssId); if (!ss) return;
+  const org = orgs.find(o=>o.id===orgId);
+  editSSId  = ssId;
+  editSSOrg = orgId;
+  document.getElementById('ss-m-title').textContent = 'Edit Season Sponsorship';
+  document.getElementById('ss-m-sub').textContent   = (org?org.name:'') + ' · ' + ss.year;
+  document.getElementById('ss-m-save').textContent  = 'Save';
+  document.getElementById('ss-m-del').style.display = 'block';
+  document.getElementById('sf-year').value   = ss.year;
+  document.getElementById('sf-tier').value   = ss.tier;
+  document.getElementById('sf-status').value = ss.status;
+  document.getElementById('sf-amount').value = ss.status==='inkind' ? '' : ss.amount;
+  document.getElementById('sf-paid').value   = ss.paidAmount || '';
+  document.getElementById('sf-partial-wrap').style.display = ss.status==='partial' ? '' : 'none';
+  document.getElementById('sf-amount-wrap').style.display  = ss.status==='inkind'  ? 'none' : '';
+  document.getElementById('ss-modal').classList.add('open');
+}
+
+function closeSSModal() { document.getElementById('ss-modal').classList.remove('open'); editSSId=null; editSSOrg=null; }
+
+document.getElementById('sf-status').addEventListener('change', function() {
+  const isPartial = this.value==='partial', isInKind = this.value==='inkind';
+  document.getElementById('sf-partial-wrap').style.display = isPartial ? '' : 'none';
+  document.getElementById('sf-amount-wrap').style.display  = isInKind  ? 'none' : '';
+  if (isInKind) document.getElementById('sf-amount').value = '0';
 });
-document.getElementById('sponsor-modal').addEventListener('click', e => { if (e.target === document.getElementById('sponsor-modal')) closeModal(); });
-document.getElementById('season-modal').addEventListener('click',  e => { if (e.target === document.getElementById('season-modal'))  closeSeasonModal(); });
 
-// ═══════════════════════════════════════════════════════
-//  COPY FROM PREVIOUS
-// ═══════════════════════════════════════════════════════
-function populateCopyPrev() {
-  const pastSponsors = sponsors.filter(s => s.year !== activeSeason);
-  const seen = new Set();
-  const opts = ['<option value="">— Select past sponsor —</option>'];
-  pastSponsors.sort((a,b) => b.year - a.year).forEach(s => {
-    const key = s.name.toLowerCase();
-    if (!seen.has(key)) {
-      seen.add(key);
-      opts.push(`<option value="${s.id}">${s.name} (${s.year} — ${TL[s.tier]})</option>`);
-    }
-  });
-  document.getElementById('copy-prev-select').innerHTML = opts.join('');
-  document.getElementById('copy-prev-wrap').style.display = pastSponsors.length ? 'block' : 'none';
-}
-
-function copyFromPrev() {
-  const id = document.getElementById('copy-prev-select').value;
-  if (!id) { showToast('Select a past sponsor first', 'warn'); return; }
-  const s = sponsors.find(x => x.id === id); if (!s) return;
-  document.getElementById('f-name').value    = s.name;
-  document.getElementById('f-tier').value    = s.tier;
-  document.getElementById('f-contact').value = s.contact || '';
-  document.getElementById('f-email').value   = s.email || '';
-  document.getElementById('f-phone').value   = s.phone || '';
-  document.getElementById('f-website').value = s.website || '';
-  document.getElementById('f-notes').value   = s.notes || '';
-  document.getElementById('f-amount').value  = s.amount;
-  document.getElementById('f-status').value  = 'outstanding';
-  document.getElementById('f-paid').value    = '';
-  document.getElementById('f-partial-wrap').style.display = 'none';
-  document.getElementById('f-amount-wrap').style.display = '';
-  showToast('Copied from ' + s.year + ' ✓');
-}
-
-// ═══════════════════════════════════════════════════════
-//  ACCESS LOG
-// ═══════════════════════════════════════════════════════
-async function renderAccessLog() {
-  setSyncState('loading', 'Loading log…');
-  const logs = await api('getLog');
-  setSyncState('ok', 'Loaded');
-  const body = document.getElementById('log-body');
-  const empty = document.getElementById('log-empty');
-  if (!Array.isArray(logs) || !logs.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
-  body.innerHTML = logs.map(l => {
-    const c = l.type==='login'?'var(--green)':l.action?.includes('DELETE')?'var(--red)':l.action?.includes('ADD')?'var(--green-bright)':'var(--yellow-dark)';
-    return `<tr>
-      <td style="color:var(--text-dim);white-space:nowrap;font-size:11px">${fmtD(l.timestamp||l.ts)}</td>
-      <td style="font-weight:600;font-size:12px">${l.user||l.name||''}</td>
-      <td style="color:var(--text-dim);font-size:11px">${l.role||''}</td>
-      <td><span style="font-weight:800;color:${c};font-size:10px">${l.action||''}</span></td>
-      <td style="color:var(--text-dim);font-size:11px">${l.details||''}</td>
-    </tr>`;
-  }).join('');
-}
-
-// ═══════════════════════════════════════════════════════
-//  USERS
-// ═══════════════════════════════════════════════════════
-async function renderUserGrid() {
-  const users = await api('getUsers');
-  if (!Array.isArray(users)) return;
-  document.getElementById('user-grid').innerHTML = users.map(u => {
-    const init = (u.name||u.email||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-    const isSelf = me && me.email === u.email;
-    return `<div class="ucard">
-      <div class="ucard-head">
-        <div class="ucard-av">${init}</div>
-        <div>
-          <div class="ucard-name">${u.name}${isSelf?' <span style="font-size:10px;color:var(--text-dim)">(you)</span>':''}</div>
-          <div class="ucard-role">${u.role} · ${u.email}</div>
-        </div>
-      </div>
-      <div class="ucard-badges">
-        ${u.admin?'<span class="ubadge admin">Admin</span>':''}
-        ${u.edit?'<span class="ubadge edit">Can Edit</span>':'<span class="ubadge view">View Only</span>'}
-      </div>
-      <div class="ucard-actions">
-        <button class="uact-btn" onclick="openEditUser('${u.email}','${u.name}','${u.role}',${u.admin},${u.edit})">Edit Name/Role</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ── ROLES MANAGEMENT ────────────────────────────────────────────
-const DEFAULT_ROLES = ['President','Vice President','Treasurer','Secretary','Registrar',
-  'Committee Member','Coach','Team Manager','Volunteer','Administrator','Member'];
-
-function getRoles() {
-  try {
-    const stored = localStorage.getItem('kjfc_roles');
-    return stored ? JSON.parse(stored) : [...DEFAULT_ROLES];
-  } catch(e) { return [...DEFAULT_ROLES]; }
-}
-function saveRoles(roles) {
-  localStorage.setItem('kjfc_roles', JSON.stringify(roles));
-}
-function populateRoleSelect(currentRole) {
-  const sel = document.getElementById('reset-role');
-  const roles = getRoles();
-  sel.innerHTML = roles.map(r => `<option value="${r}"${r===currentRole?' selected':''}>${r}</option>`).join('');
-  if (!sel.value && roles.length) sel.value = roles[0];
-}
-function openManageRoles() {
-  renderRolesList();
-  document.getElementById('roles-modal').classList.add('open');
-}
-function closeManageRoles() {
-  document.getElementById('roles-modal').classList.remove('open');
-  // Refresh the role select with any changes
-  const currentRole = document.getElementById('reset-role').value;
-  populateRoleSelect(currentRole);
-}
-function renderRolesList() {
-  const roles = getRoles();
-  document.getElementById('roles-list').innerHTML = roles.map((r, i) => `
-    <div class="role-tag">
-      <span>${r}</span>
-      ${DEFAULT_ROLES.includes(r)
-        ? '<span class="role-tag-default">default</span>'
-        : `<button class="role-tag-del" onclick="deleteRole(${i})" title="Remove">✕</button>`}
-    </div>`).join('');
-}
-function addCustomRole() {
-  const input = document.getElementById('new-role-input');
-  const val = input.value.trim();
-  if (!val) return;
-  const roles = getRoles();
-  if (roles.includes(val)) { showToast('Role already exists'); return; }
-  roles.push(val);
-  saveRoles(roles);
-  input.value = '';
-  renderRolesList();
-  showToast('Role added ✓');
-}
-function deleteRole(idx) {
-  const roles = getRoles();
-  roles.splice(idx, 1);
-  saveRoles(roles);
-  renderRolesList();
-}
-// These are attached inside init() to ensure DOM is ready
-
-// ── EDIT USER ────────────────────────────────────────────────────
-function openEditUser(email, name, role, isAdmin, canEdit) {
-  document.getElementById('reset-email').value = email;
-  document.getElementById('reset-name').value  = name;
-  populateRoleSelect(role);
-  // Set access level radio
-  const level = isAdmin ? 'admin' : canEdit ? 'edit' : 'readonly';
-  document.querySelector(`input[name="access-level"][value="${level}"]`).checked = true;
-  document.getElementById('reset-sub').textContent = 'Editing ' + email;
-  document.getElementById('reset-ok').style.display  = 'none';
-  document.getElementById('reset-err').style.display = 'none';
-  document.getElementById('reset-modal').classList.add('open');
-}
-function closeResetModal() { document.getElementById('reset-modal').classList.remove('open'); }
-
-async function confirmEditUser() {
-  const email  = document.getElementById('reset-email').value;
-  const name   = document.getElementById('reset-name').value.trim();
-  const role   = document.getElementById('reset-role').value.trim();
-  const access = document.querySelector('input[name="access-level"]:checked')?.value || 'readonly';
-  const ok = document.getElementById('reset-ok'), err = document.getElementById('reset-err');
-  ok.style.display = 'none'; err.style.display = 'none';
-  const res = await api('updateUser', { email, name, role, access });
-  if (res.error) { err.textContent = res.error; err.style.display = 'block'; return; }
-  ok.style.display = 'block';
-  setTimeout(() => closeResetModal(), 1200);
-  showToast('User updated ✓');
+async function saveSS() {
+  const tier   = document.getElementById('sf-tier').value;
+  const status = document.getElementById('sf-status').value;
+  const amount = document.getElementById('sf-amount').value;
+  if (!tier)   { showToast('Select a tier', 'warn'); return; }
+  if (!status) { showToast('Select a payment status', 'warn'); return; }
+  const finalAmount = status==='inkind' ? 0 : +amount;
+  if (status!=='inkind' && (!amount || +amount<=0)) { showToast('Enter a valid amount', 'warn'); return; }
+  const data = {
+    id: editSSId||'', orgId: editSSOrg,
+    year: +document.getElementById('sf-year').value,
+    tier, status,
+    amount: finalAmount,
+    paidAmount: +document.getElementById('sf-paid').value||0,
+  };
+  setSyncState('loading', 'Saving…');
+  btnLoading(document.getElementById('ss-m-save'), true);
+  const res = await api('saveSeason', { data, isNew: !editSSId });
+  btnLoading(document.getElementById('ss-m-save'), false);
+  if (res.error) { showToast('Error: ' + res.error, 'err'); setSyncState('err','Save failed'); return; }
+  if (!editSSId) { data.id=res.id; seasonEntries.push(data); }
+  else { const idx=seasonEntries.findIndex(s=>s.id===editSSId); if(idx>=0) seasonEntries[idx]={...seasonEntries[idx],...data}; }
+  closeSSModal(); render();
+  showToast(editSSId ? 'Updated ✓' : 'Season entry added ✓');
   loadAll();
 }
 
-// ═══════════════════════════════════════════════════════
-//  PROFILE
-// ═══════════════════════════════════════════════════════
-function openProfile() {
-  if (!me) return;
-  const init = me.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  document.getElementById('prof-av-init').textContent = init;
-  if (me.picture) document.getElementById('prof-av').innerHTML = `<img src="${me.picture}" alt="">`;
-  document.getElementById('prof-name').textContent = me.name;
-  document.getElementById('prof-email').textContent = me.email;
-  document.getElementById('prof-badges').innerHTML =
-    (me.admin ? '<span class="ubadge admin">Admin</span>' : '') +
-    (me.edit  ? '<span class="ubadge edit">Can Edit</span>' : '<span class="ubadge view">View Only</span>');
-  document.getElementById('profile-modal').classList.add('open');
+async function deleteSS() {
+  if (!confirm('Remove this season entry?')) return;
+  btnLoading(document.getElementById('ss-m-del'), true);
+  const res = await api('deleteSeason', { id: editSSId });
+  btnLoading(document.getElementById('ss-m-del'), false);
+  if (res.error) { showToast('Error: '+res.error, 'err'); return; }
+  seasonEntries = seasonEntries.filter(s=>s.id!==editSSId);
+  closeSSModal(); render();
+  showToast('Season entry removed');
+  loadAll();
 }
-function closeProfileModal() { document.getElementById('profile-modal').classList.remove('open'); }
-document.getElementById('profile-modal').addEventListener('click', e => { if (e.target === document.getElementById('profile-modal')) closeProfileModal(); });
 
-// ═══════════════════════════════════════════════════════
-//  TABS
-// ═══════════════════════════════════════════════════════
-function setTab(tab, btn) {
-  document.querySelectorAll('.ptab').forEach(b => b.classList.remove('act'));
-  btn.classList.add('act');
-  ['overview','access','users'].forEach(t => {
-    document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
+// ════════════════════════════════════════════════════════
+//  CONTACT LOG MODAL
+// ════════════════════════════════════════════════════════
+let clOrgId = null;
+
+function openContactLog(orgId) {
+  clOrgId = orgId;
+  const org = orgs.find(o=>o.id===orgId);
+  document.getElementById('cl-m-sub').textContent = org ? org.name : '';
+  document.getElementById('clf-date').value  = new Date().toISOString().slice(0,10);
+  document.getElementById('clf-notes').value = '';
+  document.getElementById('cl-modal').classList.add('open');
+}
+
+function closeContactLog() { document.getElementById('cl-modal').classList.remove('open'); clOrgId=null; }
+
+async function saveContactLog() {
+  const notes = document.getElementById('clf-notes').value.trim();
+  if (!notes) { showToast('Enter some notes', 'warn'); return; }
+  const date = document.getElementById('clf-date').value;
+  btnLoading(document.getElementById('cl-m-save'), true);
+  const res = await api('addContactLog', { orgId: clOrgId, date, notes });
+  btnLoading(document.getElementById('cl-m-save'), false);
+  if (res.error) { showToast('Error: '+res.error, 'err'); return; }
+  closeContactLog();
+  showToast('Contact logged ✓');
+  // Refresh the org detail if open
+  const od = document.getElementById('org-detail-overlay');
+  if (od.classList.contains('open')) openOrgDetail(clOrgId);
+}
+
+async function deleteContactEntry(id, orgId) {
+  if (!confirm('Delete this contact log entry?')) return;
+  await api('deleteContactLog', { id });
+  openOrgDetail(orgId); // refresh
+}
+
+// ════════════════════════════════════════════════════════
+//  DRILL DOWN
+// ════════════════════════════════════════════════════════
+function openDrill(title, ssList) {
+  document.getElementById('drill-title').textContent = title;
+  document.getElementById('drill-tbody').innerHTML = ssList.map(s => {
+    const org = orgs.find(o=>o.id===s.orgId)||{name:s.orgId};
+    return `<tr onclick="openOrgDetail('${s.orgId}')" style="cursor:pointer">
+      <td><strong>${org.name}</strong></td>
+      <td><span class="tchip ${s.tier}">${TL[s.tier]||cap(s.tier)}</span></td>
+      <td>${s.status==='inkind'?'<span style="color:#6d28d9;font-size:11px">In-Kind</span>':fmt(s.amount)}</td>
+      <td><span class="sbadge ${s.status}">${cap(s.status)}</span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('drillPanel').classList.add('open');
+}
+
+function closeDrill() { document.getElementById('drillPanel').classList.remove('open'); }
+
+function drillTotal() {
+  const ss = ssForYear(activeSeason).sort((a,b)=>(TO[a.tier]||5)-(TO[b.tier]||5));
+  openDrill('All Sponsors — ' + activeSeason + ' (' + fmt(ss.filter(s=>s.status!=='inkind').reduce((a,s)=>a+ +s.amount,0)) + ')', ss);
+}
+function drillPaid() {
+  const ss = ssForYear(activeSeason).filter(s=>s.status==='paid'||s.status==='partial').sort((a,b)=>(TO[a.tier]||5)-(TO[b.tier]||5));
+  openDrill('Received — ' + activeSeason, ss);
+}
+function drillOut() {
+  const ss = ssForYear(activeSeason).filter(s=>s.status==='outstanding'||s.status==='partial').sort((a,b)=>(TO[a.tier]||5)-(TO[b.tier]||5));
+  openDrill('Outstanding — ' + activeSeason, ss);
+}
+
+// ════════════════════════════════════════════════════════
+//  SEASON YEAR MODAL
+// ════════════════════════════════════════════════════════
+function openSeasonModal() {
+  document.getElementById('new-season-yr').value = (years[0]||2025) + 1;
+  document.getElementById('season-modal').classList.add('open');
+}
+function closeSeasonModal() { document.getElementById('season-modal').classList.remove('open'); }
+async function confirmAddSeason() {
+  const y = +document.getElementById('new-season-yr').value;
+  if (!y||y<2020||y>2045) { showToast('Enter a valid year','warn'); return; }
+  if (years.includes(y)) { showToast(y+' already exists','warn'); closeSeasonModal(); return; }
+  setSyncState('loading','Adding season…');
+  const res = await api('addSeason', { year: y });
+  if (res.error) { showToast('Error: '+res.error,'err'); return; }
+  years.unshift(y); years.sort((a,b)=>b-a);
+  closeSeasonModal(); renderSeasonTabs();
+  showToast('Season '+y+' added ✓');
+}
+
+// ════════════════════════════════════════════════════════
+//  EXPORT CSV
+// ════════════════════════════════════════════════════════
+function exportCSV() {
+  const ss = ssForYear(activeSeason);
+  const rows = [['Sponsor','Tier','Amount','Status','Received','Contact','Email','Phone','Website','Notes']];
+  ss.forEach(s => {
+    const org = orgs.find(o=>o.id===s.orgId)||{name:s.orgId};
+    rows.push([org.name,s.tier,s.amount,s.status,s.paidAmount||0,org.primaryContact||'',org.email||'',org.phone||'',org.website||'',org.notes||'']);
   });
-  if (tab === 'access') renderAccessLog();
-  if (tab === 'users')  renderUserGrid();
+  const csv = rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'KJFC_Sponsors_' + activeSeason + '.csv';
+  a.click();
+  showToast('CSV exported ✓');
 }
 
-// ═══════════════════════════════════════════════════════
-//  UTILS
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  LOGOUT
+// ════════════════════════════════════════════════════════
+async function doLogout() {
+  document.getElementById('reset-modal').classList.add('open');
+}
+function closeResetModal() { document.getElementById('reset-modal').classList.remove('open'); }
+async function confirmLogout() {
+  clearSession();
+  if (window.google) google.accounts.id.disableAutoSelect();
+  closeResetModal();
+  location.reload();
+}
+
+// ════════════════════════════════════════════════════════
+//  ADMIN: ACCESS LOG + USER GRID
+// ════════════════════════════════════════════════════════
+async function renderAccessLog() {
+  const wrap = document.getElementById('access-log-wrap');
+  wrap.style.display = wrap.style.display==='none' ? 'block' : 'none';
+  if (wrap.style.display==='none') return;
+  wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">Loading…</div>';
+  const res = await api('getLog');
+  if (!Array.isArray(res)) { wrap.innerHTML='<div style="color:var(--red)">Failed to load</div>'; return; }
+  wrap.innerHTML = `<table class="stable" style="font-size:11px;">
+    <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
+    <tbody>${res.map(r=>`<tr><td>${fmtD(r.timestamp)}</td><td>${r.user||''}</td><td>${r.action||''}</td><td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.details||''}</td></tr>`).join('')}</tbody>
+  </table>`;
+}
+
+let editingUser = null;
+async function renderUserGrid() {
+  const wrap = document.getElementById('user-grid-wrap');
+  wrap.style.display = wrap.style.display==='none' ? 'block' : 'none';
+  if (wrap.style.display==='none') return;
+  wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">Loading…</div>';
+  const res = await api('getUsers');
+  if (!Array.isArray(res)) { wrap.innerHTML='<div style="color:var(--red)">Failed</div>'; return; }
+  wrap.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+    ${res.map(u=>`<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border-radius:8px;">
+      <div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;">${u.name||u.email}</div>
+      <div style="font-size:11px;color:var(--text-dim);">${u.email} · ${u.role}</div></div>
+      <button class="actbtn" onclick="openUserModal(${JSON.stringify(u).replace(/"/g,'&quot;')})">Edit</button>
+    </div>`).join('')}
+  </div>`;
+}
+
+function openUserModal(u) {
+  editingUser = u;
+  document.getElementById('um-title').textContent = 'Edit: ' + (u.name||u.email);
+  document.getElementById('um-name').value = u.name||'';
+  populateRoleSelect(); document.getElementById('um-role').value = u.role||'Member';
+  const lvl = u.admin?'admin': u.edit?'edit':'readonly';
+  document.querySelectorAll('input[name="access-level"]').forEach(r => r.checked = r.value===lvl);
+  document.getElementById('user-modal').classList.add('open');
+}
+function closeUserModal() { document.getElementById('user-modal').classList.remove('open'); editingUser=null; }
+async function confirmEditUser() {
+  if (!editingUser) return;
+  const res = await api('updateUser', { email: editingUser.email, name: document.getElementById('um-name').value.trim(), role: document.getElementById('um-role').value });
+  if (res.error) { showToast('Error: '+res.error,'err'); return; }
+  closeUserModal(); showToast('User updated ✓'); loadAll();
+}
+
+// ════════════════════════════════════════════════════════
+//  ROLES
+// ════════════════════════════════════════════════════════
+const DEFAULT_ROLES = ['President','Vice President','Treasurer','Secretary','Registrar','Committee Member','Coach','Team Manager','Volunteer','Administrator','Member'];
+function getRoles() { try { return JSON.parse(localStorage.getItem('kjfc_roles')) || DEFAULT_ROLES; } catch { return DEFAULT_ROLES; } }
+function saveRoles(r) { localStorage.setItem('kjfc_roles', JSON.stringify(r)); }
+function populateRoleSelect() { const s=document.getElementById('um-role'); s.innerHTML=getRoles().map(r=>`<option>${r}</option>`).join(''); }
+function openManageRoles() { renderRolesList(); document.getElementById('roles-modal').classList.add('open'); }
+function closeManageRoles() { document.getElementById('roles-modal').classList.remove('open'); populateRoleSelect(); }
+function renderRolesList() {
+  const roles=getRoles();
+  document.getElementById('roles-list').innerHTML = roles.map((r,i)=>`
+    <div class="role-tag"><span>${r}</span>
+      ${DEFAULT_ROLES.includes(r)?'<span style="font-size:9px;color:var(--text-dim);margin-left:auto">default</span>':
+        `<button onclick="deleteRole(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;margin-left:auto;">✕</button>`}
+    </div>`).join('');
+}
+function addCustomRole() { const v=document.getElementById('new-role-input').value.trim(); if(!v) return; const r=getRoles(); if(!r.includes(v)) r.push(v); saveRoles(r); document.getElementById('new-role-input').value=''; renderRolesList(); showToast('Role added ✓'); }
+function deleteRole(i) { const r=getRoles(); if(DEFAULT_ROLES.includes(r[i])) return; r.splice(i,1); saveRoles(r); renderRolesList(); }
+
+// ════════════════════════════════════════════════════════
+//  BUTTON LOADING
+// ════════════════════════════════════════════════════════
+function btnLoading(el, isLoading) {
+  if (!el) return;
+  if (isLoading) { el.classList.add('btn-loading'); el.disabled=true; }
+  else           { el.classList.remove('btn-loading'); el.disabled=false; }
+}
+
+// ════════════════════════════════════════════════════════
+//  SYNC STATE / TOAST
+// ════════════════════════════════════════════════════════
+function setSyncState(state, text) {
+  const el = document.getElementById('sync-state'); if (!el) return;
+  el.textContent = (state==='loading'?'⟳ ':state==='err'?'✕ ':'● ') + text;
+  el.className = 'sync-' + state;
+}
+
 function fmt(n)    { return '$' + Number(n).toLocaleString('en-AU'); }
-function cap(s)    { return s.charAt(0).toUpperCase() + s.slice(1); }
+function cap(s)    { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
 function fmtTime(d){ return d.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' }); }
 function fmtD(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-AU', {day:'2-digit',month:'short',year:'numeric'}) + ' ' +
-         d.toLocaleTimeString('en-AU', {hour:'2-digit',minute:'2-digit'});
-}
-function showToast(msg, type = '') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show' + (type ? ' ' + type : '');
-  clearTimeout(t._t);
-  t._t = setTimeout(() => t.classList.remove('show'), 2800);
+  if (!iso) return '';
+  try { const d=new Date(iso); return d.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}); }
+  catch { return iso; }
 }
 
-// ═══════════════════════════════════════════════════════
-//  EXPORT CSV
-// ═══════════════════════════════════════════════════════
-window.kjfc = {
-  exportCSV() {
-    const hdr = 'Year,Name,Tier,Amount,Status,Paid,Contact,Email,Phone,Website,Notes';
-    const rows = sponsors.sort((a,b) => b.year - a.year).map(r =>
-      [r.year,`"${r.name}"`,r.tier,r.amount,r.status,r.paidAmount||0,`"${r.contact||''}"`,r.email,r.phone,r.website,`"${(r.notes||'').replace(/"/g,"'")}"`].join(',')
-    );
-    const csv = [hdr,...rows].join('\n');
-    const a = document.createElement('a');
-    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-    a.download = 'kjfc_sponsors.csv';
-    a.click();
-    showToast('CSV exported ✓');
+let _toastTimer;
+function showToast(msg, type='') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast'+(type?' toast-'+type:''); t.classList.add('show');
+  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// ════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════
+function init() {
+  loadSession();
+
+  // Wire org modal
+  document.getElementById('org-m-save').addEventListener('click', saveOrg);
+  document.getElementById('org-m-cancel').addEventListener('click', closeOrgModal);
+  document.getElementById('org-mclose').addEventListener('click', closeOrgModal);
+  document.getElementById('org-m-del').addEventListener('click', deleteOrg);
+  document.getElementById('org-modal').addEventListener('click', e => { if(e.target===document.getElementById('org-modal')) closeOrgModal(); });
+
+  // Wire season modal
+  document.getElementById('ss-m-save').addEventListener('click', saveSS);
+  document.getElementById('ss-m-cancel').addEventListener('click', closeSSModal);
+  document.getElementById('ss-mclose').addEventListener('click', closeSSModal);
+  document.getElementById('ss-m-del').addEventListener('click', deleteSS);
+  document.getElementById('ss-modal').addEventListener('click', e => { if(e.target===document.getElementById('ss-modal')) closeSSModal(); });
+
+  // Wire contact log modal
+  document.getElementById('cl-m-save').addEventListener('click', saveContactLog);
+  document.getElementById('cl-m-cancel').addEventListener('click', closeContactLog);
+  document.getElementById('cl-mclose').addEventListener('click', closeContactLog);
+  document.getElementById('cl-modal').addEventListener('click', e => { if(e.target===document.getElementById('cl-modal')) closeContactLog(); });
+
+  // Wire org detail overlay
+  document.getElementById('od-close').addEventListener('click', closeOrgDetail);
+  document.getElementById('org-detail-overlay').addEventListener('click', e => { if(e.target===document.getElementById('org-detail-overlay')) closeOrgDetail(); });
+
+  // Wire season year modal
+  document.getElementById('reset-modal').addEventListener('click', e => { if(e.target===document.getElementById('reset-modal')) closeResetModal(); });
+
+  // Wire roles modal
+  const _nri = document.getElementById('new-role-input');
+  if (_nri) _nri.addEventListener('keydown', e => { if(e.key==='Enter') addCustomRole(); });
+  const _rm = document.getElementById('roles-modal');
+  if (_rm) _rm.addEventListener('click', e => { if(e.target===_rm) closeManageRoles(); });
+
+  // Hide loading screen
+  setTimeout(() => {
+    const ls = document.getElementById('loading-screen');
+    ls.classList.add('fade');
+    setTimeout(() => { ls.style.display='none'; }, 500);
+  }, 1200);
+
+  if (token && me) {
+    showApp();
+  } else {
+    document.getElementById('login-view').style.display='flex';
+    initGoogleSignIn();
   }
-};
+}
 
-// ═══════════════════════════════════════════════════════
-//  START
-// ═══════════════════════════════════════════════════════
-init();
+document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
