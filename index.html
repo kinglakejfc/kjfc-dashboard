@@ -3479,7 +3479,8 @@ function renderPlImport() {
       </p>
       <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;">
         <label style="font-size:12px;font-weight:700;color:var(--text-dim);">Import for season:</label>
-        <select id="import-season" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;">
+        <select id="import-season" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;"
+          onchange="if(_importData){_importData=null;document.getElementById('import-review').innerHTML='<div style=\'color:var(--text-dim);font-size:13px;padding:12px 0;\'>Season changed — re-drop your file to re-process with the new season.</div>';}">
           ${(years||[new Date().getFullYear()]).map(y=>`<option value="${y}" ${y==plSeason?'selected':''}>${y}</option>`).join('')}
         </select>
       </div>
@@ -3512,8 +3513,27 @@ function handleImportFile(file) {
 
   const reader = new FileReader();
   reader.onload = ev => {
-    const season   = +document.getElementById('import-season').value;
     const allRows  = parseCSV(ev.target.result).filter(r => (r['First Name']||'').trim());
+
+    // ── Auto-detect season from CSV's own Season column ──────────────
+    // The CSV contains a "Season" column (e.g. "2026") — always use this
+    // so historical imports calculate age against the correct year, not today's season.
+    const csvSeason = allRows.find(r => r['Season'] && /^\d{4}$/.test((r['Season']||'').trim()))?.['Season']?.trim();
+    const selEl     = document.getElementById('import-season');
+    let   season    = +selEl.value;
+
+    if (csvSeason) {
+      season = +csvSeason;
+      // Add option if not already in selector
+      if (![...selEl.options].some(o => +o.value === season)) {
+        const opt = document.createElement('option');
+        opt.value = season; opt.textContent = season;
+        selEl.appendChild(opt);
+      }
+      selEl.value = season;
+    }
+
+    const seasonChanged = csvSeason && +csvSeason !== +plSeason;
 
     // Build existing player lookup for duplicate detection
     const pm = plPlayerMap();
@@ -3528,6 +3548,7 @@ function handleImportFile(file) {
       const dob       = (r['Date of Birth']||'').trim();
       const profileId = (r['Profile ID']||'').trim() ||
                         'kjfc_'+firstName.toLowerCase()+'_'+lastName.toLowerCase()+'_'+dob.replace(/\//g,'');
+      // Age is always calculated against the SEASON year (what age they turn in that calendar year)
       const age       = calcAgeClient(dob, season);
       const ageGroup  = (r['Age Group']||'').toUpperCase();
       const role      = (r['Role']||'').trim();
@@ -3543,27 +3564,24 @@ function handleImportFile(file) {
       else if (role && role !== 'Player')                         excludeReason = `Role: ${role}`;
       else if (club && !club.toLowerCase().includes('kinglake'))  excludeReason = `Club: ${club}`;
       else if (ageGroup === 'SENIOR')                             excludeReason = 'Senior (age group tag)';
-      else if (age !== null && age > 17)                          excludeReason = `Over 17 (age ${age})`;
+      else if (age !== null && age > 17)                          excludeReason = `Over 17 (age ${age} in ${season})`;
       else if (age !== null && age < 5)                           excludeReason = `Age error (age ${age})`;
 
       // Duplicate detection
       let dupType = null;
       if (!excludeReason) {
         if (existingSeasonIds.has(profileId)) {
-          dupType = 'already_this_season'; // exact — already in this season
+          dupType = 'already_this_season';
         } else {
-          // Check existing players: exact profileId match = returning player
           if (pm[profileId]) {
-            dupType = 'returning'; // in DB, not yet in this season — update
+            dupType = 'returning';
           } else {
-            // Fuzzy: same name + DOB in existing players (different profileId — possible re-registration)
             const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${dob}`;
             const fuzzyMatch = Object.values(pm).find(p =>
               `${p.firstName.toLowerCase()}_${p.lastName.toLowerCase()}_${p.dob}` === nameKey
             );
             if (fuzzyMatch) dupType = 'name_dob_match';
 
-            // Check within this CSV for duplicates
             const csvDup = allRows.slice(0, idx).find(prev =>
               (prev['First Name']||'').trim().toLowerCase() === firstName.toLowerCase() &&
               (prev['Last Name']||'').trim().toLowerCase()  === lastName.toLowerCase()  &&
@@ -3579,12 +3597,12 @@ function handleImportFile(file) {
     });
 
     _importData = { season, rows: categorised, file: file.name };
-    renderImportReview(categorised, season, file.name);
+    renderImportReview(categorised, season, file.name, seasonChanged ? csvSeason : null);
   };
   reader.readAsText(file);
 }
 
-function renderImportReview(rows, season, filename) {
+function renderImportReview(rows, season, filename, autoDetectedSeason) {
   const review = document.getElementById('import-review');
 
   const include = rows.filter(r => !r.excludeReason);
@@ -3593,14 +3611,6 @@ function renderImportReview(rows, season, filename) {
   const fresh   = include.filter(r => !r.dupType);
   const returning = include.filter(r => r.dupType === 'returning');
 
-  const dupColour = {
-    already_this_season: { bg:'#f0fdf4', border:'#86efac', badge:'#16a34a', label:'Already imported' },
-    returning:           { bg:'#eff6ff', border:'#93c5fd', badge:'#2563eb', label:'Returning player' },
-    name_dob_match:      { bg:'#fefce8', border:'#fde047', badge:'#ca8a04', label:'⚠ Name+DOB match' },
-    csv_duplicate:       { bg:'#fef2f2', border:'#fca5a5', badge:'#dc2626', label:'⚠ Duplicate in CSV' },
-  };
-
-  // Tab state
   const tabs = [
     { id:'inc',  label:`✓ Include (${include.length})`,  colour:'var(--green)' },
     { id:'exc',  label:`✗ Excluded (${exclude.length})`, colour:'var(--red)'   },
@@ -3608,6 +3618,13 @@ function renderImportReview(rows, season, filename) {
   ];
 
   review.innerHTML = `
+    <!-- Auto-detect notice -->
+    ${autoDetectedSeason ? `
+    <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;gap:8px;align-items:center;">
+      <span style="font-size:16px;">🔄</span>
+      <div style="font-size:13px;">Season auto-detected from file: <strong>${autoDetectedSeason}</strong>. Ages calculated against <strong>end of ${autoDetectedSeason}</strong>. You can override with the season selector above.</div>
+    </div>` : ''}
+
     <!-- Summary bar -->
     <div style="background:var(--green-light);border:1.5px solid var(--green);border-radius:10px;padding:13px 16px;margin-bottom:16px;">
       <div style="font-weight:700;font-size:14px;color:var(--green);margin-bottom:6px;">📂 ${filename} — Season ${season}</div>
@@ -3617,6 +3634,7 @@ function renderImportReview(rows, season, filename) {
         <span><strong style="color:#ca8a04">${dups.length}</strong> flagged</span>
         <span><strong>${fresh.length}</strong> new · <strong>${returning.length}</strong> returning</span>
       </div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:5px;">Age eligibility assessed at end of ${season} (player's age turning during ${season} calendar year)</div>
     </div>
 
     <!-- View tabs -->
@@ -3643,7 +3661,6 @@ function renderImportReview(rows, season, filename) {
     </div>
   `;
 
-  // Render first tab
   renderImportTab('inc', rows);
   updateImportCount(rows);
 }
