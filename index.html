@@ -1035,6 +1035,8 @@ async function init() {
   if (_nri) _nri.addEventListener('keydown', e => { if (e.key === 'Enter') addCustomRole(); });
   const _rm = document.getElementById('roles-modal');
   if (_rm) _rm.addEventListener('click', e => { if (e.target === _rm) closeManageRoles(); });
+  const _rsm = document.getElementById('reset-modal');
+  if (_rsm) _rsm.addEventListener('click', e => { if (e.target === _rsm) closeResetModal(); });
 
   if (token && me) {
     // Verify token is still valid
@@ -1703,7 +1705,6 @@ function openEditUser(email, name, role, isAdmin, canEdit) {
   document.getElementById('reset-modal').classList.add('open');
 }
 function closeResetModal() { document.getElementById('reset-modal').classList.remove('open'); }
-document.getElementById('reset-modal').addEventListener('click', e => { if (e.target === document.getElementById('reset-modal')) closeResetModal(); });
 
 async function confirmEditUser() {
   const email  = document.getElementById('reset-email').value;
