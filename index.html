@@ -41,18 +41,6 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-// Title-case a name: handles ALL CAPS, lowercase, hyphenated parts, and apostrophes
-// e.g. "JOHN SMITH-O'BRIEN" -> "John Smith-O'Brien"
-function toTitleCase(str) {
-  if (!str) return str;
-  return str.replace(/[^\s-]+/g, function(word) {
-    // Preserve Mc/Mac prefix capitalisation (McGregor, MacDonald)
-    if (/^[Mm][Cc][A-Za-z]/.test(word)) {
-      return word[0].toUpperCase() + word[1].toLowerCase() + word[2].toUpperCase() + word.slice(3).toLowerCase();
-    }
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-  });
-}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html{scroll-behavior:smooth;}
 body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;font-size:16px;}
@@ -1324,6 +1312,20 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
+// ── NAME UTILITIES ───────────────────────────────────────────────────────────
+// Title-case a name: normalises ALL CAPS / all-lowercase from PlayHQ exports
+// e.g. "JOHN SMITH-O'BRIEN" → "John Smith-O'Brien", "mcgregor" → "McGregor"
+function toTitleCase(str) {
+  if (!str) return str;
+  return str.replace(/[^\s\-]+/g, function(word) {
+    if (/^[Mm][Cc][A-Za-z]/.test(word)) {
+      return word[0].toUpperCase() + word[1].toLowerCase() +
+             word[2].toUpperCase() + word.slice(3).toLowerCase();
+    }
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+}
+
 // ════════════════════════════════════════════════════════
 //  CONFIG
 // ════════════════════════════════════════════════════════
