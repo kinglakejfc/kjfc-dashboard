@@ -3846,50 +3846,46 @@ async function runImport() {
     ...filteredRows.map(r => csvHeaders.map(h => esc(r[h]||'')).join(','))
   ].join('\n');
 
-  // ── Step 2: POST CSV as body directly to Apps Script ─────────────────────
-  // Apps Script's doPost receives e.postData.contents — no URL size limit.
-  // Problem: Apps Script redirects (302) and fetch() switches to GET on redirect,
-  // losing the body. Fix: probe the redirect URL with a GET first, then POST
-  // the CSV body directly to the final (non-redirecting) URL.
-  setStatus('Uploading & importing…');
-  let res;
-  try {
-    const postUrl = APPS_SCRIPT_URL
-      + '?action=uploadAndImport'
-      + '&token=' + encodeURIComponent(token)
-      + '&season=' + encodeURIComponent(season);
+  // ── Step 2: Chunked JSONP upload via ScriptProperties ────────────────────
+  // Large CSV is split into ~4KB chunks sent as sequential JSONP calls.
+  // Each call is tiny (well under URL limits). Backend stores chunks in
+  // ScriptProperties (fast key-value store), reassembles on finalise, then imports.
+  const CHUNK_SIZE = 4000; // chars per chunk — safe JSONP URL limit
+  const chunks = [];
+  for (let i = 0; i < csvText.length; i += CHUNK_SIZE) {
+    chunks.push(csvText.slice(i, i + CHUNK_SIZE));
+  }
+  console.log('[KJFC import] Uploading ' + chunks.length + ' chunks (' + csvText.length + ' chars total)');
 
-    // 2a: Cheap GET to follow the redirect and get the final URL
-    const probeRes = await fetch(postUrl, { method: 'GET', redirect: 'follow' });
-    const finalUrl = probeRes.url;
-    console.log('[KJFC import] Final URL after redirect:', finalUrl);
-
-    // 2b: POST CSV body to the final URL (no redirect this time)
-    const postRes = await fetch(finalUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain; charset=UTF-8' },
-      body: csvText,
-    });
-    if (!postRes.ok) throw new Error('HTTP ' + postRes.status);
-
-    const text = await postRes.text();
-    console.log('[KJFC import] Raw response:', text.slice(0, 300));
-
-    // Response may be JSONP-wrapped callback({...}) or plain JSON
-    const m = text.match(/^\s*[^(]+\((.+)\)\s*;?\s*$/s);
-    if (m) { try { res = JSON.parse(m[1]); } catch(e) { res = { error: 'Parse error: ' + text.slice(0,100) }; } }
-    else   { try { res = JSON.parse(text);  } catch(e) { res = { error: 'Parse error: ' + text.slice(0,100) }; } }
-
-  } catch (err) {
+  // 2a: Start upload session
+  setStatus('Starting upload… (0/' + chunks.length + ')');
+  const startRes = await api('startUpload', { totalChunks: chunks.length });
+  if (startRes.error) {
     btn.disabled = false;
-    setStatus('❌ Upload failed: ' + err.message, '#dc2626');
-    console.error('[KJFC import] POST error:', err);
-    showToast('Upload failed: ' + err.message, 'err');
+    setStatus('❌ Upload failed: ' + startRes.error, '#dc2626');
+    showToast('Upload failed: ' + startRes.error, 'err');
     return;
   }
+  const uploadId = startRes.uploadId;
+
+  // 2b: Send chunks sequentially
+  for (let i = 0; i < chunks.length; i++) {
+    setStatus(`Uploading… ${i + 1}/${chunks.length}`);
+    const chunkRes = await api('appendChunk', { uploadId, index: i, data: chunks[i] });
+    if (chunkRes.error) {
+      btn.disabled = false;
+      setStatus('❌ Chunk ' + i + ' failed: ' + chunkRes.error, '#dc2626');
+      showToast('Upload failed at chunk ' + i + ': ' + chunkRes.error, 'err');
+      return;
+    }
+  }
+
+  // 2c: Finalise — backend reassembles, saves to Drive, runs import
+  setStatus('Importing players…');
+  const res = await api('finaliseUpload', { uploadId, season });
 
   btn.disabled = false;
-  console.log('[KJFC import] Result:', JSON.stringify(res));
+  console.log('[KJFC import] finaliseUpload result:', JSON.stringify(res));
   if (!res || res.error) {
     setStatus('❌ Import failed: ' + (res && res.error || 'Unknown error'), '#dc2626');
     showToast('Import failed: ' + (res && res.error || 'Unknown error'), 'err');
