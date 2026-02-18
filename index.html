@@ -726,8 +726,10 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
         <span id="user-name"></span>
       </div>
       <!-- Admin nav (admin only) -->
+      <!-- Packages visible to all users -->
+      <button class="hnav-btn" onclick="openAdminModal('packages')">Packages</button>
+      <!-- Admin-only nav -->
       <div id="admin-nav-btns" style="display:none;align-items:center;gap:4px;">
-        <button class="hnav-btn" onclick="openAdminModal('packages')">Packages</button>
         <button class="hnav-btn" onclick="openAdminModal('log')">Access Log</button>
         <button class="hnav-btn" onclick="openAdminModal('users')">Users</button>
       </div>
@@ -1527,7 +1529,7 @@ function render() {
   document.getElementById('tier-mini').innerHTML = activeTiers.map(t => {
     const d = s.byTier[t]; if (!d.count) return '';
     const col = TH[t] || 'var(--text-dim)';
-    const ikBit = d.ikCount>0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:600">&nbsp;(inc. ${d.ikCount} in-kind)</span>` : '';
+    const ikBit = d.ikCount>0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:600">&nbsp;(${d.ikCount} in-kind)</span>` : '';
     return `<div style="display:flex;align-items:center;gap:7px"><div style="width:6px;height:6px;border-radius:50%;background:${col};flex-shrink:0"></div><span style="font-size:11px;flex:1">${TL[t]||cap(t)}</span><span style="font-size:12px;font-weight:800;color:${col}">${d.count}${ikBit}</span></div>`;
   }).join('');
 
@@ -1549,7 +1551,7 @@ function render() {
   document.getElementById('tier-list').innerHTML = tierListTiers.map(t => {
     const d = s.byTier[t]; if (!d.count) return '';
     const col = TH[t] || 'var(--text-dim)';
-    const ikLabel = d.ikCount>0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:700;margin-left:4px">(inc. ${d.ikCount} in-kind)</span>` : '';
+    const ikLabel = d.ikCount>0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:700;margin-left:4px">(${d.ikCount} in-kind)</span>` : '';
     return `<div class="trow" onclick="filterTable('${t}')">
       <div class="tdot ${t}"></div><div class="tname">${TL[t]||cap(t)}${ikLabel}</div>
       <div class="tcnt">${d.count}</div><div class="tamt" style="color:${col}">${fmt(d.amount)}</div>
@@ -2454,6 +2456,10 @@ async function confirmLogout() {
 // ════════════════════════════════════════════════════════
 async function openAdminModal(tab) {
   const modal = document.getElementById('admin-modal');
+  // Show/hide admin-only tabs based on role
+  modal.querySelectorAll('.adm-tab[data-tab="log"], .adm-tab[data-tab="users"]').forEach(b => {
+    b.style.display = (me && me.admin) ? '' : 'none';
+  });
   bringToFront(modal); modal.classList.add('open');
   // Set active tab
   document.querySelectorAll('.adm-tab').forEach(b => b.classList.toggle('act', b.dataset.tab===tab));
