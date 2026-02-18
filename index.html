@@ -3819,6 +3819,7 @@ async function runImport() {
   const btn     = document.getElementById('imp-confirm-btn');
   const countEl = document.getElementById('imp-sel-count');
   btn.disabled  = true;
+  console.log('[KJFC import] Starting import: ' + selected.length + ' players, season ' + season);
 
   const setStatus = (msg, colour) => {
     if (!countEl) return;
@@ -3850,10 +3851,19 @@ async function runImport() {
   // resumable upload URL using its own service OAuth token.
   setStatus('Requesting upload slot…');
   const urlRes = await api('getUploadUrl', { name: _importData.file });
+  console.log('[KJFC import] getUploadUrl response:', JSON.stringify(urlRes));
   if (urlRes.error) {
     btn.disabled = false;
-    setStatus(selected.length + ' players selected for import');
+    // Show error permanently in status area (not just a toast) so it can be read
+    setStatus('❌ Upload slot failed: ' + urlRes.error, '#dc2626');
     showToast('Could not get upload slot: ' + urlRes.error, 'err');
+    return;
+  }
+  if (!urlRes.uploadUrl || !urlRes.fileId) {
+    btn.disabled = false;
+    const detail = JSON.stringify(urlRes);
+    setStatus('❌ Bad upload response: ' + detail, '#dc2626');
+    console.error('[KJFC import] unexpected getUploadUrl response:', detail);
     return;
   }
   const { uploadUrl, fileId } = urlRes;
@@ -3869,12 +3879,14 @@ async function runImport() {
       body: csvText,
     });
     if (!uploadRes.ok) {
-      const errText = await uploadRes.text().catch(() => uploadRes.status);
+      const errText = await uploadRes.text().catch(() => String(uploadRes.status));
       throw new Error('HTTP ' + uploadRes.status + ': ' + String(errText).slice(0, 150));
     }
+    console.log('[KJFC import] Drive PUT succeeded, status:', uploadRes.status);
   } catch (err) {
     btn.disabled = false;
-    setStatus(selected.length + ' players selected for import');
+    setStatus('❌ Drive upload failed: ' + err.message, '#dc2626');
+    console.error('[KJFC import] Drive PUT error:', err);
     showToast('Drive upload failed: ' + err.message, 'err');
     return;
   }
@@ -3885,8 +3897,9 @@ async function runImport() {
   const res = await api('importPlayers', { fileId, season });
 
   btn.disabled = false;
+  console.log('[KJFC import] importPlayers response:', JSON.stringify(res));
   if (res.error) {
-    setStatus(selected.length + ' players selected for import');
+    setStatus('❌ Import failed: ' + res.error, '#dc2626');
     showToast('Import failed: ' + res.error, 'err');
     return;
   }
