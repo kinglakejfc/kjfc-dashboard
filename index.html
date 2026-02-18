@@ -34,6 +34,7 @@
   --ts:#4a6070; --tsb:#f0f4f8;
   --tb:#7a4a28; --tbb:#fdf4ec;
   --tc:#013C1E; --tcb:#e6f0eb;
+  --td:#1a6b8a; --tdb:#e8f4f8;
   --sh:  0 1px 4px rgba(0,0,0,0.07);
   --shm: 0 4px 18px rgba(0,0,0,0.11);
   --r:   11px;
@@ -272,10 +273,12 @@ main{
 .trow{display:flex;align-items:center;gap:8px;padding:9px 10px;background:var(--bg);border-radius:6px;cursor:pointer;transition:all .15s;border:1.5px solid transparent;touch-action:pan-y;}
 .trow:hover,.trow:active{background:var(--green-light);border-color:var(--border-s);}
 .tdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.tdot.diamond{background:var(--td);}
 .tdot.gold{background:var(--tg);}
 .tdot.silver{background:var(--ts);}
 .tdot.bronze{background:var(--tb);}
 .tdot.community{background:var(--tc);}
+.tdot.custom{background:#6d28d9;}
 .tname{font-weight:700;font-size:13px;flex:1;}
 .tcnt{font-size:11px;color:var(--text-dim);}
 .tamt{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:14px;}
@@ -318,10 +321,12 @@ td{padding:10px 10px;vertical-align:middle;}
 .sbadge.partial{background:var(--orange-light);color:var(--orange);}
 .sbadge.inkind{background:#f0e6ff;color:#6d28d9;}
 .tchip{display:inline-flex;align-items:center;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;}
+.tchip.diamond{background:var(--tdb);color:var(--td);}
 .tchip.gold{background:var(--tgb);color:var(--tg);}
 .tchip.silver{background:var(--tsb);color:var(--ts);}
 .tchip.bronze{background:var(--tbb);color:var(--tb);}
 .tchip.community{background:var(--tcb);color:var(--tc);}
+.tchip.custom{background:#f3e8ff;color:#6d28d9;}
 .cbadge{display:inline-flex;align-items:center;gap:3px;background:var(--yellow-pale);border:1.5px solid var(--yellow-dark);color:var(--yellow-dark);font-size:9px;font-weight:800;padding:1px 6px;border-radius:10px;}
 .actbtn{background:var(--bg);border:1.5px solid var(--border);color:var(--text);padding:3px 9px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:700;transition:all .15s;}
 .actbtn:hover{background:var(--green);color:#fff;border-color:var(--green);}
@@ -520,6 +525,8 @@ td{padding:10px 10px;vertical-align:middle;}
 
 /* ── Package manager rows ── */
 .pkg-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;}
+.emoji-pick{background:var(--bg);border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:18px;padding:3px 5px;line-height:1;transition:border-color .15s;}
+.emoji-pick:hover{border-color:var(--green);background:var(--green-light);}
 
 
 .ss-checklist{background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;margin-bottom:10px;}
@@ -808,7 +815,7 @@ td{padding:10px 10px;vertical-align:middle;}
       <div class="fg"><label>Contact Email</label><input type="email" id="of-email" placeholder="email@biz.com.au" inputmode="email"></div>
     </div>
     <div class="frow two">
-      <div class="fg"><label>Phone</label><input type="tel" id="of-phone" placeholder="04xx xxx xxx" inputmode="tel"></div>
+      <div class="fg"><label>Phone</label><input type="text" id="of-phone" placeholder="04xx xxx xxx" inputmode="tel" autocomplete="tel"></div>
       <div class="fg"><label>Website</label><input type="text" id="of-website" placeholder="www.example.com.au" inputmode="url"></div>
     </div>
 
@@ -821,10 +828,11 @@ td{padding:10px 10px;vertical-align:middle;}
     <div class="frow full">
       <div class="fg">
         <label>Postal Address</label>
-        <div class="addr-same-wrap" style="margin-bottom:6px;">
+        <label class="ss-check" style="margin-bottom:8px;" id="postsame-label">
           <input type="checkbox" id="of-postsame" onchange="togglePostalSame()">
-          <label for="of-postsame">Same as physical address</label>
-        </div>
+          <span class="ss-check-box"></span>
+          <span style="font-size:12px;color:var(--text-dim);">Same as physical address</span>
+        </label>
         <input type="text" id="of-postaddr" placeholder="PO Box or postal address" autocomplete="off">
       </div>
     </div>
@@ -1071,23 +1079,40 @@ td{padding:10px 10px;vertical-align:middle;}
   <div class="modal" style="max-width:460px;">
     <div class="modal-handle"></div>
     <button class="mclose" onclick="closePkgModal()">×</button>
-    <div class="mtitle" id="pkg-m-title">Add Package</div>
+    <div class="mtitle" id="pkg-m-title">Add Package / Tier</div>
+
+    <!-- Tier name + emoji -->
     <div class="frow two">
       <div class="fg">
-        <label>Package Name *</label>
-        <input type="text" id="pf-name" placeholder="e.g. Gold, Naming Rights…">
-      </div>
-      <div class="fg">
-        <label>Tier</label>
-        <select id="pf-tier">
-          <option value="gold">🥇 Gold</option>
-          <option value="silver">🥈 Silver</option>
-          <option value="bronze">🥉 Bronze</option>
-          <option value="community">🤝 Community</option>
-          <option value="custom">⭐ Custom</option>
+        <label>Tier Name *</label>
+        <select id="pf-tier" onchange="onPkgTierChange()">
+          <option value="diamond">Diamond</option>
+          <option value="gold">Gold</option>
+          <option value="silver">Silver</option>
+          <option value="bronze">Bronze</option>
+          <option value="community">Community</option>
+          <option value="custom">Custom</option>
         </select>
       </div>
+      <div class="fg">
+        <label>Emoji / Icon</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="text" id="pf-emoji" placeholder="💎" style="width:70px;font-size:22px;text-align:center;" maxlength="4">
+          <div style="display:flex;flex-wrap:wrap;gap:4px;flex:1;">
+            <button type="button" class="emoji-pick" onclick="document.getElementById('pf-emoji').value=this.textContent">💎</button>
+            <button type="button" class="emoji-pick" onclick="document.getElementById('pf-emoji').value=this.textContent">🥇</button>
+            <button type="button" class="emoji-pick" onclick="document.getElementById('pf-emoji').value=this.textContent">🥈</button>
+            <button type="button" class="emoji-pick" onclick="document.getElementById('pf-emoji').value=this.textContent">🥉</button>
+            <button type="button" class="emoji-pick" onclick="document.getElementById('pf-emoji').value=this.textContent">🤝</button>
+            <button type="button" class="emoji-pick" onclick="document.getElementById('pf-emoji').value=this.textContent">⭐</button>
+            <button type="button" class="emoji-pick" onclick="document.getElementById('pf-emoji').value=this.textContent">🏆</button>
+            <button type="button" class="emoji-pick" onclick="document.getElementById('pf-emoji').value=this.textContent">🌟</button>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- Amount + description -->
     <div class="frow two">
       <div class="fg">
         <label>Default Amount ($)</label>
@@ -1098,12 +1123,15 @@ td{padding:10px 10px;vertical-align:middle;}
         <input type="text" id="pf-desc" placeholder="e.g. Premium naming rights partner">
       </div>
     </div>
+
+    <!-- Benefits -->
     <div class="frow">
       <div class="fg">
         <label>Benefits / Inclusions</label>
         <textarea id="pf-benefits" rows="3" placeholder="e.g. Logo on playing jersey, banner at ground, social media, website, training top…"></textarea>
       </div>
     </div>
+
     <div class="mactions">
       <button class="mprimary" id="pkg-m-save" onclick="savePkg()">Save Package</button>
       <button class="msecondary" onclick="closePkgModal()">Cancel</button>
@@ -1154,9 +1182,30 @@ let editOrgId    = null;
 let editSSId     = null;
 let editSSOrg    = null;
 
-const TO = {gold:1,silver:2,bronze:3,community:4};
-const TH = {gold:'#9a6700',silver:'#4a6070',bronze:'#7a4a28',community:'#013C1E'};
-const TL = {gold:'Gold',silver:'Silver',bronze:'Bronze',community:'Community'};
+// Base tier config — extended dynamically from packages
+const TIER_ORDER_BASE = {diamond:0,gold:1,silver:2,bronze:3,community:4,custom:5};
+const TIER_COLOR = {diamond:'var(--td)',gold:'var(--tg)',silver:'var(--ts)',bronze:'var(--tb)',community:'var(--tc)',custom:'#6d28d9'};
+const TIER_LABEL_BASE = {diamond:'Diamond',gold:'Gold',silver:'Silver',bronze:'Bronze',community:'Community',custom:'Custom'};
+const TIER_EMOJI_BASE = {diamond:'💎',gold:'🥇',silver:'🥈',bronze:'🥉',community:'🤝',custom:'⭐'};
+
+// Dynamic lookups — updated when packages load
+let TO = {...TIER_ORDER_BASE};
+let TH = {...TIER_COLOR};
+let TL = {...TIER_LABEL_BASE};
+let TE = {...TIER_EMOJI_BASE}; // emoji per tier
+
+function rebuildTierLookups() {
+  TO = {...TIER_ORDER_BASE};
+  TH = {...TIER_COLOR};
+  TL = {...TIER_LABEL_BASE};
+  TE = {...TIER_EMOJI_BASE};
+  packages.forEach(function(p) {
+    if (p.tier) {
+      TL[p.tier] = cap(p.tier); // tier name = tier key capitalised
+      if (p.emoji) TE[p.tier] = p.emoji;
+    }
+  });
+}
 
 // ════════════════════════════════════════════════════════
 //  COMPUTED HELPERS
@@ -1257,6 +1306,7 @@ async function loadAll() {
     years         = (data.years || []).sort((a,b) => b-a);
     packages      = data.packages || [];
     if (!activeSeason || !years.includes(activeSeason)) activeSeason = years[0] || null;
+    rebuildTierLookups();
     populatePackageSelect();
     renderSeasonTabs();
     render();
@@ -1320,7 +1370,8 @@ function calcStats(year) {
     s.status==='partial' ? a + +(s.paidAmount||0) : a, 0);
   const outCount = cashSS.filter(s => s.status!=='paid').length;
   const byTier   = {};
-  ['gold','silver','bronze','community'].forEach(t => {
+  const allTiers = [...new Set(['diamond','gold','silver','bronze','community','custom', ...seasonEntries.map(s=>s.tier)])].filter(Boolean);
+  allTiers.forEach(t => {
     const ts   = ss.filter(s => String(s.tier).toLowerCase()===t);
     const cash = ts.filter(s => s.status!=='inkind');
     const ik   = ts.filter(s => s.status==='inkind');
@@ -1363,11 +1414,13 @@ function render() {
   if (ikStrip) ikStrip.style.display = s.ikCount>0 ? 'flex' : 'none';
   if (ikSumm && s.ikCount>0) ikSumm.textContent = s.ikCount+' in-kind sponsor'+(s.ikCount!==1?'s':'')+' this season';
 
-  // Tier mini
-  document.getElementById('tier-mini').innerHTML = ['gold','silver','bronze','community'].map(t => {
+  // Tier mini (KPI card)
+  const activeTiers = Object.keys(s.byTier).filter(t => s.byTier[t].count > 0).sort((a,b)=>(TO[a]||9)-(TO[b]||9));
+  document.getElementById('tier-mini').innerHTML = activeTiers.map(t => {
     const d = s.byTier[t]; if (!d.count) return '';
+    const col = TH[t] || 'var(--text-dim)';
     const ikBit = d.ikCount>0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:600"> (inc. ${d.ikCount} in-kind)</span>` : '';
-    return `<div style="display:flex;align-items:center;gap:7px"><div style="width:6px;height:6px;border-radius:50%;background:${TH[t]};flex-shrink:0"></div><span style="font-size:11px;flex:1">${TL[t]}</span><span style="font-size:12px;font-weight:800;color:${TH[t]}">${d.count}${ikBit}</span></div>`;
+    return `<div style="display:flex;align-items:center;gap:7px"><div style="width:6px;height:6px;border-radius:50%;background:${col};flex-shrink:0"></div><span style="font-size:11px;flex:1">${TL[t]||cap(t)}</span><span style="font-size:12px;font-weight:800;color:${col}">${d.count}${ikBit}</span></div>`;
   }).join('');
 
   // YOY bars
@@ -1384,12 +1437,14 @@ function render() {
   }).join('');
 
   // Tier list (revenue by tier)
-  document.getElementById('tier-list').innerHTML = ['gold','silver','bronze','community'].map(t => {
+  const tierListTiers = Object.keys(s.byTier).filter(t => s.byTier[t].count > 0).sort((a,b)=>(TO[a]||9)-(TO[b]||9));
+  document.getElementById('tier-list').innerHTML = tierListTiers.map(t => {
     const d = s.byTier[t]; if (!d.count) return '';
+    const col = TH[t] || 'var(--text-dim)';
     const ikLabel = d.ikCount>0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:700;margin-left:4px">(inc. ${d.ikCount} in-kind)</span>` : '';
     return `<div class="trow" onclick="filterTable('${t}')">
-      <div class="tdot ${t}"></div><div class="tname">${TL[t]}${ikLabel}</div>
-      <div class="tcnt">${d.count}</div><div class="tamt" style="color:${TH[t]}">${fmt(d.amount)}</div>
+      <div class="tdot ${t}"></div><div class="tname">${TL[t]||cap(t)}${ikLabel}</div>
+      <div class="tcnt">${d.count}</div><div class="tamt" style="color:${col}">${fmt(d.amount)}</div>
     </div>`;
   }).join('') || '<div style="color:var(--text-dim);font-size:13px;padding:6px">No sponsors yet.</div>';
 
@@ -1773,11 +1828,26 @@ async function saveOrg() {
   btnLoading(document.getElementById('org-m-save'), false);
   if (res.error) { showToast('Error: ' + res.error, 'err'); setSyncState('err','Save failed'); return; }
   // Local update
+  const isNew = !editOrgId;
   if (!editOrgId) { data.id = res.id; orgs.push(data); }
   else { const idx=orgs.findIndex(o=>o.id===editOrgId); if(idx>=0) orgs[idx]={...orgs[idx],...data}; }
   closeOrgModal();
   render();
-  showToast(editOrgId ? 'Sponsor updated ✓' : 'Sponsor added ✓');
+  setSyncState('ok', 'Saved');
+  if (isNew) {
+    showToast('Sponsor added ✓ — add their season sponsorship below', '');
+    // Prompt to add season entry for the new org
+    setTimeout(() => {
+      const newOrgId = data.id;
+      if (me?.edit && confirm('Sponsor "' + data.name + '" saved!\n\nWould you like to add their ' + activeSeason + ' season sponsorship package now?')) {
+        openAddSS(newOrgId);
+      } else {
+        openOrgDetail(newOrgId);
+      }
+    }, 100);
+  } else {
+    showToast('Sponsor updated ✓');
+  }
   loadAll();
 }
 
@@ -1808,11 +1878,12 @@ function populatePackageSelect() {
   const cur = sel.value;
   sel.innerHTML = '<option value="">— Select package —</option>';
   const active = packages.filter(p => p.active !== 'false');
-  active.sort((a,b) => (a.tier==='gold'?1:a.tier==='silver'?2:a.tier==='bronze'?3:4) - (b.tier==='gold'?1:b.tier==='silver'?2:b.tier==='bronze'?3:4));
+  active.sort((a,b) => (TO[a.tier]||9) - (TO[b.tier]||9));
   active.forEach(p => {
     const opt = document.createElement('option');
     opt.value = p.id;
-    opt.textContent = p.name + (p.amount ? ' — $' + Number(p.amount).toLocaleString('en-AU') : '');
+    const emoji = p.emoji || TE[p.tier] || '';
+    opt.textContent = emoji + ' ' + cap(p.tier) + (p.amount ? ' — $' + Number(p.amount).toLocaleString('en-AU') : '');
     sel.appendChild(opt);
   });
   const custom = document.createElement('option');
@@ -1820,6 +1891,15 @@ function populatePackageSelect() {
   custom.textContent = '⭐ Custom / Other…';
   sel.appendChild(custom);
   if (cur) sel.value = cur;
+
+  // Also rebuild sf-tier options from known tiers
+  const tierSel = document.getElementById('sf-tier');
+  if (tierSel) {
+    const curTier = tierSel.value;
+    const tiers = [...new Set(['diamond','gold','silver','bronze','community','custom', ...packages.map(p=>p.tier)])].filter(Boolean);
+    tierSel.innerHTML = tiers.map(t => `<option value="${t}">${TE[t]||''} ${TL[t]||cap(t)}</option>`).join('');
+    if (curTier) tierSel.value = curTier;
+  }
 }
 
 function onPackageSelect() {
@@ -2257,12 +2337,22 @@ function renderPackageManager() {
     + '</div>';
 }
 
+const DEFAULT_PKG_EMOJI = {diamond:'💎',gold:'🥇',silver:'🥈',bronze:'🥉',community:'🤝',custom:'⭐'};
+
+function onPkgTierChange() {
+  const tier = document.getElementById('pf-tier').value;
+  const emojiField = document.getElementById('pf-emoji');
+  if (!emojiField.value || Object.values(DEFAULT_PKG_EMOJI).includes(emojiField.value)) {
+    emojiField.value = DEFAULT_PKG_EMOJI[tier] || '⭐';
+  }
+}
+
 function openPkgModal(pkgId) {
   editPkgId = pkgId;
   const pkg = pkgId ? packages.find(function(p){ return p.id === pkgId; }) : null;
-  document.getElementById('pkg-m-title').textContent = pkg ? 'Edit Package' : 'Add Package';
-  document.getElementById('pf-name').value     = pkg ? pkg.name      : '';
+  document.getElementById('pkg-m-title').textContent = pkg ? 'Edit Package / Tier' : 'Add Package / Tier';
   document.getElementById('pf-tier').value     = pkg ? (pkg.tier||'gold') : 'gold';
+  document.getElementById('pf-emoji').value    = pkg ? (pkg.emoji || DEFAULT_PKG_EMOJI[pkg.tier] || '') : '🥇';
   document.getElementById('pf-amount').value   = pkg ? pkg.amount    : '';
   document.getElementById('pf-desc').value     = pkg ? pkg.description : '';
   document.getElementById('pf-benefits').value = pkg ? pkg.benefits  : '';
@@ -2276,12 +2366,13 @@ function closePkgModal() {
 }
 
 async function savePkg() {
-  const name = document.getElementById('pf-name').value.trim();
-  if (!name) { showToast('Enter a package name', 'warn'); return; }
+  const tier = document.getElementById('pf-tier').value;
+  if (!tier) { showToast('Select a tier', 'warn'); return; }
   const data = {
     id:          editPkgId || '',
-    name,
-    tier:        document.getElementById('pf-tier').value,
+    name:        cap(tier), // name = tier capitalised
+    tier,
+    emoji:       document.getElementById('pf-emoji').value.trim() || DEFAULT_PKG_EMOJI[tier] || '',
     amount:      +document.getElementById('pf-amount').value || 0,
     description: document.getElementById('pf-desc').value.trim(),
     benefits:    document.getElementById('pf-benefits').value.trim(),
@@ -2293,6 +2384,7 @@ async function savePkg() {
   if (res.error) { showToast('Error: ' + res.error, 'err'); return; }
   if (!editPkgId) { data.id = res.id; packages.push(data); }
   else { const idx = packages.findIndex(function(p){ return p.id === editPkgId; }); if (idx>=0) packages[idx] = {...packages[idx], ...data}; }
+  rebuildTierLookups();
   populatePackageSelect();
   closePkgModal();
   renderPackageManager();
@@ -2309,6 +2401,7 @@ async function deletePkg() {
   btnLoading(document.getElementById('pkg-m-del'), false);
   if (res.error) { showToast('Error: ' + res.error, 'err'); return; }
   packages = packages.filter(function(p){ return p.id !== editPkgId; });
+  rebuildTierLookups();
   populatePackageSelect();
   closePkgModal();
   renderPackageManager();
