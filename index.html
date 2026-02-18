@@ -156,12 +156,12 @@ header{
    ════════════════════════════════════════ */
 .ptabs-top{display:flex;gap:4px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
 .ptabs-top::-webkit-scrollbar{display:none;}
-.access-opt{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;}
+.access-opt{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;width:100%;box-sizing:border-box;overflow:hidden;}
 .access-opt:has(input:checked){border-color:var(--green);background:var(--green-light);}
-.access-opt input[type=radio]{margin-top:2px;accent-color:var(--green);flex-shrink:0;}
-.access-opt-body{flex:1;}
-.access-opt-title{font-weight:700;font-size:14px;color:var(--text);}
-.access-opt-desc{font-size:11px;color:var(--text-dim);margin-top:2px;line-height:1.4;}
+.access-opt input[type=radio]{margin-top:3px;accent-color:var(--green);flex-shrink:0;width:16px;height:16px;}
+.access-opt-body{flex:1;min-width:0;overflow:hidden;}
+.access-opt-title{font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;}
+.access-opt-desc{font-size:11px;color:var(--text-dim);margin-top:2px;line-height:1.4;word-wrap:break-word;}
 .role-tag{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;font-size:13px;}
 .role-tag-del{background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:16px;line-height:1;padding:0 2px;}
 .role-tag-del:hover{color:var(--red);}
@@ -504,7 +504,7 @@ td{padding:10px 10px;vertical-align:middle;}
 
 <!-- ════════ LOADING ════════ -->
 <div id="loading-screen">
-  <div class="ls-crest">KJF</div>
+  <div class="ls-crest" style="font-size:18px;">KJFC</div>
   <div class="ls-text">Loading…</div>
   <div class="ls-spinner"></div>
 </div>
@@ -529,7 +529,7 @@ td{padding:10px 10px;vertical-align:middle;}
 <!-- ════════ APP ════════ -->
 <header>
   <div class="logo-area">
-    <div class="logo-badge">KJF</div>
+    <div class="logo-badge" style="font-size:11px;">KJFC</div>
     <div class="logo-text">
       <h1>Kinglake JFC</h1>
       <small>Exec Dashboard</small>
@@ -795,7 +795,7 @@ td{padding:10px 10px;vertical-align:middle;}
 
 <!-- ════════ EDIT USER MODAL ════════ -->
 <div class="moverlay" id="reset-modal" style="align-items:center;padding:20px;">
-  <div class="smodal-inner" style="max-width:420px;width:100%;">
+  <div class="smodal-inner" style="max-width:420px;width:100%;overflow:hidden;">
     <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;text-transform:uppercase;margin-bottom:4px">Edit User</div>
     <div class="msub" id="reset-sub">Update display name, role and access level.</div>
     <input type="hidden" id="reset-email">
@@ -815,7 +815,7 @@ td{padding:10px 10px;vertical-align:middle;}
 
     <div class="fg" style="margin-bottom:14px">
       <label>Access Level</label>
-      <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px;" id="access-level-group">
+      <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px;width:100%;overflow:hidden;" id="access-level-group">
         <label class="access-opt" id="opt-admin">
           <input type="radio" name="access-level" value="admin">
           <div class="access-opt-body">
