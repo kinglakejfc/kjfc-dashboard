@@ -651,7 +651,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 .mid-right{width:260px;flex-shrink:0;margin-bottom:0!important;}
 @media(max-width:800px){.mid-row{flex-direction:column;}.mid-right{width:100%;}.mid-left{width:100%;min-width:0;}}
 .panel-title{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--text);margin-bottom:10px;}
-.side-panel{position:fixed;top:0;right:-420px;width:min(420px,100vw);height:100vh;background:var(--card);box-shadow:-4px 0 24px rgba(0,0,0,.13);z-index:200;transition:right .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden;}
+.side-panel{position:fixed;top:0;right:-420px;width:min(420px,100vw);height:100vh;background:var(--card);box-shadow:-4px 0 24px rgba(0,0,0,.13);z-index:200;transition:right .3s cubic-bezier(.4,0,.2,1),z-index 0s;display:flex;flex-direction:column;overflow:hidden;}
 .side-panel.open{right:0;}
 .spclose{position:absolute;top:14px;right:16px;background:var(--bg);border:1.5px solid var(--border);border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;}
 .sp-title{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;text-transform:uppercase;padding:16px 48px 0 16px;letter-spacing:.5px;}
@@ -906,7 +906,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 </div>
 
 <!-- SEASON ENTRY MODAL (add/edit a season sponsorship for an org) -->
-<div class="moverlay" id="ss-modal" style="z-index:250;">
+<div class="moverlay" id="ss-modal">
   <div class="modal" style="max-width:500px;">
     <div class="modal-handle"></div>
     <button class="mclose" id="ss-mclose">×</button>
@@ -1025,7 +1025,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 </div>
 
 <!-- CONTACT LOG MODAL -->
-<div class="moverlay" id="cl-modal" style="z-index:250;">
+<div class="moverlay" id="cl-modal">
   <div class="modal" style="max-width:400px;">
     <div class="modal-handle"></div>
     <button class="mclose" id="cl-mclose">×</button>
@@ -1045,7 +1045,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 </div>
 
 <!-- ORG DETAIL PANEL -->
-<div class="moverlay" id="org-detail-overlay" style="align-items:flex-start;padding-top:20px;z-index:200;">
+<div class="moverlay" id="org-detail-overlay" style="align-items:flex-start;padding-top:20px;">
   <div class="modal" style="max-width:680px;max-height:90vh;overflow-y:auto;">
     <div class="modal-handle"></div>
     <button class="mclose" id="od-close">×</button>
@@ -1088,7 +1088,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 </div>
 
 <!-- USER / EDIT MODAL -->
-<div class="moverlay" id="user-modal" style="z-index:310;">
+<div class="moverlay" id="user-modal">
   <div class="modal" style="max-width:420px;">
     <div class="modal-handle"></div>
     <button class="mclose" onclick="closeUserModal()">×</button>
@@ -1124,7 +1124,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 </div>
 
 <!-- ROLES MODAL -->
-<div class="moverlay" id="roles-modal" style="z-index:320;">
+<div class="moverlay" id="roles-modal">
   <div class="smodal-inner" style="max-width:360px;width:100%;">
     <div class="mtitle" style="margin-bottom:12px;">Manage Roles</div>
     <div id="roles-list" style="margin-bottom:14px;max-height:260px;overflow-y:auto;"></div>
@@ -1139,7 +1139,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 </div>
 
 <!-- PACKAGE MANAGER MODAL -->
-<div class="moverlay" id="pkg-modal" style="z-index:330;">
+<div class="moverlay" id="pkg-modal">
   <div class="modal" style="max-width:460px;">
     <div class="modal-handle"></div>
     <button class="mclose" onclick="closePkgModal()">×</button>
@@ -1244,6 +1244,15 @@ let curSort      = { col: 'tier', dir: 1 }; // col, dir: 1=asc, -1=desc
 let editOrgId    = null;
 let editSSId     = null;
 let editSSOrg    = null;
+
+// ── DYNAMIC Z-INDEX ──────────────────────────────────────────────────
+// Every modal/panel calls bringToFront(el) on open — last opened is always on top
+let _zTop = 500;
+function bringToFront(el) {
+  if (!el) return;
+  _zTop += 10;
+  el.style.zIndex = _zTop;
+}
 
 // Base tier config — extended dynamically from packages
 const TIER_ORDER_BASE = {diamond:0,gold:1,silver:2,bronze:3,community:4,custom:5};
@@ -1772,6 +1781,7 @@ function renderTable() {
 async function openOrgDetail(orgId) {
   const org = orgs.find(o => o.id===orgId); if (!org) return;
   const overlay = document.getElementById('org-detail-overlay');
+  bringToFront(overlay);
   overlay.classList.add('open');
 
   // Render skeleton first
@@ -1992,7 +2002,7 @@ function openAddOrg() {
   document.getElementById('org-m-save').textContent  = 'Add Sponsor';
   document.getElementById('org-m-del').style.display = 'none';
   document.getElementById('org-m-sub').textContent   = 'New sponsor organisation.';
-  document.getElementById('org-modal').classList.add('open');
+  const _btf_org_modal = document.getElementById('org-modal'); bringToFront(_btf_org_modal); _btf_org_modal.classList.add('open');
 }
 
 function openEditOrg(orgId) {
@@ -2015,7 +2025,7 @@ function openEditOrg(orgId) {
   document.getElementById('of-notes').value             = org.notes || '';
   document.getElementById('of-postsame').checked        = !!org.postSameAsPhys;
   document.getElementById('of-postaddr').disabled       = !!org.postSameAsPhys;
-  document.getElementById('org-modal').classList.add('open');
+  const _btf_org_modal = document.getElementById('org-modal'); bringToFront(_btf_org_modal); _btf_org_modal.classList.add('open');
 }
 
 function closeOrgModal() { document.getElementById('org-modal').classList.remove('open'); editOrgId=null; }
@@ -2181,7 +2191,7 @@ function openAddSS(orgId) {
     sel.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join('');
     sel.value = activeSeason;
   }
-  document.getElementById('ss-modal').classList.add('open');
+  const _btf_ss_modal = document.getElementById('ss-modal'); bringToFront(_btf_ss_modal); _btf_ss_modal.classList.add('open');
 }
 
 function openEditSS(ssId, orgId) {
@@ -2224,7 +2234,7 @@ function openEditSS(ssId, orgId) {
     }
   }
   updateSSFields();
-  document.getElementById('ss-modal').classList.add('open');
+  const _btf_ss_modal = document.getElementById('ss-modal'); bringToFront(_btf_ss_modal); _btf_ss_modal.classList.add('open');
 }
 
 function closeSSModal() { document.getElementById('ss-modal').classList.remove('open'); editSSId=null; editSSOrg=null; }
@@ -2324,7 +2334,7 @@ function openContactLog(orgId) {
   document.getElementById('cl-m-sub').textContent = org ? org.name : '';
   document.getElementById('clf-date').value  = new Date().toISOString().slice(0,10);
   document.getElementById('clf-notes').value = '';
-  document.getElementById('cl-modal').classList.add('open');
+  const _btf_cl_modal = document.getElementById('cl-modal'); bringToFront(_btf_cl_modal); _btf_cl_modal.classList.add('open');
 }
 
 function closeContactLog() { document.getElementById('cl-modal').classList.remove('open'); clOrgId=null; }
@@ -2364,7 +2374,7 @@ function openDrill(title, ssList) {
       <td><span class="sbadge ${s.status}">${cap(s.status)}</span></td>
     </tr>`;
   }).join('');
-  document.getElementById('drillPanel').classList.add('open');
+  const _btf_drillPanel = document.getElementById('drillPanel'); bringToFront(_btf_drillPanel); _btf_drillPanel.classList.add('open');
 }
 
 function closeDrill() { document.getElementById('drillPanel').classList.remove('open'); }
@@ -2387,7 +2397,7 @@ function drillOut() {
 // ════════════════════════════════════════════════════════
 function openSeasonModal() {
   document.getElementById('new-season-yr').value = (years[0]||2025) + 1;
-  document.getElementById('season-modal').classList.add('open');
+  const _btf_season_modal = document.getElementById('season-modal'); bringToFront(_btf_season_modal); _btf_season_modal.classList.add('open');
 }
 function closeSeasonModal() { document.getElementById('season-modal').classList.remove('open'); }
 async function confirmAddSeason() {
@@ -2424,7 +2434,7 @@ function exportCSV() {
 //  LOGOUT
 // ════════════════════════════════════════════════════════
 async function doLogout() {
-  document.getElementById('reset-modal').classList.add('open');
+  const _btf_reset_modal = document.getElementById('reset-modal'); bringToFront(_btf_reset_modal); _btf_reset_modal.classList.add('open');
 }
 function closeResetModal() { document.getElementById('reset-modal').classList.remove('open'); }
 async function confirmLogout() {
@@ -2439,7 +2449,7 @@ async function confirmLogout() {
 // ════════════════════════════════════════════════════════
 async function openAdminModal(tab) {
   const modal = document.getElementById('admin-modal');
-  modal.classList.add('open');
+  bringToFront(modal); modal.classList.add('open');
   // Set active tab
   document.querySelectorAll('.adm-tab').forEach(b => b.classList.toggle('act', b.dataset.tab===tab));
   await loadAdminTab(tab);
@@ -2539,7 +2549,7 @@ function openUserModal(u) {
   const delBtn = document.getElementById('um-del-btn');
   delBtn.style.display = (viewerIsAdmin && !isNew && !isSelf) ? 'block' : 'none';
 
-  document.getElementById('user-modal').classList.add('open');
+  const _btf_user_modal = document.getElementById('user-modal'); bringToFront(_btf_user_modal); _btf_user_modal.classList.add('open');
 }
 
 function closeUserModal() {
@@ -2649,7 +2659,7 @@ function openPkgModal(pkgId) {
   document.getElementById('pf-desc').value     = pkg ? pkg.description : '';
   document.getElementById('pf-benefits').value = pkg ? pkg.benefits  : '';
   document.getElementById('pkg-m-del').style.display = pkg ? 'block' : 'none';
-  document.getElementById('pkg-modal').classList.add('open');
+  const _btf_pkg_modal = document.getElementById('pkg-modal'); bringToFront(_btf_pkg_modal); _btf_pkg_modal.classList.add('open');
 }
 
 function closePkgModal() {
@@ -2707,7 +2717,7 @@ const DEFAULT_ROLES = ['President','Vice President','Treasurer','Secretary','Reg
 function getRoles() { try { return JSON.parse(localStorage.getItem('kjfc_roles')) || DEFAULT_ROLES; } catch { return DEFAULT_ROLES; } }
 function saveRoles(r) { localStorage.setItem('kjfc_roles', JSON.stringify(r)); }
 function populateRoleSelect() { const s=document.getElementById('um-role'); s.innerHTML=getRoles().map(r=>`<option>${r}</option>`).join(''); }
-function openManageRoles() { renderRolesList(); document.getElementById('roles-modal').classList.add('open'); }
+function openManageRoles() { renderRolesList(); const _btf_roles_modal = document.getElementById('roles-modal'); bringToFront(_btf_roles_modal); _btf_roles_modal.classList.add('open'); }
 function closeManageRoles() { document.getElementById('roles-modal').classList.remove('open'); populateRoleSelect(); }
 function renderRolesList() {
   const roles=getRoles();
