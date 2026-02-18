@@ -3465,14 +3465,19 @@ function renderPlSchools() {
 }
 
 // ── IMPORT TAB ────────────────────────────────────────────────────
+// ── IMPORT STATE ─────────────────────────────────────────────────
+let _importData = null; // { season, include[], exclude[] } set after parsing
+
 function renderPlImport() {
+  _importData = null;
   document.getElementById('pl-body').innerHTML = `
-    <div style="max-width:560px;">
+    <div style="max-width:720px;">
       <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:17px;text-transform:uppercase;margin-bottom:8px;">Import PlayHQ Data</h3>
       <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
-        Export a <strong>participants CSV</strong> from the PlayHQ admin portal, then drag it here. The system will automatically filter to Kinglake junior players (17 and under) and exclude seniors.
+        Export a <strong>participants CSV</strong> from the PlayHQ admin portal, then drag it here.
+        You'll be able to review all records — included, excluded, and duplicates — before committing.
       </p>
-      <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;">
+      <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;">
         <label style="font-size:12px;font-weight:700;color:var(--text-dim);">Import for season:</label>
         <select id="import-season" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;">
           ${(years||[new Date().getFullYear()]).map(y=>`<option value="${y}" ${y==plSeason?'selected':''}>${y}</option>`).join('')}
@@ -3488,7 +3493,7 @@ function renderPlImport() {
         <div style="font-size:12px;color:var(--text-dim);">or click to browse · PlayHQ participants export</div>
       </div>
       <input type="file" id="import-file-input" accept=".csv" style="display:none" onchange="handleImportFile(this.files[0])">
-      <div id="import-preview" style="margin-top:16px;"></div>
+      <div id="import-review" style="margin-top:20px;"></div>
     </div>
   `;
 }
@@ -3502,41 +3507,254 @@ function handleImportDrop(e) {
 
 function handleImportFile(file) {
   if (!file) return;
-  const preview = document.getElementById('import-preview');
-  preview.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">Reading file…</div>';
+  const review = document.getElementById('import-review');
+  review.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:16px 0;">Reading file…</div>';
 
   const reader = new FileReader();
-  reader.onload = e => {
-    const text = e.target.result;
-    const rows = parseCSV(text);
-    const season = +document.getElementById('import-season').value;
-    const valid  = rows.filter(r => (r['First Name']||'').trim());
+  reader.onload = ev => {
+    const season   = +document.getElementById('import-season').value;
+    const allRows  = parseCSV(ev.target.result).filter(r => (r['First Name']||'').trim());
 
-    // Preview stats
-    const juniors = valid.filter(r => {
-      const age = calcAgeClient(r['Date of Birth'], season);
-      const ag  = (r['Age Group']||'').toUpperCase();
-      const role = r['Role']||'';
-      const club = r['Club']||'';
-      if (role && role !== 'Player') return false;
-      if (club && !club.toLowerCase().includes('kinglake')) return false;
-      if (ag === 'SENIOR' || (age !== null && age > 17)) return false;
-      return true;
+    // Build existing player lookup for duplicate detection
+    const pm = plPlayerMap();
+    const existingSeasonIds = new Set(
+      (plData?.seasons||[]).filter(s=>+s.year===season).map(s=>s.profileId)
+    );
+
+    // Categorise every row
+    const categorised = allRows.map((r, idx) => {
+      const firstName = (r['First Name']||'').trim();
+      const lastName  = (r['Last Name']||'').trim();
+      const dob       = (r['Date of Birth']||'').trim();
+      const profileId = (r['Profile ID']||'').trim() ||
+                        'kjfc_'+firstName.toLowerCase()+'_'+lastName.toLowerCase()+'_'+dob.replace(/\//g,'');
+      const age       = calcAgeClient(dob, season);
+      const ageGroup  = (r['Age Group']||'').toUpperCase();
+      const role      = (r['Role']||'').trim();
+      const club      = (r['Club']||'').trim();
+      const status    = (r['Status']||'').trim();
+      const gender    = (r['Gender']||'').trim();
+      const school    = (r['School Details']||'').trim().replace(/,.*$/,'');
+      const suburb    = (r['Participant Suburb/Town']||'').trim();
+
+      // Exclusion reasons
+      let excludeReason = null;
+      if (status && status !== 'Active')                          excludeReason = `Status: ${status}`;
+      else if (role && role !== 'Player')                         excludeReason = `Role: ${role}`;
+      else if (club && !club.toLowerCase().includes('kinglake'))  excludeReason = `Club: ${club}`;
+      else if (ageGroup === 'SENIOR')                             excludeReason = 'Senior (age group tag)';
+      else if (age !== null && age > 17)                          excludeReason = `Over 17 (age ${age})`;
+      else if (age !== null && age < 5)                           excludeReason = `Age error (age ${age})`;
+
+      // Duplicate detection
+      let dupType = null;
+      if (!excludeReason) {
+        if (existingSeasonIds.has(profileId)) {
+          dupType = 'already_this_season'; // exact — already in this season
+        } else {
+          // Check existing players: exact profileId match = returning player
+          if (pm[profileId]) {
+            dupType = 'returning'; // in DB, not yet in this season — update
+          } else {
+            // Fuzzy: same name + DOB in existing players (different profileId — possible re-registration)
+            const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${dob}`;
+            const fuzzyMatch = Object.values(pm).find(p =>
+              `${p.firstName.toLowerCase()}_${p.lastName.toLowerCase()}_${p.dob}` === nameKey
+            );
+            if (fuzzyMatch) dupType = 'name_dob_match';
+
+            // Check within this CSV for duplicates
+            const csvDup = allRows.slice(0, idx).find(prev =>
+              (prev['First Name']||'').trim().toLowerCase() === firstName.toLowerCase() &&
+              (prev['Last Name']||'').trim().toLowerCase()  === lastName.toLowerCase()  &&
+              (prev['Date of Birth']||'').trim()            === dob
+            );
+            if (csvDup) dupType = 'csv_duplicate';
+          }
+        }
+      }
+
+      return { r, idx, firstName, lastName, dob, profileId, age, ageGroup, gender, school, suburb,
+               excludeReason, dupType, _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'csv_duplicate' };
     });
-    const seniors = valid.length - juniors.length;
 
-    preview.innerHTML = `
-      <div style="background:var(--green-light);border:1.5px solid var(--green);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
-        <div style="font-weight:700;font-size:14px;color:var(--green);margin-bottom:6px;">✓ File parsed: ${file.name}</div>
-        <div style="font-size:13px;">Found <strong>${juniors.length} junior players</strong> · ${seniors} seniors/others excluded</div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Season: ${season} · First player: ${juniors[0]?juniors[0]['First Name']+' '+juniors[0]['Last Name']:'none'}</div>
-      </div>
-      <button class="mprimary" style="width:100%;" onclick="confirmImport(${JSON.stringify(valid).replace(/"/g,'&quot;')}, ${season})">
-        Import ${juniors.length} players into ${season} season
-      </button>
-    `;
+    _importData = { season, rows: categorised, file: file.name };
+    renderImportReview(categorised, season, file.name);
   };
   reader.readAsText(file);
+}
+
+function renderImportReview(rows, season, filename) {
+  const review = document.getElementById('import-review');
+
+  const include = rows.filter(r => !r.excludeReason);
+  const exclude = rows.filter(r =>  r.excludeReason);
+  const dups    = include.filter(r => r.dupType && r.dupType !== 'returning');
+  const fresh   = include.filter(r => !r.dupType);
+  const returning = include.filter(r => r.dupType === 'returning');
+
+  const dupColour = {
+    already_this_season: { bg:'#f0fdf4', border:'#86efac', badge:'#16a34a', label:'Already imported' },
+    returning:           { bg:'#eff6ff', border:'#93c5fd', badge:'#2563eb', label:'Returning player' },
+    name_dob_match:      { bg:'#fefce8', border:'#fde047', badge:'#ca8a04', label:'⚠ Name+DOB match' },
+    csv_duplicate:       { bg:'#fef2f2', border:'#fca5a5', badge:'#dc2626', label:'⚠ Duplicate in CSV' },
+  };
+
+  // Tab state
+  const tabs = [
+    { id:'inc',  label:`✓ Include (${include.length})`,  colour:'var(--green)' },
+    { id:'exc',  label:`✗ Excluded (${exclude.length})`, colour:'var(--red)'   },
+    { id:'dup',  label:`⚠ Flagged (${dups.length})`,    colour:'#ca8a04'      },
+  ];
+
+  review.innerHTML = `
+    <!-- Summary bar -->
+    <div style="background:var(--green-light);border:1.5px solid var(--green);border-radius:10px;padding:13px 16px;margin-bottom:16px;">
+      <div style="font-weight:700;font-size:14px;color:var(--green);margin-bottom:6px;">📂 ${filename} — Season ${season}</div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;">
+        <span><strong style="color:var(--green)">${include.length}</strong> to include</span>
+        <span><strong style="color:var(--red)">${exclude.length}</strong> excluded</span>
+        <span><strong style="color:#ca8a04">${dups.length}</strong> flagged</span>
+        <span><strong>${fresh.length}</strong> new · <strong>${returning.length}</strong> returning</span>
+      </div>
+    </div>
+
+    <!-- View tabs -->
+    <div style="display:flex;gap:0;margin-bottom:0;border-bottom:2px solid var(--border);">
+      ${tabs.map((t,i)=>`<button class="imp-vtab${i===0?' act':''}" data-vtab="${t.id}"
+        onclick="switchImportTab(this,'${t.id}')"
+        style="padding:8px 16px;background:transparent;border:none;border-bottom:3px solid ${i===0?t.colour:'transparent'};
+               font-size:12px;font-weight:700;cursor:pointer;color:${i===0?t.colour:'var(--text-dim)'};
+               font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;">
+        ${t.label}</button>`).join('')}
+      <div style="flex:1;"></div>
+      <button onclick="importToggleAll(true)"  style="font-size:11px;padding:6px 10px;background:transparent;border:none;color:var(--green);cursor:pointer;font-weight:700;">✓ All</button>
+      <button onclick="importToggleAll(false)" style="font-size:11px;padding:6px 10px;background:transparent;border:none;color:var(--red);cursor:pointer;font-weight:700;">✗ None</button>
+    </div>
+
+    <!-- Record list -->
+    <div id="imp-list" style="max-height:420px;overflow-y:auto;border:1.5px solid var(--border);border-top:none;border-radius:0 0 8px 8px;"></div>
+
+    <!-- Confirm bar -->
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <div id="imp-sel-count" style="flex:1;font-size:13px;color:var(--text-dim);"></div>
+      <button class="msecondary" onclick="renderPlImport()">← Start over</button>
+      <button class="mprimary" id="imp-confirm-btn" onclick="runImport()">Import selected players</button>
+    </div>
+  `;
+
+  // Render first tab
+  renderImportTab('inc', rows);
+  updateImportCount(rows);
+}
+
+function switchImportTab(btn, tabId) {
+  document.querySelectorAll('.imp-vtab').forEach(b => {
+    b.style.borderBottomColor = 'transparent';
+    b.style.color = 'var(--text-dim)';
+    b.classList.remove('act');
+  });
+  const colours = { inc:'var(--green)', exc:'var(--red)', dup:'#ca8a04' };
+  btn.style.borderBottomColor = colours[tabId]||'var(--green)';
+  btn.style.color = colours[tabId]||'var(--green)';
+  btn.classList.add('act');
+  renderImportTab(tabId, _importData.rows);
+}
+
+function renderImportTab(tabId, rows) {
+  const list = document.getElementById('imp-list');
+  if (!list) return;
+
+  let filtered;
+  if (tabId === 'inc') filtered = rows.filter(r => !r.excludeReason);
+  else if (tabId === 'exc') filtered = rows.filter(r =>  r.excludeReason);
+  else filtered = rows.filter(r => !r.excludeReason && r.dupType && r.dupType !== 'returning');
+
+  if (!filtered.length) {
+    list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-dim);font-size:13px;">No records in this category.</div>`;
+    return;
+  }
+
+  const dupColour = {
+    already_this_season: { bg:'#f0fdf4', badge:'#16a34a', label:'Already in season' },
+    returning:           { bg:'#eff6ff', badge:'#2563eb', label:'Returning' },
+    name_dob_match:      { bg:'#fefce8', badge:'#ca8a04', label:'Name+DOB match' },
+    csv_duplicate:       { bg:'#fef2f2', badge:'#dc2626', label:'Duplicate in file' },
+  };
+
+  list.innerHTML = filtered.map(item => {
+    const age     = item.age;
+    const ageDisp = age ? `U${age}` : (item.ageGroup||'?');
+    const dc      = item.dupType ? dupColour[item.dupType] : null;
+    const rowBg   = item.excludeReason ? '#fef2f2' : (dc?.bg || '#fff');
+    const canCheck = !item.excludeReason;
+
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);background:${rowBg};${!item._checked&&canCheck?'opacity:.6':''}" id="imp-row-${item.idx}">
+      ${canCheck
+        ? `<input type="checkbox" ${item._checked?'checked':''} onchange="importToggleRow(${item.idx},this.checked)"
+             style="width:15px;height:15px;cursor:pointer;accent-color:var(--green);flex-shrink:0;">`
+        : `<div style="width:15px;height:15px;flex-shrink:0;"></div>`}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;">${item.firstName} ${item.lastName}
+          ${dc ? `<span style="background:${dc.bg};color:${dc.badge};border:1px solid ${dc.badge};font-size:9px;font-weight:700;border-radius:4px;padding:1px 5px;margin-left:4px;text-transform:uppercase;">${dc.label}</span>` : ''}
+          ${item.excludeReason ? `<span style="background:#fee2e2;color:#dc2626;font-size:9px;font-weight:700;border-radius:4px;padding:1px 5px;margin-left:4px;">${item.excludeReason}</span>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">
+          ${ageDisp} · ${item.gender||'—'} · DOB ${item.dob||'—'} · ${item.school||'—'} · ${item.suburb||'—'}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function importToggleRow(idx, checked) {
+  if (!_importData) return;
+  const item = _importData.rows.find(r => r.idx === idx);
+  if (item) item._checked = checked;
+  const row = document.getElementById(`imp-row-${idx}`);
+  if (row) row.style.opacity = checked ? '1' : '0.6';
+  updateImportCount(_importData.rows);
+}
+
+function importToggleAll(checked) {
+  if (!_importData) return;
+  _importData.rows.forEach(r => { if (!r.excludeReason) r._checked = checked; });
+  // Re-render the active tab
+  const activeTab = document.querySelector('.imp-vtab.act');
+  const tabId = activeTab?.dataset?.vtab || 'inc';
+  renderImportTab(tabId, _importData.rows);
+  updateImportCount(_importData.rows);
+}
+
+function updateImportCount(rows) {
+  const sel = rows.filter(r => r._checked).length;
+  const el  = document.getElementById('imp-sel-count');
+  const btn = document.getElementById('imp-confirm-btn');
+  if (el)  el.textContent  = `${sel} player${sel!==1?'s':''} selected for import`;
+  if (btn) btn.textContent = `Import ${sel} player${sel!==1?'s':''}`;
+  if (btn) btn.disabled    = sel === 0;
+}
+
+async function runImport() {
+  if (!_importData) return;
+  const selected = _importData.rows.filter(r => r._checked).map(r => r.r);
+  const season   = _importData.season;
+  if (!selected.length) { showToast('No players selected', 'err'); return; }
+
+  const btn = document.getElementById('imp-confirm-btn');
+  btnLoading(btn, true);
+  const res = await api('importPlayers', { rows: selected, season });
+  btnLoading(btn, false);
+
+  if (res.error) { showToast('Import failed: '+res.error, 'err'); return; }
+  const s = res.stats||{};
+  showToast(`Import complete — ${s.imported} new · ${s.updated} updated · ${s.seniors} excluded`);
+  _importData = null;
+  plData = null;
+  plSeason = season;
+  document.getElementById('pl-season-sel').value = season;
+  await loadPlayerData();
+  switchPlTab(document.querySelector('.pl-tab[data-tab="overview"]'), 'overview');
 }
 
 // Client-side age calc (mirrors backend)
@@ -3576,21 +3794,6 @@ function parseCSVLine(line) {
   }
   result.push(cur);
   return result;
-}
-
-async function confirmImport(rows, season) {
-  const btn = document.querySelector('#import-preview .mprimary');
-  if (btn) btnLoading(btn, true);
-  const res = await api('importPlayers', { rows, season });
-  if (btn) btnLoading(btn, false);
-  if (res.error) { showToast('Import failed: '+res.error, 'err'); return; }
-  const s = res.stats||{};
-  showToast(`Import complete: ${s.imported} new, ${s.updated} updated, ${s.seniors} seniors excluded`);
-  plData = null;
-  plSeason = season;
-  document.getElementById('pl-season-sel').value = season;
-  await loadPlayerData();
-  switchPlTab(document.querySelector('.pl-tab[data-tab="overview"]'), 'overview');
 }
 
 // ── SETTINGS TAB ─────────────────────────────────────────────────
