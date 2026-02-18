@@ -119,6 +119,7 @@ header{
   box-shadow:0 2px 8px rgba(0,0,0,.18);
   padding-left:max(16px, env(safe-area-inset-left));
   padding-right:max(16px, env(safe-area-inset-right));
+  gap:8px;
 }
 .logo-area{display:flex;align-items:center;gap:10px;min-width:0;}
 .logo-badge{width:34px;height:34px;background:var(--yellow);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;color:var(--green);flex-shrink:0;}
@@ -203,8 +204,8 @@ main{
 .sync-dot.loading{background:var(--yellow-dark);animation:pulse 1s ease-in-out infinite;}
 .sync-dot.err{background:var(--red);}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
-.sync-refresh{margin-left:auto;padding:4px 10px;background:var(--green-light);border:1px solid var(--border-s);color:var(--green);border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;}
-.sync-refresh:hover{background:var(--green);color:#fff;}
+.sync-refresh{padding:5px 11px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.85);border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.sync-refresh:hover{background:rgba(255,255,255,.25);color:#fff;}
 
 /* ════════════════════════════════════════
    KPI CARDS
@@ -560,7 +561,14 @@ td{padding:10px 10px;vertical-align:middle;}
 
 
 /* ── MISSING LAYOUT CSS ── */
-.hright{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.hright{display:flex;align-items:center;gap:6px;flex-shrink:0;overflow-x:auto;scrollbar-width:none;max-width:calc(100vw - 120px);}
+.hright::-webkit-scrollbar{display:none;}
+/* Hide username label and sync text on small screens */
+@media(max-width:600px){
+  #user-name{display:none!important;}
+  .refresh-label{display:none;}
+  #sync-state{display:none;}
+}
 .season-head{display:flex;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap;width:100%;}
 .sadd{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;}
 .sadd:hover{background:rgba(255,255,255,.25);}
@@ -572,7 +580,7 @@ td{padding:10px 10px;vertical-align:middle;}
 .mid-row{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px;}
 .mid-left{flex:1;min-width:0;margin-bottom:0!important;}
 .mid-right{width:260px;flex-shrink:0;margin-bottom:0!important;}
-@media(max-width:800px){.mid-row{flex-direction:column;}.mid-right{width:100%;}}
+@media(max-width:800px){.mid-row{flex-direction:column;}.mid-right{width:100%;}.mid-left{width:100%;min-width:0;}}
 .panel-title{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--text);margin-bottom:10px;}
 .side-panel{position:fixed;top:0;right:-420px;width:min(420px,100vw);height:100vh;background:var(--card);box-shadow:-4px 0 24px rgba(0,0,0,.13);z-index:200;transition:right .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden;}
 .side-panel.open{right:0;}
@@ -634,10 +642,10 @@ td{padding:10px 10px;vertical-align:middle;}
     </div>
     <div class="hright">
       <div id="sync-state" class="sync-ok">●&nbsp;Synced</div>
-      <button class="sync-refresh" onclick="loadAll()">↻ Refresh</button>
+      <button class="sync-refresh" onclick="loadAll()"><span class="refresh-icon">↻</span><span class="refresh-label"> Refresh</span></button>
       <div class="huser">
         <img id="user-pic" src="" style="width:28px;height:28px;border-radius:50%;display:none;object-fit:cover;">
-        <span id="user-name"></span>
+        <span id="user-name" style="color:#fff;font-size:13px;font-weight:600;white-space:nowrap;"></span>
       </div>
       <button class="hnav-btn" onclick="openAdminModal('players')">Players</button>
       <button class="hnav-btn" onclick="openAdminModal('finance')">Finance</button>
@@ -913,8 +921,10 @@ td{padding:10px 10px;vertical-align:middle;}
 </div>
 
 <!-- USER / EDIT MODAL -->
-<div class="moverlay" id="user-modal">
-  <div class="smodal-inner" style="max-width:420px;width:100%;overflow:hidden;">
+<div class="moverlay" id="user-modal" style="z-index:310;">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-handle"></div>
+    <button class="mclose" onclick="closeUserModal()">×</button>
     <div class="mtitle" style="margin-bottom:4px;" id="um-title">Edit User</div>
     <div style="margin-bottom:14px;">
       <div class="fg" style="margin-bottom:10px;"><label>Full Name</label><input type="text" id="um-name" placeholder="Full name"></div>
@@ -940,7 +950,7 @@ td{padding:10px 10px;vertical-align:middle;}
 </div>
 
 <!-- ROLES MODAL -->
-<div class="moverlay" id="roles-modal">
+<div class="moverlay" id="roles-modal" style="z-index:320;">
   <div class="smodal-inner" style="max-width:360px;width:100%;">
     <div class="mtitle" style="margin-bottom:12px;">Manage Roles</div>
     <div id="roles-list" style="margin-bottom:14px;max-height:260px;overflow-y:auto;"></div>
@@ -1758,7 +1768,7 @@ async function loadAdminTab(tab) {
   if (tab==='players' || tab==='finance') {
     const label = tab==='players' ? 'Players' : 'Finance';
     body.innerHTML = `<div style="text-align:center;padding:48px 24px;">
-      <div style="font-size:48px;margin-bottom:16px;">${tab==='players'?'⚽':'💰'}</div>
+      <div style="font-size:48px;margin-bottom:16px;">${tab==='players'?'🏉':'💰'}</div>
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${label} Module</div>
       <div style="font-size:13px;color:var(--text-dim);max-width:280px;margin:0 auto;">This section is coming soon. We're building it out — check back next season.</div>
       <div style="display:inline-block;margin-top:16px;background:var(--yellow-pale);border:1.5px solid var(--yellow-dark);color:var(--yellow-dark);font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;">Coming Soon</div>
