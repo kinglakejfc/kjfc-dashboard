@@ -128,7 +128,7 @@ header{
 .logo-text{min-width:0;}
 .logo-text h1{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:22px;text-transform:uppercase;letter-spacing:.4px;line-height:1.1;color:#fff;white-space:nowrap;}
 .logo-text small{font-size:10px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;display:block;}
-.hright{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
+.hright{display:flex;flex-direction:row;align-items:center;gap:6px;flex-shrink:0;flex-wrap:nowrap;}
 .hrow{display:flex;align-items:center;gap:6px;}
 .huser{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .hnav{display:flex;align-items:center;gap:4px;}
@@ -606,23 +606,31 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 .vtab.prospect-tab.act{background:#b45309;border-color:#b45309;}
 
 
-/* ── SMALL SCREEN HEADER ── */
-@media(max-width:600px){
+/* ── HEADER MOBILE ── */
+@media(max-width:640px){
+  header{flex-wrap:wrap;padding:8px 12px;gap:6px;}
+  .logo-area{flex:1;min-width:0;}
+  /* hright drops to its own full-width row */
+  .hright{
+    width:100%;
+    flex-wrap:wrap;
+    gap:4px;
+    justify-content:flex-end;
+  }
+  /* Hide name in user pill - just show avatar circle */
   #user-name{display:none!important;}
-  #sync-state{display:none;}
+  .user-pill{padding:3px 7px 3px 4px;}
+  /* Compact buttons */
   .hnav-btn{padding:4px 8px;font-size:10px;letter-spacing:0;}
-  .hright{gap:3px;}
-  .hrow{gap:4px;}
-  .lobtn{padding:4px 8px;font-size:10px;}
+  #sync-state{display:none;}
   .sync-refresh{padding:4px 8px;font-size:10px;}
+  .lobtn{padding:4px 8px;font-size:10px;}
 }
-@media(max-width:420px){
-  /* On very small screens stack user pill above nav */
-  .hright{flex-direction:column;align-items:flex-end;}
-  header{padding:6px 12px;}
-  .logo-badge{width:32px;height:32px;font-size:12px;}
-  .logo-text h1{font-size:18px;}
+@media(max-width:380px){
   .logo-text small{display:none;}
+  .logo-badge{width:30px;height:30px;font-size:11px;}
+  .logo-text h1{font-size:16px;}
+  .hnav-btn{padding:3px 6px;font-size:9px;}
 }
 /* Table: hide contact column on mobile, allow horizontal scroll */
 @media(max-width:600px){
@@ -711,22 +719,20 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       </div>
     </div>
     <div class="hright">
-      <!-- Row 1: User pill (clickable to edit profile) -->
-      <div class="hrow">
-        <div class="user-pill" onclick="openEditMe()" title="Edit my profile">
-          <img id="user-pic" src="" style="display:none;">
-          <div class="user-pill-init" id="user-init">?</div>
-          <span id="user-name"></span>
-        </div>
+      <!-- User pill always visible -->
+      <div class="user-pill" onclick="openEditMe()" title="My profile" style="flex-shrink:0;">
+        <img id="user-pic" src="" style="display:none;">
+        <div class="user-pill-init" id="user-init">?</div>
+        <span id="user-name"></span>
       </div>
-      <!-- Row 2: Admin nav (admin only) + Sync + Refresh + Sign Out all on one line -->
-      <div class="hrow">
-        <div id="admin-nav-btns" style="display:none;gap:4px;" class="hrow">
-          <button class="hnav-btn" onclick="openAdminModal('packages')">Packages</button>
-          <button class="hnav-btn" onclick="openAdminModal('log')">Access Log</button>
-          <button class="hnav-btn" onclick="openAdminModal('users')">Users</button>
-          <div style="width:1px;height:14px;background:rgba(255,255,255,.2);margin:0 2px;"></div>
-        </div>
+      <!-- Admin nav (admin only) -->
+      <div id="admin-nav-btns" style="display:none;align-items:center;gap:4px;">
+        <button class="hnav-btn" onclick="openAdminModal('packages')">Packages</button>
+        <button class="hnav-btn" onclick="openAdminModal('log')">Access Log</button>
+        <button class="hnav-btn" onclick="openAdminModal('users')">Users</button>
+      </div>
+      <!-- Sync + Refresh + Sign Out -->
+      <div style="display:flex;align-items:center;gap:4px;margin-left:auto;">
         <div id="sync-state" class="sync-ok">●&nbsp;Synced</div>
         <button class="sync-refresh" onclick="loadAll()"><span class="refresh-icon">↻</span> Refresh</button>
         <button class="lobtn" onclick="doLogout()">Sign Out</button>
