@@ -725,7 +725,7 @@ td{padding:10px 10px;vertical-align:middle;}
     </div>
     <div class="frow two">
       <div class="fg"><label>Season</label><select id="f-year"></select></div>
-      <div class="fg"><label id="amount-label">Amount ($) *</label><input type="number" id="f-amount" placeholder="2000" min="0" inputmode="numeric"><small id="amount-hint" style="display:none;font-size:10px;color:var(--text-dim);margin-top:3px;">Enter estimated value, or 0 for unvalued in-kind</small></div>
+      <div class="fg" id="f-amount-wrap"><label>Amount ($) *</label><input type="number" id="f-amount" placeholder="2000" min="0" inputmode="numeric"></div>
     </div>
     <div class="frow two">
       <div class="fg"><label>Payment Status *</label>
@@ -1151,19 +1151,20 @@ function populateYearDropdown() {
 //  STATS
 // ═══════════════════════════════════════════════════════
 function calcStats(year) {
-  const rows = sponsors.filter(s => s.year === year);
-  const total = rows.reduce((a, s) => a + +s.amount, 0);
-  const recv  = rows.reduce((a, s) =>
+  const rows     = sponsors.filter(s => s.year === year);
+  const cashRows = rows.filter(s => s.status !== 'inkind');
+  const ikRows   = rows.filter(s => s.status === 'inkind');
+  const total    = cashRows.reduce((a, s) => a + +s.amount, 0);
+  const recv     = cashRows.reduce((a, s) =>
     s.status === 'paid' ? a + +s.amount :
-    s.status === 'partial' ? a + +(s.paidAmount || 0) :
-    s.status === 'inkind' ? a : a, 0);
-  const outCount = rows.filter(s => s.status !== 'paid' && s.status !== 'inkind').length;
-  const byTier = {};
+    s.status === 'partial' ? a + +(s.paidAmount || 0) : a, 0);
+  const outCount = cashRows.filter(s => s.status !== 'paid').length;
+  const byTier   = {};
   ['gold','silver','bronze','community'].forEach(t => {
-    const ts = rows.filter(s => s.tier === t);
+    const ts = cashRows.filter(s => s.tier === t);
     byTier[t] = { count: ts.length, amount: ts.reduce((a, s) => a + +s.amount, 0) };
   });
-  return { total, recv, outstanding: total - recv, outCount, count: rows.length, byTier };
+  return { total, recv, outstanding: total - recv, outCount, count: rows.length, ikCount: ikRows.length, byTier };
 }
 
 function consecYears(name) {
@@ -1202,6 +1203,12 @@ function render() {
     tEl.textContent = (d >= 0 ? '▲ ' : '▼ ') + Math.abs(pd) + '% vs ' + prevYr;
     tEl.className = 'ktrend ' + (d >= 0 ? 'up' : 'dn');
   } else tEl.textContent = '';
+
+  // In-kind strip
+  const ikStrip = document.getElementById('inkind-strip');
+  if (ikStrip) ikStrip.style.display = s.ikCount > 0 ? 'flex' : 'none';
+  const ikSumm = document.getElementById('inkind-summary');
+  if (ikSumm && s.ikCount > 0) ikSumm.textContent = s.ikCount + ' in-kind sponsor' + (s.ikCount !== 1 ? 's' : '') + ' this season';
 
   document.getElementById('tier-mini').innerHTML = ['gold','silver','bronze','community'].map(t =>
     s.byTier[t].count > 0
@@ -1363,7 +1370,7 @@ function drillOut() {
 // ═══════════════════════════════════════════════════════
 async function openDetail(id) {
   const s = sponsors.find(x => x.id === id); if (!s) return;
-  const recv = s.status==='paid' ? +s.amount : s.status==='partial' ? +(s.paidAmount||0) : s.status==='inkind' ? +s.amount : 0;
+  const recv = s.status==='paid' ? +s.amount : s.status==='partial' ? +(s.paidAmount||0) : 0;
   const pct  = s.amount > 0 ? Math.round(recv / s.amount * 100) : 0;
   const init = s.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
   const c    = consecYears(s.name);
@@ -1451,6 +1458,7 @@ function resetModal() {
   document.getElementById('f-tier').value = '';
   document.getElementById('f-status').value = '';
   document.getElementById('f-partial-wrap').style.display = 'none';
+  document.getElementById('f-amount-wrap').style.display = '';
 }
 
 function openAdd() {
@@ -1489,6 +1497,7 @@ function openEdit(id) {
   document.getElementById('f-website').value = s.website || '';
   document.getElementById('f-notes').value   = s.notes || '';
   document.getElementById('f-partial-wrap').style.display = s.status === 'partial' ? 'flex' : 'none';
+  document.getElementById('f-amount-wrap').style.display  = s.status === 'inkind'  ? 'none' : '';
   document.getElementById('sponsor-modal').classList.add('open');
 }
 
@@ -1503,6 +1512,7 @@ async function saveSponsor() {
   const status = document.getElementById('f-status').value;
   if (!name)             { showToast('Enter a sponsor name', 'warn'); return; }
   if (!tier)             { showToast('Select a tier', 'warn'); return; }
+  if (status === 'inkind') { document.getElementById('f-amount').value = '0'; }
   if (status !== 'inkind' && (!amount || +amount <= 0)) { showToast('Enter a valid amount', 'warn'); return; }
   if (!status)           { showToast('Select a payment status', 'warn'); return; }
 
@@ -1527,10 +1537,22 @@ async function saveSponsor() {
 
   if (res.error) { showToast('Error: ' + res.error, 'err'); setSyncState('err', 'Save failed'); return; }
 
+  // Instant local update — patch sponsors array and re-render immediately
+  if (!editId) {
+    // New sponsor: add with server-assigned id (or temp id)
+    data.id = res.id || ('tmp_' + Date.now());
+    sponsors.push(data);
+  } else {
+    // Edit: replace in array
+    const idx = sponsors.findIndex(x => x.id === editId);
+    if (idx >= 0) sponsors[idx] = { ...sponsors[idx], ...data };
+  }
   closeModal();
+  render();
   showToast(editId ? 'Sponsor updated ✓' : 'Sponsor added ✓');
-  await loadAll();
   if (editId && document.getElementById('detailView').classList.contains('open')) openDetail(editId);
+  // Background refresh to confirm server state
+  loadAll();
 }
 
 async function deleteSponsor() {
@@ -1540,9 +1562,12 @@ async function deleteSponsor() {
   setSyncState('loading', 'Deleting…');
   const res = await api('deleteSponsor', { id: editId });
   if (res.error) { showToast('Error: ' + res.error, 'err'); return; }
+  // Instant local update
+  sponsors = sponsors.filter(x => x.id !== editId);
   closeModal(); closeDetail();
+  render();
   showToast('Sponsor deleted');
-  await loadAll();
+  loadAll();
 }
 
 // Wire modal buttons
@@ -1554,8 +1579,8 @@ document.getElementById('f-status').addEventListener('change', function() {
   const isPartial = this.value === 'partial';
   const isInKind  = this.value === 'inkind';
   document.getElementById('f-partial-wrap').style.display = isPartial ? 'flex' : 'none';
-  document.getElementById('amount-hint').style.display    = isInKind  ? 'block' : 'none';
-  document.getElementById('amount-label').textContent     = isInKind  ? 'Est. Value ($)' : 'Amount ($) *';
+  document.getElementById('f-amount-wrap').style.display  = isInKind  ? 'none' : '';
+  if (isInKind) document.getElementById('f-amount').value = '0';
 });
 document.getElementById('sponsor-modal').addEventListener('click', e => { if (e.target === document.getElementById('sponsor-modal')) closeModal(); });
 document.getElementById('season-modal').addEventListener('click',  e => { if (e.target === document.getElementById('season-modal'))  closeSeasonModal(); });
@@ -1593,6 +1618,7 @@ function copyFromPrev() {
   document.getElementById('f-status').value  = 'outstanding';
   document.getElementById('f-paid').value    = '';
   document.getElementById('f-partial-wrap').style.display = 'none';
+  document.getElementById('f-amount-wrap').style.display = '';
   showToast('Copied from ' + s.year + ' ✓');
 }
 
