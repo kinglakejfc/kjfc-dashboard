@@ -1421,11 +1421,11 @@ async function api(action, body = {}) {
     const cbName = '_kjfc_cb_' + Date.now() + '_' + Math.floor(Math.random()*1e6);
     const params = new URLSearchParams({ action, callback: cbName });
     if (token) params.set('token', token);
-    if (action === 'exchangeCode')    params.set('code', body.code || '');
-    else if (action === 'getAudit')   params.set('id', body.id || '');
+    if (action === 'exchangeCode')       params.set('code', body.code || '');
+    else if (action === 'getAudit')      params.set('id', body.id || '');
     else if (action === 'getContactLog') params.set('orgId', body.orgId || '');
     else if (Object.keys(body).length > 0) params.set('payload', encodeURIComponent(JSON.stringify(body)));
-    const timer = setTimeout(() => { cleanup(); resolve({ error: 'Request timed out' }); }, 20000);
+    const timer = setTimeout(() => { cleanup(); resolve({ error: 'Request timed out' }); }, 30000);
     function cleanup() { clearTimeout(timer); delete window[cbName]; const el=document.getElementById(cbName); if(el) el.remove(); }
     window[cbName] = (data) => { cleanup(); resolve(data); };
     const script = document.createElement('script');
@@ -1434,6 +1434,44 @@ async function api(action, body = {}) {
     script.onerror = () => { cleanup(); resolve({ error: 'Script load failed' }); };
     document.head.appendChild(script);
   });
+}
+
+// ── CSV row → compact object (short keys to stay within URL limits) ─────────
+// Apps Script JSONP runs via URL params; 82 full rows would exceed ~8KB limit.
+// We compress each row to short keys, send in batches of 7, backend expands them.
+const CSV_KEY_MAP = {
+  'Profile ID':'pid', 'First Name':'fn', 'Last Name':'ln', 'Preferred Name':'pn',
+  'Date of Birth':'dob', 'Gender':'gen',
+  'Participant Address':'addr', 'Participant Suburb/Town':'sub',
+  'Participant Postcode':'pcode', 'Participant State/County/City':'state',
+  'Participant Country':'cntry',
+  'Registration Timestamp':'regts', 'New To Club':'ntc', 'New To Association':'nta', 'Source':'src',
+  'Age Group':'ag', 'Role':'role', 'Club':'club', 'Status':'stat',
+  'Competition':'comp', 'Team':'team',
+  'School Details':'sch', 'School Year':'schyr',
+  'Does the participant have any medical conditions or allergies that you would like the club  centre to be aware of':'medf',
+  'Please outline those medical conditions or allergies and other relevant information note please ensure you liaise directly with relevant people at your club  centre to ensure relevant first aid management plans are in place':'medd',
+  'Aboriginal/Torres Strait Islander':'atsi',
+  'Participant Country of Birth':'cob', 'Parent/Guardian Born Overseas?':'pbo',
+  'Disability':'dis', 'Disability Type':'dist',
+  'Account Holder':'ah', 'Account Holder Mobile':'ahm', 'Account Holder Email':'ahe',
+  'Parent/Guardian1 First Name':'p1f', 'Parent/Guardian1 Last Name':'p1l',
+  'Parent/Guardian1 Mobile Number':'p1ph', 'Parent/Guardian1 Email':'p1em',
+  'Parent/Guardian1 Address':'p1ad', 'Parent/Guardian1 Suburb/Town':'p1sub', 'Parent/Guardian1 Postcode':'p1pc',
+  'Parent/Guardian2 First Name':'p2f', 'Parent/Guardian2 Last Name':'p2l',
+  'Parent/Guardian2 Mobile Number':'p2ph', 'Parent/Guardian2 Email':'p2em',
+  'Parent/Guardian2 Address':'p2ad', 'Parent/Guardian2 Suburb/Town':'p2sub', 'Parent/Guardian2 Postcode':'p2pc',
+  'Emergency Contact First Name':'ecf', 'Emergency Contact Last Name':'ecl',
+  'Emergency Contact Mobile Number':'ecph', 'Emergency Contact Email':'ecem',
+  'Emergency Contact Relationship':'ecrel',
+};
+function compressRow(r) {
+  const out = {};
+  for (const [full, short] of Object.entries(CSV_KEY_MAP)) {
+    const v = (r[full]||'').trim();
+    if (v) out[short] = v;
+  }
+  return out;
 }
 
 // ════════════════════════════════════════════════════════
@@ -3211,7 +3249,7 @@ function renderFilteredPlayers() {
     <div style="overflow-x:auto;">
     <table class="pl-table">
       <thead><tr>
-        <th></th><th>Name</th><th>Age Grp</th><th>Gender</th><th>School</th><th>Suburb</th><th>New</th><th></th>
+        <th></th><th>Name</th><th>Age Grp</th><th>Gender</th><th>School</th><th>Suburb</th><th>New</th><th>📸</th><th></th>
       </tr></thead>
       <tbody>
         ${filtered.map(({ps,p}) => {
@@ -3227,6 +3265,7 @@ function renderFilteredPlayers() {
             <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.school||'—'}</td>
             <td style="font-size:11px;">${p.suburb||'—'}</td>
             <td>${ps.newToClub==='Yes'?'<span style="color:var(--green);font-weight:700;font-size:11px;">✓ New</span>':'—'}</td>
+            <td style="text-align:center;">${p.photoConsent==='Yes'?'<span style="color:var(--green);font-size:13px;" title="Photo consent given">✓</span>':'<span style="color:var(--text-dim);font-size:11px;" title="No photo consent">—</span>'}</td>
             <td><button class="actbtn" onclick="event.stopPropagation();openPlayerDetail('${p.profileId}')">View</button></td>
           </tr>`;
         }).join('')}
@@ -3268,6 +3307,14 @@ function openPlayerDetail(profileId) {
         <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Profile photo URL</div>
         <input id="pdm-photo" type="text" value="${p.photoUrl||''}" placeholder="https://... or leave blank for initials"
           style="width:280px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;">
+        <div style="margin-top:8px;">
+          <label style="font-size:12px;display:flex;align-items:center;gap:7px;cursor:pointer;">
+            <input type="checkbox" id="pdm-photo-consent" ${p.photoConsent==='Yes'?'checked':''}
+              style="width:14px;height:14px;accent-color:var(--green);cursor:pointer;">
+            <span style="font-weight:600;">📸 Photo consent given</span>
+          </label>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:2px;margin-left:21px;">Parent/guardian has consented to publication of player photos</div>
+        </div>
       </div>
     </div>
 
@@ -3313,13 +3360,28 @@ function openPlayerDetail(profileId) {
     <div style="background:#fff8f0;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#b45309;margin-bottom:4px;">Emergency Contact</div>
       <div style="font-size:13px;font-weight:600;">${p.emergencyName||'—'} ${p.emergencyRelationship?'('+p.emergencyRelationship+')':''}</div>
-      <div style="font-size:12px;color:var(--text-dim);">${p.emergencyPhone?fmtPhone(p.emergencyPhone):'—'}</div>
+      <div style="font-size:12px;color:var(--text-dim);">${p.emergencyPhone?fmtPhone(p.emergencyPhone):'—'}${p.emergencyEmail?' · '+p.emergencyEmail:''}</div>
     </div>
 
-    <!-- School + Suburb -->
+    <!-- Account Holder -->
+    ${(p.accountHolder||p.accountHolderMobile||p.accountHolderEmail) ? `
+    <div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:4px;">Account Holder (registered)</div>
+      <div style="font-size:13px;font-weight:600;">${p.accountHolder||'—'}</div>
+      <div style="font-size:12px;color:var(--text-dim);">${p.accountHolderMobile?fmtPhone(p.accountHolderMobile):'—'}${p.accountHolderEmail?' · '+p.accountHolderEmail:''}</div>
+    </div>` : ''}
+
+    <!-- Medical -->
+    ${(p.medicalFlag==='Yes'||p.medicalDetails) ? `
+    <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#dc2626;margin-bottom:4px;">⚕ Medical / Allergies</div>
+      <div style="font-size:13px;">${p.medicalDetails||'Flagged — see registration notes'}</div>
+    </div>` : ''}
+
+    <!-- School + Suburb + ATSI -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
       <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">School</div><div style="font-size:13px;">${p.school||'—'}</div><div style="font-size:11px;color:var(--text-dim);">Year ${p.schoolYear||'—'}</div></div>
-      <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">Suburb</div><div style="font-size:13px;">${p.suburb||'—'} ${p.postcode||''}</div></div>
+      <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">Address</div><div style="font-size:12px;">${[p.suburb,p.postcode,p.state].filter(Boolean).join(' ')}</div>${p.atsi&&p.atsi!=='No'?`<div style="font-size:10px;color:#7c3aed;margin-top:2px;">ATSI: ${p.atsi}</div>`:''}</div>
     </div>
 
     <!-- Notes -->
@@ -3338,6 +3400,7 @@ async function savePlayerDetail() {
   const ps = plSeasonRows().find(r=>r.profileId===plDetailId)||{};
 
   const photoUrl     = document.getElementById('pdm-photo')?.value?.trim()||'';
+  const photoConsent = document.getElementById('pdm-photo-consent')?.checked ? 'Yes' : 'No';
   const dispensation = document.getElementById('pdm-disp')?.checked||false;
   const assignedTeam = document.getElementById('pdm-assigned-team')?.value||'';
   const dispNote     = document.getElementById('pdm-disp-note')?.value?.trim()||'';
@@ -3347,7 +3410,7 @@ async function savePlayerDetail() {
   btnLoading(btn, true);
 
   const [r1, r2] = await Promise.all([
-    api('updatePlayer', { profileId: plDetailId, photoUrl }),
+    api('updatePlayer', { profileId: plDetailId, photoUrl, photoConsent }),
     ps.id ? api('updatePlayerSeason', { id: ps.id, dispensation, assignedTeam, dispensationNote: dispNote, notes }) : Promise.resolve({ok:true})
   ]);
 
@@ -3356,7 +3419,7 @@ async function savePlayerDetail() {
 
   // Update local data
   const p = (plData.players||[]).find(x=>x.profileId===plDetailId);
-  if (p) p.photoUrl = photoUrl;
+  if (p) { p.photoUrl = photoUrl; p.photoConsent = photoConsent; }
   if (ps.id) {
     Object.assign(ps, { dispensation, assignedTeam, dispensationNote: dispNote, notes });
   }
@@ -3758,14 +3821,49 @@ async function runImport() {
   const season   = _importData.season;
   if (!selected.length) { showToast('No players selected', 'err'); return; }
 
-  const btn = document.getElementById('imp-confirm-btn');
-  btnLoading(btn, true);
-  const res = await api('importPlayers', { rows: selected, season });
-  btnLoading(btn, false);
+  const btn      = document.getElementById('imp-confirm-btn');
+  const countEl  = document.getElementById('imp-sel-count');
+  const BATCH    = 7; // safe size for JSONP URL limit (~8KB)
+  const batches  = [];
+  for (let i = 0; i < selected.length; i += BATCH) batches.push(selected.slice(i, i + BATCH));
 
-  if (res.error) { showToast('Import failed: '+res.error, 'err'); return; }
-  const s = res.stats||{};
-  showToast(`Import complete — ${s.imported} new · ${s.updated} updated · ${s.seniors} excluded`);
+  btn.disabled = true;
+  const totals = { imported: 0, updated: 0, seniors: 0, skipped: 0, errors: 0 };
+
+  for (let b = 0; b < batches.length; b++) {
+    // Show progress
+    const pct   = Math.round((b / batches.length) * 100);
+    const done  = b * BATCH;
+    if (countEl) countEl.innerHTML =
+      `<div style="display:flex;align-items:center;gap:10px;">
+        <div style="flex:1;background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
+          <div style="height:100%;background:var(--green);width:${pct}%;transition:width .3s;"></div>
+        </div>
+        <span style="font-size:12px;color:var(--text-dim);white-space:nowrap;">
+          ${done} / ${selected.length} players sent…
+        </span>
+      </div>`;
+
+    const compressedBatch = batches[b].map(compressRow);
+    const res = await api('importPlayers', { rows: compressedBatch, season });
+    if (res.error) {
+      btn.disabled = false;
+      if (countEl) countEl.textContent = `${selected.length} players selected for import`;
+      showToast('Import failed (batch ' + (b+1) + '): ' + res.error, 'err');
+      return;
+    }
+    const s = res.stats || {};
+    totals.imported += s.imported || 0;
+    totals.updated  += s.updated  || 0;
+    totals.seniors  += s.seniors  || 0;
+    totals.skipped  += s.skipped  || 0;
+    totals.errors   += s.errors   || 0;
+  }
+
+  // Done
+  if (countEl) countEl.innerHTML =
+    `<span style="color:var(--green);font-weight:700;">✓ Import complete</span>`;
+  showToast(`Import done — ${totals.imported} new · ${totals.updated} updated · ${totals.seniors} seniors excluded${totals.errors?' · '+totals.errors+' errors':''}`);
   _importData = null;
   plData = null;
   plSeason = season;
