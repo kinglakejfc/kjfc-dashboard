@@ -610,6 +610,25 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 @media(max-width:600px){
   #user-name{display:none!important;}
   #sync-state{display:none;}
+  .hnav-btn{padding:4px 8px;font-size:10px;letter-spacing:0;}
+  .hright{gap:3px;}
+  .hrow{gap:4px;}
+  .lobtn{padding:4px 8px;font-size:10px;}
+  .sync-refresh{padding:4px 8px;font-size:10px;}
+}
+@media(max-width:420px){
+  /* On very small screens stack user pill above nav */
+  .hright{flex-direction:column;align-items:flex-end;}
+  header{padding:6px 12px;}
+  .logo-badge{width:32px;height:32px;font-size:12px;}
+  .logo-text h1{font-size:18px;}
+  .logo-text small{display:none;}
+}
+/* Table: hide contact column on mobile, allow horizontal scroll */
+@media(max-width:600px){
+  .stable-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .stable{min-width:480px;}
+  .col-contact{display:none;}
 }
 .season-head{display:flex;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap;width:100%;}
 .sadd{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;}
@@ -664,9 +683,18 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <h1 style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;">Executive Dashboard</h1>
       <p style="font-size:13px;color:var(--text-dim);margin-top:4px;">Kinglake Junior Football Club</p>
     </div>
-    <div id="google-btn-container" style="margin-bottom:12px;"></div>
-    <button id="google-sign-in-btn" style="width:100%;padding:12px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;">Sign in with Google</button>
-    <div id="lerr" style="color:var(--red);font-size:12px;text-align:center;margin-top:10px;min-height:16px;"></div>
+    <!-- Sign in state -->
+    <div id="login-signin-area">
+      <div id="google-btn-container" style="margin-bottom:12px;"></div>
+      <button id="google-sign-in-btn" style="width:100%;padding:12px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;">Sign in with Google</button>
+      <div id="lerr" style="color:var(--red);font-size:12px;text-align:center;margin-top:10px;min-height:16px;"></div>
+    </div>
+    <!-- Signing in... state (shown after Google auth completes) -->
+    <div id="login-progress" style="display:none;text-align:center;padding:8px 0 4px;">
+      <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px;"></div>
+      <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:4px;">Signing in…</div>
+      <div style="font-size:12px;color:var(--text-dim);">Verifying your Google account</div>
+    </div>
   </div>
 </div>
 
@@ -782,6 +810,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div style="margin-bottom:10px;">
         <input type="text" id="sponsor-search" placeholder="🔍  Search sponsors…" oninput="renderTable()" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--bg);color:var(--text);outline:none;transition:border-color .15s;" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
       </div>
+      <div class="stable-wrap">
       <table class="stable" id="stable">
         <thead id="stable-head"><tr>
           <th class="sortable" onclick="sortBy('name')" id="th-name">Sponsor <span class="sort-arrow" id="sa-name"></span></th>
@@ -789,10 +818,11 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
           <th class="sortable" onclick="sortBy('amount')" id="th-amount">Amount <span class="sort-arrow" id="sa-amount"></span></th>
           <th class="sortable" onclick="sortBy('status')" id="th-status">Status <span class="sort-arrow" id="sa-status"></span></th>
           <th class="sortable" onclick="sortBy('yrs')" id="th-yrs">Yrs <span class="sort-arrow" id="sa-yrs"></span></th>
-          <th>Contact</th><th></th>
+          <th class="col-contact">Contact</th><th></th>
         </tr></thead>
         <tbody id="tbody"></tbody>
       </table>
+      </div>
       <div id="tbl-empty" style="display:none;text-align:center;padding:24px;color:var(--text-dim);font-size:13px;">No sponsors for this season yet.</div>
       <div style="margin-top:10px;display:flex;justify-content:flex-end;">
         <button class="actbtn" onclick="exportCSV()" style="font-size:11px;padding:5px 10px;">Export CSV</button>
@@ -1063,17 +1093,20 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
         <input type="email" id="um-email" placeholder="user@example.com" inputmode="email">
       </div>
       <div class="fg" style="margin-bottom:10px;"><label>Full Name</label><input type="text" id="um-name" placeholder="Full name"></div>
-      <div class="frow two" style="margin-bottom:10px;">
-        <div class="fg"><label>Role</label>
-          <select id="um-role"></select>
-        </div>
-        <div class="fg"><label>Access Level</label>
-          <select id="um-access">
-            <option value="admin">Admin — Full access</option>
-            <option value="edit">Can Edit — Add/edit sponsors</option>
-            <option value="readonly">Read Only — View only</option>
-          </select>
-        </div>
+      <div class="fg" style="margin-bottom:10px;"><label>Role</label>
+        <select id="um-role"></select>
+      </div>
+      <div class="fg" id="um-access-row" style="margin-bottom:10px;display:none;">
+        <label>Access Level</label>
+        <select id="um-access">
+          <option value="admin">Admin — Full access</option>
+          <option value="edit">Can Edit — Add/edit sponsors</option>
+          <option value="readonly">Read Only — View only</option>
+        </select>
+      </div>
+      <div id="um-access-note" style="display:none;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--text-dim);line-height:1.6;">
+        🔐 <strong style="color:var(--text);">Dashboard access</strong> is managed by an Admin.<br>
+        Sign in is via Google — only Google accounts that have been added to the dashboard by an admin can access it. Contact your admin to change your access level.
       </div>
     </div>
     <div class="mactions">
@@ -1318,9 +1351,21 @@ function initGoogleSignIn() {
 }
 
 async function handleGoogleCredential(response) {
-  setSyncState('loading', 'Verifying identity…');
+  // Show "Signing in..." progress state immediately
+  const signinArea = document.getElementById('login-signin-area');
+  const progressArea = document.getElementById('login-progress');
+  if (signinArea) signinArea.style.display = 'none';
+  if (progressArea) progressArea.style.display = 'block';
+
   const result = await api('exchangeCode', { code: response.credential });
-  if (result.error) { document.getElementById('lerr').textContent = result.error; setSyncState('ok',''); return; }
+
+  if (result.error) {
+    // Show error, restore sign-in button
+    if (signinArea) signinArea.style.display = 'block';
+    if (progressArea) progressArea.style.display = 'none';
+    document.getElementById('lerr').textContent = result.error;
+    return;
+  }
   token = result.token;
   me = { email: result.email, name: result.name, role: result.role, edit: result.edit, admin: result.admin, picture: result.picture };
   saveSession(token, me);
@@ -1546,7 +1591,7 @@ function renderTableHeaders() {
       <th class="sortable" onclick="sortBy('amount')" id="th-amount">Amount <span class="sort-arrow" id="sa-amount"></span></th>
       <th class="sortable" onclick="sortBy('status')" id="th-status">Status <span class="sort-arrow" id="sa-status"></span></th>
       <th class="sortable" onclick="sortBy('yrs')" id="th-yrs">Yrs <span class="sort-arrow" id="sa-yrs"></span></th>
-      <th>Contact</th><th></th>
+      <th class="col-contact">Contact</th><th></th>
     </tr>`;
     // Re-apply current sort indicator
     ['name','tier','amount','status','yrs'].forEach(c => {
@@ -2453,20 +2498,37 @@ function openEditMe() {
 }
 
 function openUserModal(u) {
-  // u = null means adding new user
   editingUser = u;
   const isNew = !u;
-  document.getElementById('um-title').textContent = isNew ? 'Add User' : 'Edit User';
-  document.getElementById('um-email').value  = u ? u.email : '';
-  document.getElementById('um-email').disabled = !isNew; // can't change email of existing user
-  document.getElementById('um-name').value   = u ? (u.name||'') : '';
+  // Is the current viewer an admin? (they can change access levels)
+  const viewerIsAdmin = me && me.admin;
+  // Is this the current user editing themselves?
+  const isSelf = u && me && u.email === me.email;
+
+  document.getElementById('um-title').textContent = isNew ? 'Add User' : (isSelf ? 'Edit My Profile' : 'Edit User');
+  document.getElementById('um-email').value    = u ? u.email : '';
+  document.getElementById('um-email').disabled = !isNew;
+  document.getElementById('um-name').value     = u ? (u.name||'') : '';
   populateRoleSelect();
-  document.getElementById('um-role').value   = u ? (u.role||'Member') : 'Member';
-  const acc = u ? (u.admin?'admin': u.edit?'edit':'readonly') : 'readonly';
-  document.getElementById('um-access').value = acc;
-  // Show delete only for existing users (not yourself)
+  document.getElementById('um-role').value = u ? (u.role||'Member') : 'Member';
+
+  // Access level: only show dropdown to admins, show info note to everyone else
+  const accRow  = document.getElementById('um-access-row');
+  const accNote = document.getElementById('um-access-note');
+  if (viewerIsAdmin) {
+    accRow.style.display  = 'block';
+    accNote.style.display = 'none';
+    const acc = u ? (u.admin?'admin': u.edit?'edit':'readonly') : 'readonly';
+    document.getElementById('um-access').value = acc;
+  } else {
+    accRow.style.display  = 'none';
+    accNote.style.display = 'block';
+  }
+
+  // Delete button: only for admins, on other users (not self)
   const delBtn = document.getElementById('um-del-btn');
-  delBtn.style.display = (!isNew && u.email !== (me&&me.email)) ? 'block' : 'none';
+  delBtn.style.display = (viewerIsAdmin && !isNew && !isSelf) ? 'block' : 'none';
+
   document.getElementById('user-modal').classList.add('open');
 }
 
@@ -2479,20 +2541,25 @@ async function confirmEditUser() {
   const email  = (document.getElementById('um-email').value||'').trim().toLowerCase();
   const name   = document.getElementById('um-name').value.trim();
   const role   = document.getElementById('um-role').value;
-  const access = document.getElementById('um-access').value;
   if (!email) { showToast('Email is required', 'warn'); return; }
+
+  const payload = { email, name, role };
+  // Only include access if the viewer is an admin
+  if (me && me.admin) {
+    payload.access = document.getElementById('um-access').value;
+  }
 
   const btn = document.getElementById('user-modal').querySelector('.mprimary');
   btnLoading(btn, true);
   const isNew = !editingUser;
   const action = isNew ? 'addUser' : 'updateUser';
-  const res = await api(action, { email, name, role, access });
+  const res = await api(action, payload);
   btnLoading(btn, false);
 
   if (res.error) { showToast('Error: ' + res.error, 'err'); return; }
   closeUserModal();
   showToast(isNew ? 'User added ✓' : 'User updated ✓');
-  await loadAdminTab('users'); // refresh list without full reload
+  await loadAdminTab('users');
 }
 
 async function deleteUserConfirm() {
