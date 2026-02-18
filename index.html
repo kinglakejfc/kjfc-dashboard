@@ -114,25 +114,31 @@ main{animation:dash-fadein .5s ease .15s both;}
    HEADER
    ════════════════════════════════════════ */
 header{
-  background:var(--green);padding:0 16px;
+  background:var(--green);
   display:flex;align-items:center;justify-content:space-between;
-  min-height:64px;position:sticky;top:0;z-index:100;
+  min-height:60px;position:sticky;top:0;z-index:100;
   box-shadow:0 2px 8px rgba(0,0,0,.18);
-  padding-left:max(16px, env(safe-area-inset-left));
-  padding-right:max(16px, env(safe-area-inset-right));
-  gap:8px;padding-top:8px;padding-bottom:8px;
+  padding:8px 20px;
+  padding-left:max(20px, env(safe-area-inset-left));
+  padding-right:max(20px, env(safe-area-inset-right));
+  gap:16px;
 }
-.logo-area{display:flex;align-items:center;gap:10px;min-width:0;}
+.logo-area{display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:0;}
 .logo-badge{width:38px;height:38px;background:var(--yellow);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:14px;color:var(--green);flex-shrink:0;}
 .logo-text{min-width:0;}
-.logo-text h1{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:22px;text-transform:uppercase;letter-spacing:.4px;line-height:1.1;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.logo-text h1{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:22px;text-transform:uppercase;letter-spacing:.4px;line-height:1.1;color:#fff;white-space:nowrap;}
 .logo-text small{font-size:10px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;display:block;}
-.hright{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;}
-.hrow{display:flex;align-items:center;gap:5px;flex-wrap:nowrap;}
+.hright{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
+.hrow{display:flex;align-items:center;gap:6px;}
 .huser{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .hnav{display:flex;align-items:center;gap:4px;}
-.hnav-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.85);padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer;transition:all .15s;font-weight:600;white-space:nowrap;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.4px;}
+.hnav-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.9);padding:4px 12px;border-radius:5px;font-size:11px;cursor:pointer;transition:all .15s;font-weight:600;white-space:nowrap;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;}
 .hnav-btn:hover{background:rgba(255,255,255,.25);color:#fff;}
+.user-pill{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:3px 12px 3px 5px;cursor:pointer;transition:background .15s;}
+.user-pill:hover{background:rgba(255,255,255,.22);}
+.user-pill img{width:22px;height:22px;border-radius:50%;object-fit:cover;}
+.user-pill-init{width:22px;height:22px;border-radius:50%;background:var(--yellow);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:var(--green);font-family:'Barlow Condensed',sans-serif;flex-shrink:0;}
+.user-pill span{font-size:12px;font-weight:600;color:#fff;white-space:nowrap;}
 .uchip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:16px;padding:3px 10px 3px 4px;cursor:pointer;transition:background .15s;max-width:160px;}
 .uchip:hover{background:rgba(255,255,255,.2);}
 .uav{width:24px;height:24px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--yellow);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:var(--green);font-family:'Barlow Condensed',sans-serif;}
@@ -532,6 +538,7 @@ td{padding:10px 10px;vertical-align:middle;}
 
 /* ── Package manager rows ── */
 .pkg-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;}
+input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor:not-allowed;opacity:.7;}
 .emoji-pick{background:var(--bg);border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:18px;padding:3px 5px;line-height:1;transition:border-color .15s;}
 .emoji-pick:hover{border-color:var(--green);background:var(--green-light);}
 
@@ -599,13 +606,9 @@ td{padding:10px 10px;vertical-align:middle;}
 .vtab.prospect-tab.act{background:#b45309;border-color:#b45309;}
 
 
-/* ── HEADER RIGHT (3 rows) ── */
-.hright{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
-.hrow{display:flex;align-items:center;gap:5px;flex-wrap:nowrap;}
-/* Hide username label and sync text on small screens */
+/* ── SMALL SCREEN HEADER ── */
 @media(max-width:600px){
   #user-name{display:none!important;}
-  .refresh-label{display:none;}
   #sync-state{display:none;}
 }
 .season-head{display:flex;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap;width:100%;}
@@ -680,23 +683,24 @@ td{padding:10px 10px;vertical-align:middle;}
       </div>
     </div>
     <div class="hright">
-      <!-- Row 1: User (clickable) -->
+      <!-- Row 1: User pill (clickable to edit profile) -->
       <div class="hrow">
-        <div class="huser" id="user-chip" onclick="openEditMe()" title="Edit my details" style="cursor:pointer;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:3px 10px 3px 4px;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">
-          <img id="user-pic" src="" style="width:22px;height:22px;border-radius:50%;display:none;object-fit:cover;">
-          <span id="user-name" style="color:#fff;font-size:12px;font-weight:600;white-space:nowrap;"></span>
+        <div class="user-pill" onclick="openEditMe()" title="Edit my profile">
+          <img id="user-pic" src="" style="display:none;">
+          <div class="user-pill-init" id="user-init">?</div>
+          <span id="user-name"></span>
         </div>
       </div>
-      <!-- Row 2: Admin nav (admin only) -->
-      <div class="hrow hnav" id="admin-nav-btns" style="display:none;">
-        <button class="hnav-btn" onclick="openAdminModal('packages')">Packages</button>
-        <button class="hnav-btn" onclick="openAdminModal('log')">Access Log</button>
-        <button class="hnav-btn" onclick="openAdminModal('users')">Users</button>
-      </div>
-      <!-- Row 3: Sync + Refresh + Sign Out -->
+      <!-- Row 2: Admin nav (admin only) + Sync + Refresh + Sign Out all on one line -->
       <div class="hrow">
+        <div id="admin-nav-btns" style="display:none;gap:4px;" class="hrow">
+          <button class="hnav-btn" onclick="openAdminModal('packages')">Packages</button>
+          <button class="hnav-btn" onclick="openAdminModal('log')">Access Log</button>
+          <button class="hnav-btn" onclick="openAdminModal('users')">Users</button>
+          <div style="width:1px;height:14px;background:rgba(255,255,255,.2);margin:0 2px;"></div>
+        </div>
         <div id="sync-state" class="sync-ok">●&nbsp;Synced</div>
-        <button class="sync-refresh" onclick="loadAll()"><span class="refresh-icon">↻</span><span class="refresh-label"> Refresh</span></button>
+        <button class="sync-refresh" onclick="loadAll()"><span class="refresh-icon">↻</span> Refresh</button>
         <button class="lobtn" onclick="doLogout()">Sign Out</button>
       </div>
     </div>
@@ -1052,26 +1056,30 @@ td{padding:10px 10px;vertical-align:middle;}
   <div class="modal" style="max-width:420px;">
     <div class="modal-handle"></div>
     <button class="mclose" onclick="closeUserModal()">×</button>
-    <div class="mtitle" style="margin-bottom:4px;" id="um-title">Edit User</div>
+    <div class="mtitle" style="margin-bottom:4px;" id="um-title">Add User</div>
     <div style="margin-bottom:14px;">
-      <div class="fg" style="margin-bottom:10px;"><label>Full Name</label><input type="text" id="um-name" placeholder="Full name"></div>
-      <div class="fg" style="margin-bottom:10px;"><label>Role</label>
-        <select id="um-role"></select>
-        <button onclick="openManageRoles()" style="margin-top:6px;font-size:11px;color:var(--text-dim);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">⚙ Manage roles</button>
+      <div class="fg" style="margin-bottom:10px;">
+        <label>Email Address *</label>
+        <input type="email" id="um-email" placeholder="user@example.com" inputmode="email">
       </div>
-      <div class="fg">
-        <label>Access Level</label>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
-          <label class="access-opt"><input type="radio" name="access-level" value="admin"><div class="access-opt-check"></div><div class="access-opt-body"><div class="access-opt-title">Admin</div><div class="access-opt-desc">Full access: manage users, seasons, access log, all sponsor data</div></div></label>
-          <label class="access-opt"><input type="radio" name="access-level" value="edit"><div class="access-opt-check"></div><div class="access-opt-body"><div class="access-opt-title">Can Edit</div><div class="access-opt-desc">Add/edit/delete sponsors only</div></div></label>
-          <label class="access-opt"><input type="radio" name="access-level" value="readonly"><div class="access-opt-check"></div><div class="access-opt-body"><div class="access-opt-title">Read Only</div><div class="access-opt-desc">View dashboard only, no changes</div></div></label>
+      <div class="fg" style="margin-bottom:10px;"><label>Full Name</label><input type="text" id="um-name" placeholder="Full name"></div>
+      <div class="frow two" style="margin-bottom:10px;">
+        <div class="fg"><label>Role</label>
+          <select id="um-role"></select>
         </div>
-        <p style="font-size:10px;color:var(--text-dim);margin-top:8px;">Access level changes require a Code.gs update and redeploy.</p>
+        <div class="fg"><label>Access Level</label>
+          <select id="um-access">
+            <option value="admin">Admin — Full access</option>
+            <option value="edit">Can Edit — Add/edit sponsors</option>
+            <option value="readonly">Read Only — View only</option>
+          </select>
+        </div>
       </div>
     </div>
     <div class="mactions">
-      <button class="mprimary" onclick="confirmEditUser()">Save</button>
+      <button class="mprimary" onclick="confirmEditUser()">Save User</button>
       <button class="msecondary" onclick="closeUserModal()">Cancel</button>
+      <button class="mdanger" id="um-del-btn" style="display:none" onclick="deleteUserConfirm()">Remove Access</button>
     </div>
   </div>
 </div>
@@ -1332,9 +1340,13 @@ async function loadAll() {
     if (data.error) throw new Error(data.error);
     orgs          = data.orgs   || [];
     seasonEntries = data.seasons || [];
-    years         = (data.years || []).sort((a,b) => b-a);
+    years         = (data.years || []).map(Number).sort((a,b) => b-a);
     packages      = data.packages || [];
-    if (!activeSeason || !years.includes(activeSeason)) activeSeason = years[0] || null;
+    // Always default to current calendar year; fall back to most recent
+    const curYear = new Date().getFullYear();
+    if (!activeSeason || !years.includes(+activeSeason)) {
+      activeSeason = years.includes(curYear) ? curYear : (years[0] || null);
+    }
     rebuildTierLookups();
     populatePackageSelect();
     renderSeasonTabs();
@@ -1358,11 +1370,17 @@ function showApp() {
 
 function renderUserUI() {
   if (!me) return;
-  document.getElementById('user-name').textContent = me.name || me.email;
+  const name = me.name || me.email;
+  document.getElementById('user-name').textContent = name;
+  // Initials fallback
+  const initEl = document.getElementById('user-init');
+  if (initEl) initEl.textContent = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
   const pic = document.getElementById('user-pic');
-  if (me.picture) { pic.src = me.picture; pic.style.display = 'block'; }
-  if (me.admin) { const el = document.getElementById('admin-nav-btns'); if(el) el.style.display='flex'; }
-  if (!me.edit) { const b = document.getElementById('add-sponsor-btn'); if(b) b.style.display='none'; }
+  if (me.picture) {
+    pic.src = me.picture; pic.style.display = 'block';
+    if (initEl) initEl.style.display = 'none';
+  }
+  if (me.admin) { const el = document.getElementById('admin-nav-btns'); if(el) el.style.display='flex'; }  if (!me.edit) { const b = document.getElementById('add-sponsor-btn'); if(b) b.style.display='none'; }
 }
 
 // ════════════════════════════════════════════════════════
@@ -1564,16 +1582,36 @@ function renderTable() {
   const tbody = document.getElementById('tbody');
 
   if (curView === 'prospect') {
-    // Show ALL orgs that have no season entry for the current season
     const activeOrgIdSet = activeOrgIds(cy);
-    const unlinked = orgs.filter(o => !activeOrgIdSet.has(o.id));
-    if (!unlinked.length) { tbody.innerHTML=''; empty.style.display='block'; empty.textContent='All your sponsors are linked to the ' + cy + ' season.'; return; }
+    let unlinked = orgs.filter(o => !activeOrgIdSet.has(o.id));
+
+    // Search filter for not-in-season view
+    const q2 = (document.getElementById('sponsor-search')?.value||'').toLowerCase().trim();
+    if (q2) {
+      unlinked = unlinked.filter(o =>
+        (o.name||'').toLowerCase().includes(q2) ||
+        (o.primaryContact||'').toLowerCase().includes(q2) ||
+        (o.phone||'').toLowerCase().includes(q2) ||
+        (o.email||'').toLowerCase().includes(q2)
+      );
+    }
+
+    if (!unlinked.length) {
+      tbody.innerHTML=''; empty.style.display='block';
+      empty.textContent = q2 ? 'No matches found.' : 'All your sponsors are linked to the ' + cy + ' season.';
+      return;
+    }
     empty.style.display='none';
+
+    // Sort by name for this view
+    unlinked.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+
     tbody.innerHTML = unlinked.map(o => {
       const statusLabel = o.orgStatus === 'prospect' ? 'Prospect' : 'Not in ' + cy;
       const statusClass = o.orgStatus === 'prospect' ? 'prospect' : 'lapsed';
+      const nameHl2 = q2 ? (o.name||'').replace(new RegExp(`(${q2.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<mark style="background:var(--yellow-pale);border-radius:2px;">$1</mark>') : (o.name||'');
       return `<tr onclick="openOrgDetail('${o.id}')" style="cursor:pointer">
-        <td><strong>${o.name}</strong></td>
+        <td><strong>${nameHl2}</strong></td>
         <td style="color:var(--text-dim);font-size:12px">${o.primaryContact||'—'}</td>
         <td style="color:var(--text-dim);font-size:12px">${o.phone||'—'}</td>
         <td><span class="ostatus ${statusClass}">${statusLabel}</span></td>
@@ -2342,17 +2380,33 @@ async function loadAdminTab(tab) {
   if (tab==='users') {
     body.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;">Loading…</div>';
     const res = await api('getUsers');
-    if (!Array.isArray(res)) { body.innerHTML='<div style="color:var(--red)">Failed</div>'; return; }
-    body.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;">
-      ${res.map(u=>`<div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg);border-radius:9px;border:1.5px solid var(--border);">
-        <div style="width:36px;height:36px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:14px;color:var(--green);flex-shrink:0;">${(u.name||u.email).charAt(0).toUpperCase()}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:14px;">${u.name||u.email}</div>
-          <div style="font-size:11px;color:var(--text-dim);">${u.email} · <span style="color:var(--green);font-weight:600">${u.role}</span> · ${u.admin?'Admin':u.edit?'Can Edit':'Read Only'}</div>
-        </div>
-        <button class="actbtn" onclick="openUserModal(${JSON.stringify(u).replace(/"/g,'&quot;')})">Edit</button>
-      </div>`).join('')}
-    </div>`;
+    if (!Array.isArray(res)) { body.innerHTML='<div style="color:var(--red)">Failed to load users</div>'; return; }
+
+    const accessLabel = { admin:'Admin', edit:'Can Edit', readonly:'Read Only' };
+    const accessColor = { admin:'var(--green)', edit:'#0d47a1', readonly:'var(--text-dim)' };
+
+    body.innerHTML = `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button class="mprimary" style="padding:7px 16px;font-size:12px;" onclick="openUserModal(null)">+ Add User</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;" id="users-list">
+        ${res.map(u => {
+          const acc = u.admin?'admin': u.edit?'edit':'readonly';
+          const init = (u.name||u.email).split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+          return `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg);border-radius:9px;border:1.5px solid var(--border);">
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:14px;color:var(--green);flex-shrink:0;">${init}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:14px;">${u.name||'—'}</div>
+              <div style="font-size:11px;color:var(--text-dim);">${u.email} · <span style="font-weight:600">${u.role||'Member'}</span></div>
+            </div>
+            <span style="font-size:10px;font-weight:800;color:${accessColor[acc]||'var(--text-dim)'};background:var(--bg);border:1.5px solid var(--border);padding:2px 8px;border-radius:10px;white-space:nowrap;">${accessLabel[acc]||acc}</span>
+            <button class="actbtn" onclick='openUserModal(${JSON.stringify(u).replace(/'/g,"&#39;")})'>Edit</button>
+          </div>`;
+        }).join('')}
+      </div>
+      <p style="font-size:11px;color:var(--text-dim);margin-top:12px;">Users are managed in the <strong>Users</strong> sheet. Changes take effect immediately — no redeploy needed.</p>
+    `;
+    return;
   }
 }
 
@@ -2365,20 +2419,59 @@ function openEditMe() {
 }
 
 function openUserModal(u) {
+  // u = null means adding new user
   editingUser = u;
-  document.getElementById('um-title').textContent = 'Edit: ' + (u.name||u.email);
-  document.getElementById('um-name').value = u.name||'';
-  populateRoleSelect(); document.getElementById('um-role').value = u.role||'Member';
-  const lvl = u.admin?'admin': u.edit?'edit':'readonly';
-  document.querySelectorAll('input[name="access-level"]').forEach(r => r.checked = r.value===lvl);
+  const isNew = !u;
+  document.getElementById('um-title').textContent = isNew ? 'Add User' : 'Edit User';
+  document.getElementById('um-email').value  = u ? u.email : '';
+  document.getElementById('um-email').disabled = !isNew; // can't change email of existing user
+  document.getElementById('um-name').value   = u ? (u.name||'') : '';
+  populateRoleSelect();
+  document.getElementById('um-role').value   = u ? (u.role||'Member') : 'Member';
+  const acc = u ? (u.admin?'admin': u.edit?'edit':'readonly') : 'readonly';
+  document.getElementById('um-access').value = acc;
+  // Show delete only for existing users (not yourself)
+  const delBtn = document.getElementById('um-del-btn');
+  delBtn.style.display = (!isNew && u.email !== (me&&me.email)) ? 'block' : 'none';
   document.getElementById('user-modal').classList.add('open');
 }
-function closeUserModal() { document.getElementById('user-modal').classList.remove('open'); editingUser=null; }
+
+function closeUserModal() {
+  document.getElementById('user-modal').classList.remove('open');
+  editingUser = null;
+}
+
 async function confirmEditUser() {
+  const email  = (document.getElementById('um-email').value||'').trim().toLowerCase();
+  const name   = document.getElementById('um-name').value.trim();
+  const role   = document.getElementById('um-role').value;
+  const access = document.getElementById('um-access').value;
+  if (!email) { showToast('Email is required', 'warn'); return; }
+
+  const btn = document.getElementById('user-modal').querySelector('.mprimary');
+  btnLoading(btn, true);
+  const isNew = !editingUser;
+  const action = isNew ? 'addUser' : 'updateUser';
+  const res = await api(action, { email, name, role, access });
+  btnLoading(btn, false);
+
+  if (res.error) { showToast('Error: ' + res.error, 'err'); return; }
+  closeUserModal();
+  showToast(isNew ? 'User added ✓' : 'User updated ✓');
+  await loadAdminTab('users'); // refresh list without full reload
+}
+
+async function deleteUserConfirm() {
   if (!editingUser) return;
-  const res = await api('updateUser', { email: editingUser.email, name: document.getElementById('um-name').value.trim(), role: document.getElementById('um-role').value });
-  if (res.error) { showToast('Error: '+res.error,'err'); return; }
-  closeUserModal(); showToast('User updated ✓'); loadAll();
+  if (!confirm('Remove ' + (editingUser.name||editingUser.email) + '\'s access? They will no longer be able to sign in.')) return;
+  const btn = document.getElementById('um-del-btn');
+  btnLoading(btn, true);
+  const res = await api('deleteUser', { email: editingUser.email });
+  btnLoading(btn, false);
+  if (res.error) { showToast('Error: ' + res.error, 'err'); return; }
+  closeUserModal();
+  showToast('User removed ✓');
+  await loadAdminTab('users');
 }
 
 // ════════════════════════════════════════════════════════
