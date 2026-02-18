@@ -3846,61 +3846,53 @@ async function runImport() {
     ...filteredRows.map(r => csvHeaders.map(h => esc(r[h]||'')).join(','))
   ].join('\n');
 
-  // ── Step 2: Get a Drive resumable upload URL from the backend ─────────────
-  // Backend creates an empty file in the hidden temp folder and returns a
-  // resumable upload URL using its own service OAuth token.
-  setStatus('Requesting upload slot…');
-  const urlRes = await api('getUploadUrl', { name: _importData.file });
-  console.log('[KJFC import] getUploadUrl response:', JSON.stringify(urlRes));
-  if (urlRes.error) {
-    btn.disabled = false;
-    // Show error permanently in status area (not just a toast) so it can be read
-    setStatus('❌ Upload slot failed: ' + urlRes.error, '#dc2626');
-    showToast('Could not get upload slot: ' + urlRes.error, 'err');
-    return;
-  }
-  if (!urlRes.uploadUrl || !urlRes.fileId) {
-    btn.disabled = false;
-    const detail = JSON.stringify(urlRes);
-    setStatus('❌ Bad upload response: ' + detail, '#dc2626');
-    console.error('[KJFC import] unexpected getUploadUrl response:', detail);
-    return;
-  }
-  const { uploadUrl, fileId } = urlRes;
-
-  // ── Step 3: PUT the CSV directly to Google Drive ──────────────────────────
-  // This is a direct browser→Drive request — no Apps Script in the path,
-  // no URL length limits, CORS is allowed by Google for resumable upload URLs.
-  setStatus('Uploading to Drive…');
+  // ── Step 2: POST CSV as body directly to Apps Script ─────────────────────
+  // Apps Script's doPost receives e.postData.contents — no URL size limit.
+  // Problem: Apps Script redirects (302) and fetch() switches to GET on redirect,
+  // losing the body. Fix: probe the redirect URL with a GET first, then POST
+  // the CSV body directly to the final (non-redirecting) URL.
+  setStatus('Uploading & importing…');
+  let res;
   try {
-    const uploadRes = await fetch(uploadUrl, {
-      method: 'PUT',
+    const postUrl = APPS_SCRIPT_URL
+      + '?action=uploadAndImport'
+      + '&token=' + encodeURIComponent(token)
+      + '&season=' + encodeURIComponent(season);
+
+    // 2a: Cheap GET to follow the redirect and get the final URL
+    const probeRes = await fetch(postUrl, { method: 'GET', redirect: 'follow' });
+    const finalUrl = probeRes.url;
+    console.log('[KJFC import] Final URL after redirect:', finalUrl);
+
+    // 2b: POST CSV body to the final URL (no redirect this time)
+    const postRes = await fetch(finalUrl, {
+      method: 'POST',
       headers: { 'Content-Type': 'text/plain; charset=UTF-8' },
       body: csvText,
     });
-    if (!uploadRes.ok) {
-      const errText = await uploadRes.text().catch(() => String(uploadRes.status));
-      throw new Error('HTTP ' + uploadRes.status + ': ' + String(errText).slice(0, 150));
-    }
-    console.log('[KJFC import] Drive PUT succeeded, status:', uploadRes.status);
+    if (!postRes.ok) throw new Error('HTTP ' + postRes.status);
+
+    const text = await postRes.text();
+    console.log('[KJFC import] Raw response:', text.slice(0, 300));
+
+    // Response may be JSONP-wrapped callback({...}) or plain JSON
+    const m = text.match(/^\s*[^(]+\((.+)\)\s*;?\s*$/s);
+    if (m) { try { res = JSON.parse(m[1]); } catch(e) { res = { error: 'Parse error: ' + text.slice(0,100) }; } }
+    else   { try { res = JSON.parse(text);  } catch(e) { res = { error: 'Parse error: ' + text.slice(0,100) }; } }
+
   } catch (err) {
     btn.disabled = false;
-    setStatus('❌ Drive upload failed: ' + err.message, '#dc2626');
-    console.error('[KJFC import] Drive PUT error:', err);
-    showToast('Drive upload failed: ' + err.message, 'err');
+    setStatus('❌ Upload failed: ' + err.message, '#dc2626');
+    console.error('[KJFC import] POST error:', err);
+    showToast('Upload failed: ' + err.message, 'err');
     return;
   }
 
-  // ── Step 4: Trigger backend import from the Drive file ────────────────────
-  // Backend reads the file, runs the full import logic, then trashes the file.
-  setStatus('Importing players…');
-  const res = await api('importPlayers', { fileId, season });
-
   btn.disabled = false;
-  console.log('[KJFC import] importPlayers response:', JSON.stringify(res));
-  if (res.error) {
-    setStatus('❌ Import failed: ' + res.error, '#dc2626');
-    showToast('Import failed: ' + res.error, 'err');
+  console.log('[KJFC import] Result:', JSON.stringify(res));
+  if (!res || res.error) {
+    setStatus('❌ Import failed: ' + (res && res.error || 'Unknown error'), '#dc2626');
+    showToast('Import failed: ' + (res && res.error || 'Unknown error'), 'err');
     return;
   }
 
