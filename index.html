@@ -166,18 +166,6 @@ header{
 .access-opt-body{flex:1;min-width:0;overflow:hidden;}
 .access-opt-title{font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;}
 .access-opt-desc{font-size:11px;color:var(--text-dim);margin-top:2px;line-height:1.4;word-wrap:break-word;}
-.logo-upload-wrap{border:2px dashed var(--border-s);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;background:var(--bg);text-align:center;}
-.logo-upload-wrap:hover{border-color:var(--green);background:var(--green-light);}
-.logo-upload-preview{display:flex;flex-direction:column;align-items:center;gap:4px;}
-.logo-upload-preview img{max-height:80px;max-width:100%;object-fit:contain;border-radius:6px;}
-.logo-upload-icon{font-size:24px;}
-.logo-upload-hint{font-size:12px;color:var(--text-dim);}
-.logo-upload-wrap.has-logo{border-style:solid;border-color:var(--border-s);}
-/* Logo in table rows and cards */
-.slogo{width:32px;height:32px;border-radius:5px;object-fit:contain;background:var(--bg);border:1px solid var(--border);flex-shrink:0;}
-.slogo-init{width:32px;height:32px;border-radius:5px;background:var(--yellow-pale);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;color:var(--yellow-dark);flex-shrink:0;border:1.5px solid var(--yellow-dark);}
-/* Logo in detail view */
-.dlogo img{width:100%;height:100%;object-fit:contain;border-radius:6px;}
 .role-tag{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;font-size:13px;}
 .role-tag-del{background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:16px;line-height:1;padding:0 2px;}
 .role-tag-del:hover{color:var(--red);}
@@ -320,6 +308,7 @@ td{padding:10px 10px;vertical-align:middle;}
 .sbadge.paid{background:var(--green-light);color:var(--green);}
 .sbadge.outstanding{background:var(--red-light);color:var(--red);}
 .sbadge.partial{background:var(--orange-light);color:var(--orange);}
+.sbadge.inkind{background:#f0e6ff;color:#6d28d9;}
 .tchip{display:inline-flex;align-items:center;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;}
 .tchip.gold{background:var(--tgb);color:var(--tg);}
 .tchip.silver{background:var(--tsb);color:var(--ts);}
@@ -736,7 +725,7 @@ td{padding:10px 10px;vertical-align:middle;}
     </div>
     <div class="frow two">
       <div class="fg"><label>Season</label><select id="f-year"></select></div>
-      <div class="fg"><label>Amount ($) *</label><input type="number" id="f-amount" placeholder="2000" min="0" inputmode="numeric"></div>
+      <div class="fg"><label id="amount-label">Amount ($) *</label><input type="number" id="f-amount" placeholder="2000" min="0" inputmode="numeric"><small id="amount-hint" style="display:none;font-size:10px;color:var(--text-dim);margin-top:3px;">Enter estimated value, or 0 for unvalued in-kind</small></div>
     </div>
     <div class="frow two">
       <div class="fg"><label>Payment Status *</label>
@@ -745,6 +734,7 @@ td{padding:10px 10px;vertical-align:middle;}
           <option value="paid">Paid</option>
           <option value="outstanding">Outstanding</option>
           <option value="partial">Partial</option>
+          <option value="inkind">In-Kind</option>
         </select>
       </div>
       <div class="fg" id="f-partial-wrap" style="display:none">
@@ -762,20 +752,6 @@ td{padding:10px 10px;vertical-align:middle;}
     </div>
     <div class="frow full">
       <div class="fg"><label>Notes / Benefits</label><textarea id="f-notes" placeholder="Signage, social posts, PA announcements…"></textarea></div>
-    </div>
-    <div class="frow full">
-      <div class="fg">
-        <label>Sponsor Logo</label>
-        <div class="logo-upload-wrap" id="logo-upload-wrap" onclick="document.getElementById('f-logo-input').click()">
-          <div class="logo-upload-preview" id="logo-preview">
-            <span class="logo-upload-icon">📷</span>
-            <span class="logo-upload-hint">Click to upload logo</span>
-            <span class="logo-upload-hint" style="font-size:10px;opacity:.6;">PNG or JPG · auto-compressed</span>
-          </div>
-          <input type="file" id="f-logo-input" accept="image/*" style="display:none" onchange="handleLogoUpload(event)">
-        </div>
-        <button id="logo-clear-btn" onclick="removeLogo()" style="display:none;margin-top:6px;font-size:11px;color:var(--red);background:none;border:none;cursor:pointer;padding:0;">✕ Remove logo</button>
-      </div>
     </div>
     <div class="mactions">
       <button class="mprimary" id="m-save">Add Sponsor</button>
@@ -909,7 +885,7 @@ td{padding:10px 10px;vertical-align:middle;}
 //  CONFIG — REPLACE THESE TWO VALUES
 // ═══════════════════════════════════════════════════════
 const GOOGLE_CLIENT_ID = '127701976947-881utr0ljs1eqrfmuoqrsbqh5635vtfl.apps.googleusercontent.com';
-const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbzZ0L_71sDxh3wzD0mN9iPbq0wZeOu1yj2XMti93wflDQ_yR23brLZ0Y4Nx0ZREbQGG/exec';
+const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbyyiL3Qovw2RkP-0_SieAFHmT7KXU5lf27DEtbiGXcdxBSHOjXhUOoqvYG5czUBW_pT/exec';
 
 // ═══════════════════════════════════════════════════════
 //  STATE
@@ -1029,15 +1005,6 @@ async function doLogout() {
 // ═══════════════════════════════════════════════════════
 //  LOAD DATA
 // ═══════════════════════════════════════════════════════
-async function prefetchLogos() {
-  const withLogos = sponsors.filter(s => s.logo);
-  for (const s of withLogos) {
-    if (!getCachedLogo(s.id)) await fetchLogo(s.id);
-  }
-  // Re-render table to show logos
-  renderTable();
-}
-
 async function loadAll() {
   setSyncState('loading', 'Loading data…');
   try {
@@ -1188,8 +1155,9 @@ function calcStats(year) {
   const total = rows.reduce((a, s) => a + +s.amount, 0);
   const recv  = rows.reduce((a, s) =>
     s.status === 'paid' ? a + +s.amount :
-    s.status === 'partial' ? a + +(s.paidAmount || 0) : a, 0);
-  const outCount = rows.filter(s => s.status !== 'paid').length;
+    s.status === 'partial' ? a + +(s.paidAmount || 0) :
+    s.status === 'inkind' ? a : a, 0);
+  const outCount = rows.filter(s => s.status !== 'paid' && s.status !== 'inkind').length;
   const byTier = {};
   ['gold','silver','bronze','community'].forEach(t => {
     const ts = rows.filter(s => s.tier === t);
@@ -1275,7 +1243,7 @@ function renderTable() {
   const empty = document.getElementById('tbl-empty');
   let rows = sponsors.filter(s => s.year === cy);
   if (curFilter !== 'all' && curFilter !== 'outstanding') rows = rows.filter(s => s.tier === curFilter);
-  else if (curFilter === 'outstanding') rows = rows.filter(s => s.status !== 'paid');
+  else if (curFilter === 'outstanding') rows = rows.filter(s => s.status !== 'paid' && s.status !== 'inkind');
   rows.sort((a, b) => (TO[a.tier] || 5) - (TO[b.tier] || 5));
 
   if (!rows.length) {
@@ -1295,12 +1263,7 @@ function renderTable() {
       : `<div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px">${fmt(s.amount)}</div>`;
     const eBtn = me?.edit ? `<button class="actbtn" onclick="event.stopPropagation();openEdit('${s.id}')">Edit</button>` : '';
     return `<tr onclick="openDetail('${s.id}')">
-      <td>
-        <div style="display:flex;align-items:center;gap:8px;">
-          ${getCachedLogo(s.id) ? `<img class="slogo" src="${getCachedLogo(s.id)}" alt="${s.name}">` : `<div class="slogo-init">${s.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>`}
-          <strong>${s.name}</strong>
-        </div>
-      </td>
+      <td><strong>${s.name}</strong></td>
       <td><span class="tchip ${s.tier}">${TL[s.tier]}</span></td>
       <td>${aH}</td>
       <td><span class="sbadge ${s.status}">${cap(s.status)}</span></td>
@@ -1353,12 +1316,7 @@ function openDrill(title, rows) {
       ? `${fmt(s.amount)} <span style="font-size:10px;color:var(--orange)">(${fmt(s.paidAmount||0)} recv)</span>`
       : fmt(s.amount);
     return `<tr onclick="openDetail('${s.id}')" style="cursor:pointer">
-      <td>
-        <div style="display:flex;align-items:center;gap:8px;">
-          ${getCachedLogo(s.id) ? `<img class="slogo" src="${getCachedLogo(s.id)}" alt="${s.name}">` : `<div class="slogo-init">${s.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>`}
-          <strong>${s.name}</strong>
-        </div>
-      </td>
+      <td><strong>${s.name}</strong></td>
       <td><span class="tchip ${s.tier}">${TL[s.tier]}</span></td>
       <td style="font-family:'Barlow Condensed',sans-serif;font-weight:800">${aH}</td>
       <td><span class="sbadge ${s.status}">${cap(s.status)}</span></td>
@@ -1390,12 +1348,12 @@ function drillTotal() {
   openDrill(`All Sponsors — ${activeSeason} (${fmt(rows.reduce((a,s)=>a+ +s.amount,0))})`, rows);
 }
 function drillPaid() {
-  const rows = sponsors.filter(s => s.year === activeSeason && (s.status==='paid'||s.status==='partial')).sort((a,b) => (TO[a.tier]||5)-(TO[b.tier]||5));
+  const rows = sponsors.filter(s => s.year === activeSeason && (s.status==='paid'||s.status==='partial') && s.status!=='inkind').sort((a,b) => (TO[a.tier]||5)-(TO[b.tier]||5));
   const total = rows.reduce((a,s) => s.status==='paid' ? a+ +s.amount : a+(+(s.paidAmount||0)), 0);
   openDrill(`Received — ${activeSeason} (${fmt(total)} across ${rows.length} sponsors)`, rows);
 }
 function drillOut() {
-  const rows = sponsors.filter(s => s.year === activeSeason && (s.status==='outstanding'||s.status==='partial')).sort((a,b) => (TO[a.tier]||5)-(TO[b.tier]||5));
+  const rows = sponsors.filter(s => s.year === activeSeason && (s.status==='outstanding'||s.status==='partial') && s.status!=='inkind').sort((a,b) => (TO[a.tier]||5)-(TO[b.tier]||5));
   const total = rows.reduce((a,s) => s.status==='partial' ? a+(+s.amount-(+s.paidAmount||0)) : a+ +s.amount, 0);
   openDrill(`Outstanding — ${activeSeason} (${fmt(total)} still owing)`, rows);
 }
@@ -1405,9 +1363,7 @@ function drillOut() {
 // ═══════════════════════════════════════════════════════
 async function openDetail(id) {
   const s = sponsors.find(x => x.id === id); if (!s) return;
-  // Fetch logo if sponsor has one and it's not cached
-  if (s.logo && !getCachedLogo(id)) await fetchLogo(id);
-  const recv = s.status==='paid' ? +s.amount : s.status==='partial' ? +(s.paidAmount||0) : 0;
+  const recv = s.status==='paid' ? +s.amount : s.status==='partial' ? +(s.paidAmount||0) : s.status==='inkind' ? +s.amount : 0;
   const pct  = s.amount > 0 ? Math.round(recv / s.amount * 100) : 0;
   const init = s.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
   const c    = consecYears(s.name);
@@ -1428,7 +1384,7 @@ async function openDetail(id) {
 
   document.getElementById('detail-content').innerHTML = `
     <div class="dheader">
-      <div class="dlogo">${getCachedLogo(s.id) ? `<img src="${getCachedLogo(s.id)}" alt="${s.name}">` : init}</div>
+      <div class="dlogo">${init}</div>
       <div class="dinfo">
         <h2>${s.name}</h2>
         <div class="dmeta">
@@ -1492,7 +1448,6 @@ function closeDetail() {
 // ═══════════════════════════════════════════════════════
 function resetModal() {
   ['f-name','f-amount','f-paid','f-contact','f-email','f-phone','f-website','f-notes'].forEach(id => document.getElementById(id).value = '');
-  clearLogo();
   document.getElementById('f-tier').value = '';
   document.getElementById('f-status').value = '';
   document.getElementById('f-partial-wrap').style.display = 'none';
@@ -1534,171 +1489,11 @@ function openEdit(id) {
   document.getElementById('f-website').value = s.website || '';
   document.getElementById('f-notes').value   = s.notes || '';
   document.getElementById('f-partial-wrap').style.display = s.status === 'partial' ? 'flex' : 'none';
-  // Load existing logo from cache
-  clearLogo();
-  window._logoDeleted = false;
-  const existingLogo = getCachedLogo(s.id);
-  if (existingLogo) {
-    const prev = document.getElementById('logo-preview');
-    const wrap = document.getElementById('logo-upload-wrap');
-    if (prev) prev.innerHTML = `<img src="${existingLogo}" alt="Current logo">`;
-    if (wrap) wrap.classList.add('has-logo');
-    const clearBtn = document.getElementById('logo-clear-btn');
-    if (clearBtn) clearBtn.style.display = 'block';
-    window._logoChanged = false;
-  }
   document.getElementById('sponsor-modal').classList.add('open');
 }
 
 function closeModal() { document.getElementById('sponsor-modal').classList.remove('open'); editId = null; }
 
-// ── LOGO HANDLING — Google Drive ────────────────────────────────────
-// Logo images are uploaded to Google Drive via POST to Apps Script.
-// The Drive thumbnail URL is stored in the Sponsors sheet and returned
-// with sponsor data — logos are visible across all devices.
-window._currentLogo   = '';  // base64 preview during editing
-window._currentFileId = '';  // existing Drive file ID (for replacement)
-window._logoChanged   = false;
-
-function getLogoForSponsor(s) {
-  // s is the full sponsor object — logo URL comes from Google Sheets via Drive
-  return (s && s.logo) ? s.logo : '';
-}
-
-function setLogoPreview(dataUrl) {
-  window._currentLogo  = dataUrl;
-  window._logoChanged  = true;
-  const wrap = document.getElementById('logo-upload-wrap');
-  const prev = document.getElementById('logo-preview');
-  if (prev) prev.innerHTML = `<img src="${dataUrl}" alt="Logo preview">`;
-  if (wrap) wrap.classList.add('has-logo');
-  const clearBtn = document.getElementById('logo-clear-btn');
-  if (clearBtn) clearBtn.style.display = 'block';
-}
-
-function clearLogo() {
-  window._currentLogo  = '';
-  window._logoChanged  = false;
-  const wrap = document.getElementById('logo-upload-wrap');
-  const prev = document.getElementById('logo-preview');
-  if (wrap) wrap.classList.remove('has-logo');
-  if (prev) prev.innerHTML = '<span class="logo-upload-icon">📷</span><span class="logo-upload-hint">Click to upload logo</span><span class="logo-upload-hint" style="font-size:10px;opacity:.6;">PNG or JPG · uploaded to Google Drive</span>';
-  const clearBtn = document.getElementById('logo-clear-btn');
-  if (clearBtn) clearBtn.style.display = 'none';
-  const input = document.getElementById('f-logo-input');
-  if (input) input.value = '';
-}
-
-function removeLogo() {
-  // Called when user explicitly clicks "Remove logo" — marks for deletion
-  window._currentLogo  = '';
-  window._logoChanged  = true;  // flag: send delete to server
-  window._logoDeleted  = true;
-  clearLogo();
-}
-
-function handleLogoUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  if (file.size > 10 * 1024 * 1024) { showToast('Logo must be under 10MB', 'warn'); return; }
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      // Resize to max 400x400 for Drive upload
-      const MAX = 400;
-      const scale = Math.min(MAX / img.width, MAX / img.height, 1);
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
-      // Always render to canvas with white background (handles PNG/WebP transparency)
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(img, 0, 0, w, h);
-
-      // Compress until under 6000 chars base64 (fits in single JSONP call)
-      let quality = 0.80;
-      let dataUrl = canvas.toDataURL('image/jpeg', quality);
-      while (dataUrl.length > 6000 && quality > 0.3) {
-        quality -= 0.1;
-        dataUrl = canvas.toDataURL('image/jpeg', quality);
-      }
-      // If still too big, shrink canvas further
-      if (dataUrl.length > 6000) {
-        const c2 = document.createElement('canvas');
-        c2.width = Math.round(w * 0.6); c2.height = Math.round(h * 0.6);
-        const ctx2 = c2.getContext('2d');
-        ctx2.fillStyle = '#ffffff'; ctx2.fillRect(0, 0, c2.width, c2.height);
-        ctx2.drawImage(img, 0, 0, c2.width, c2.height);
-        dataUrl = c2.toDataURL('image/jpeg', 0.65);
-      }
-      setLogoPreview(dataUrl);
-      window._logoDeleted = false;
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-async function saveLogo(sponsorId, sponsorName) {
-  if (!window._currentLogo || !sponsorId) return null;
-  setSyncState('loading', 'Saving logo…');
-  try {
-    const res = await api('uploadLogo', {
-      sponsorId,
-      sponsorName,
-      imageData: window._currentLogo,
-    });
-    if (res && res.error) {
-      showToast('Logo save failed: ' + res.error, 'err');
-      setSyncState('err', 'Logo save failed');
-      return null;
-    }
-    setSyncState('ok', 'Logo saved ✓');
-    return res;
-  } catch(e) {
-    showToast('Logo save failed: ' + e.message, 'err');
-    setSyncState('err', 'Logo save failed');
-    return null;
-  }
-}
-
-// Cache logos locally once fetched to avoid repeated API calls
-const logoCache = {};
-
-async function fetchLogo(sponsorId) {
-  if (!sponsorId) return '';
-  if (logoCache[sponsorId] !== undefined) return logoCache[sponsorId];
-  const res = await api('getLogo', { id: sponsorId });
-  const data = (res && res.imageData) ? res.imageData : '';
-  logoCache[sponsorId] = data;
-  return data;
-}
-
-function getCachedLogo(sponsorId) {
-  return logoCache[sponsorId] || '';
-}
-
-// POST-based API for large payloads (logos) — bypasses URL length limit
-async function apiPost(action, payload = {}) {
-  try {
-    const body = JSON.stringify({ action, token, payload });
-    const r = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-      redirect: 'follow',
-      mode: 'no-cors',  // Apps Script accepts no-cors POST
-    });
-    // no-cors means we can't read the response directly
-    // So we poll getSponsors via JSONP to confirm the logo URL was saved
-    return { ok: true };
-  } catch(e) {
-    return { error: e.message };
-  }
-}
 
 async function saveSponsor() {
   if (!me?.edit) return;
@@ -1708,7 +1503,7 @@ async function saveSponsor() {
   const status = document.getElementById('f-status').value;
   if (!name)             { showToast('Enter a sponsor name', 'warn'); return; }
   if (!tier)             { showToast('Select a tier', 'warn'); return; }
-  if (!amount || +amount <= 0) { showToast('Enter a valid amount', 'warn'); return; }
+  if (status !== 'inkind' && (!amount || +amount <= 0)) { showToast('Enter a valid amount', 'warn'); return; }
   if (!status)           { showToast('Select a payment status', 'warn'); return; }
 
   const data = {
@@ -1723,7 +1518,6 @@ async function saveSponsor() {
     phone:      document.getElementById('f-phone').value.trim(),
     website:    document.getElementById('f-website').value.trim(),
     notes:      document.getElementById('f-notes').value.trim(),
-    // logo URL is managed separately via uploadLogo action
   };
 
   setSyncState('loading', 'Saving…');
@@ -1736,14 +1530,6 @@ async function saveSponsor() {
   closeModal();
   showToast(editId ? 'Sponsor updated ✓' : 'Sponsor added ✓');
   await loadAll();
-  // Upload logo to Drive after sponsor is saved (so we have the ID)
-  if (window._logoChanged && window._currentLogo) {
-    const savedId = res.id || editId;
-    const sName   = document.getElementById('f-name').value.trim() || (sponsors.find(x=>x.id===savedId)||{}).name || '';
-    const oldFid  = editId ? ((sponsors.find(x=>x.id===editId)||{}).logoFileId||'') : '';
-    await saveLogo(savedId, sName);
-    await loadAll(); // reload to get Drive URL
-  }
   if (editId && document.getElementById('detailView').classList.contains('open')) openDetail(editId);
 }
 
@@ -1765,7 +1551,11 @@ document.getElementById('m-cancel').addEventListener('click', closeModal);
 document.getElementById('mclose-btn').addEventListener('click', closeModal);
 document.getElementById('m-del').addEventListener('click', deleteSponsor);
 document.getElementById('f-status').addEventListener('change', function() {
-  document.getElementById('f-partial-wrap').style.display = this.value === 'partial' ? 'flex' : 'none';
+  const isPartial = this.value === 'partial';
+  const isInKind  = this.value === 'inkind';
+  document.getElementById('f-partial-wrap').style.display = isPartial ? 'flex' : 'none';
+  document.getElementById('amount-hint').style.display    = isInKind  ? 'block' : 'none';
+  document.getElementById('amount-label').textContent     = isInKind  ? 'Est. Value ($)' : 'Amount ($) *';
 });
 document.getElementById('sponsor-modal').addEventListener('click', e => { if (e.target === document.getElementById('sponsor-modal')) closeModal(); });
 document.getElementById('season-modal').addEventListener('click',  e => { if (e.target === document.getElementById('season-modal'))  closeSeasonModal(); });
