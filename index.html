@@ -1217,11 +1217,11 @@ function render() {
   const ikSumm = document.getElementById('inkind-summary');
   if (ikSumm && s.ikCount > 0) ikSumm.textContent = s.ikCount + ' in-kind sponsor' + (s.ikCount !== 1 ? 's' : '') + ' this season';
 
-  document.getElementById('tier-mini').innerHTML = ['gold','silver','bronze','community'].map(t =>
-    s.byTier[t].count > 0
-      ? `<div style="display:flex;align-items:center;gap:7px"><div style="width:6px;height:6px;border-radius:50%;background:${TH[t]};flex-shrink:0"></div><span style="font-size:11px;flex:1">${TL[t]}</span><span style="font-size:12px;font-weight:800;color:${TH[t]}">${s.byTier[t].count}</span></div>`
-      : ''
-  ).join('');
+  document.getElementById('tier-mini').innerHTML = ['gold','silver','bronze','community'].map(t => {
+    const d = s.byTier[t]; if (!d.count) return '';
+    const ikBit = d.ikCount > 0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:600"> +${d.ikCount}ik</span>` : '';
+    return `<div style="display:flex;align-items:center;gap:7px"><div style="width:6px;height:6px;border-radius:50%;background:${TH[t]};flex-shrink:0"></div><span style="font-size:11px;flex:1">${TL[t]}</span><span style="font-size:12px;font-weight:800;color:${TH[t]}">${d.count}${ikBit}</span></div>`;
+  }).join('');
 
   // Year bars
   const allSt = seasons.map(y => ({ year: y, ...calcStats(y) }));
