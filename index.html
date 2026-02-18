@@ -2551,8 +2551,10 @@ async function confirmEditUser() {
 
   const btn = document.getElementById('user-modal').querySelector('.mprimary');
   btnLoading(btn, true);
-  const isNew = !editingUser;
-  const action = isNew ? 'addUser' : 'updateUser';
+  const isNew  = !editingUser;
+  const isSelf = editingUser && me && editingUser.email === me.email;
+  // Non-admins editing themselves use updateMe; admins use updateUser for anyone
+  const action = isNew ? 'addUser' : (isSelf && !(me && me.admin) ? 'updateMe' : 'updateUser');
   const res = await api(action, payload);
   btnLoading(btn, false);
 
