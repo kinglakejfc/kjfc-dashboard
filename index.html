@@ -386,7 +386,12 @@ td{padding:10px 10px;vertical-align:middle;}
 .fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--green);background:#fff;}
 .fg textarea{resize:vertical;min-height:70px;}
 .mactions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
-.mprimary{flex:1;padding:13px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:900;cursor:pointer;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;min-width:120px;}
+.mprimary{flex:1;padding:13px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:900;cursor:pointer;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;min-width:120px;transition:opacity .15s;}
+.mprimary:disabled{opacity:.6;cursor:not-allowed;}
+.mprimary.btn-loading{position:relative;color:transparent !important;pointer-events:none;}
+.mprimary.btn-loading::after{content:'';position:absolute;top:50%;left:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+.mdanger.btn-loading{position:relative;color:transparent !important;pointer-events:none;opacity:.7;}
+.mdanger.btn-loading::after{content:'';position:absolute;top:50%;left:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border:2.5px solid rgba(180,0,0,.3);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;}
 .mprimary:active{transform:scale(.97);}
 .msecondary{padding:13px 16px;background:var(--bg);color:var(--text-dim);border:1.5px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;}
 .mdanger{padding:13px 14px;background:var(--red-light);color:var(--red);border:1.5px solid #f5c6c2;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700;}
@@ -1161,8 +1166,10 @@ function calcStats(year) {
   const outCount = cashRows.filter(s => s.status !== 'paid').length;
   const byTier   = {};
   ['gold','silver','bronze','community'].forEach(t => {
-    const ts = cashRows.filter(s => s.tier === t);
-    byTier[t] = { count: ts.length, amount: ts.reduce((a, s) => a + +s.amount, 0) };
+    const ts    = rows.filter(s => s.tier === t);           // all including inkind
+    const cash  = ts.filter(s => s.status !== 'inkind');
+    const ik    = ts.filter(s => s.status === 'inkind');
+    byTier[t] = { count: ts.length, cashCount: cash.length, ikCount: ik.length, amount: cash.reduce((a, s) => a + +s.amount, 0) };
   });
   return { total, recv, outstanding: total - recv, outCount, count: rows.length, ikCount: ikRows.length, byTier };
 }
@@ -1234,9 +1241,10 @@ function render() {
   // Tier breakdown
   document.getElementById('tier-list').innerHTML = ['gold','silver','bronze','community'].map(t => {
     const d = s.byTier[t]; if (!d.count) return '';
+    const ikLabel = d.ikCount > 0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:700;margin-left:4px">+${d.ikCount} in-kind</span>` : '';
     return `<div class="trow" onclick="filterTable('${t}',null)">
       <div class="tdot ${t}"></div>
-      <div class="tname">${TL[t]}</div>
+      <div class="tname">${TL[t]}${ikLabel}</div>
       <div class="tcnt">${d.count}</div>
       <div class="tamt" style="color:${TH[t]}">${fmt(d.amount)}</div>
     </div>`;
@@ -1504,6 +1512,12 @@ function openEdit(id) {
 function closeModal() { document.getElementById('sponsor-modal').classList.remove('open'); editId = null; }
 
 
+function btnLoading(el, isLoading) {
+  if (!el) return;
+  if (isLoading) { el.classList.add('btn-loading'); el.disabled = true; }
+  else           { el.classList.remove('btn-loading'); el.disabled = false; }
+}
+
 async function saveSponsor() {
   if (!me?.edit) return;
   const name   = document.getElementById('f-name').value.trim();
@@ -1531,9 +1545,10 @@ async function saveSponsor() {
   };
 
   setSyncState('loading', 'Saving…');
-  document.getElementById('m-save').disabled = true;
+  const saveBtn = document.getElementById('m-save');
+  btnLoading(saveBtn, true);
   const res = await api('saveSponsor', { data, isNew: !editId });
-  document.getElementById('m-save').disabled = false;
+  btnLoading(saveBtn, false);
 
   if (res.error) { showToast('Error: ' + res.error, 'err'); setSyncState('err', 'Save failed'); return; }
 
@@ -1560,7 +1575,10 @@ async function deleteSponsor() {
   const s = sponsors.find(x => x.id === editId);
   if (!confirm(`Delete ${s?.name || 'this sponsor'}? This cannot be undone.`)) return;
   setSyncState('loading', 'Deleting…');
+  const delBtn = document.getElementById('m-del');
+  btnLoading(delBtn, true);
   const res = await api('deleteSponsor', { id: editId });
+  btnLoading(delBtn, false);
   if (res.error) { showToast('Error: ' + res.error, 'err'); return; }
   // Instant local update
   sponsors = sponsors.filter(x => x.id !== editId);
