@@ -749,7 +749,7 @@ td{padding:10px 10px;vertical-align:middle;}
     <div class="panel">
       <div class="view-tabs" id="view-tabs">
         <button class="vtab act" onclick="setView('active')" id="vtab-active">Active</button>
-        <button class="vtab prospect-tab" onclick="setView('prospect')" id="vtab-prospect">Prospects</button>
+        <button class="vtab prospect-tab" onclick="setView('prospect')" id="vtab-prospect">Not in Season</button>
       </div>
       <div class="filters" id="filters" style="margin-bottom:12px;">
         <button class="ftab act" onclick="filterTable('all')">All</button>
@@ -1438,20 +1438,22 @@ function renderTable() {
   const tbody = document.getElementById('tbody');
 
   if (curView === 'prospect') {
-    // Show prospects — orgs with status=prospect or no season entry this year
-    const prospects = orgs.filter(o => o.orgStatus==='prospect');
-    if (!prospects.length) { tbody.innerHTML=''; empty.style.display='block'; empty.textContent='No prospects yet. Add one with + Add Sponsor.'; return; }
+    // Show ALL orgs that have no season entry for the current season
+    const activeOrgIdSet = activeOrgIds(cy);
+    const unlinked = orgs.filter(o => !activeOrgIdSet.has(o.id));
+    if (!unlinked.length) { tbody.innerHTML=''; empty.style.display='block'; empty.textContent='All your sponsors are linked to the ' + cy + ' season.'; return; }
     empty.style.display='none';
-    tbody.innerHTML = prospects.map(o => {
-      const lastContact = ''; // shown in detail
+    tbody.innerHTML = unlinked.map(o => {
+      const statusLabel = o.orgStatus === 'prospect' ? 'Prospect' : 'Not in ' + cy;
+      const statusClass = o.orgStatus === 'prospect' ? 'prospect' : 'lapsed';
       return `<tr onclick="openOrgDetail('${o.id}')" style="cursor:pointer">
         <td><strong>${o.name}</strong></td>
         <td style="color:var(--text-dim);font-size:12px">${o.primaryContact||'—'}</td>
         <td style="color:var(--text-dim);font-size:12px">${o.phone||'—'}</td>
-        <td><span class="ostatus prospect">Prospect</span></td>
+        <td><span class="ostatus ${statusClass}">${statusLabel}</span></td>
         <td colspan="2"></td>
         <td style="display:flex;gap:4px;">
-          ${me?.edit ? `<button class="actbtn" style="background:var(--green);color:#fff;border-color:var(--green);font-size:10px;" onclick="event.stopPropagation();openAddSS('${o.id}')">+ Add Season</button>` : ''}
+          ${me?.edit ? `<button class="actbtn" style="background:var(--green);color:#fff;border-color:var(--green);font-size:10px;" onclick="event.stopPropagation();openAddSS('${o.id}')">+ Add to ${cy}</button>` : ''}
           <button class="actbtn" onclick="event.stopPropagation();openEditOrg('${o.id}')">Edit</button>
         </td>
       </tr>`;
