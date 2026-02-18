@@ -783,7 +783,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
         <input type="text" id="sponsor-search" placeholder="🔍  Search sponsors…" oninput="renderTable()" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--bg);color:var(--text);outline:none;transition:border-color .15s;" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
       </div>
       <table class="stable" id="stable">
-        <thead><tr>
+        <thead id="stable-head"><tr>
           <th class="sortable" onclick="sortBy('name')" id="th-name">Sponsor <span class="sort-arrow" id="sa-name"></span></th>
           <th class="sortable" onclick="sortBy('tier')" id="th-tier">Tier <span class="sort-arrow" id="sa-tier"></span></th>
           <th class="sortable" onclick="sortBy('amount')" id="th-amount">Amount <span class="sort-arrow" id="sa-amount"></span></th>
@@ -1499,6 +1499,7 @@ function render() {
   renderProspects();
 
   renderFilterTabs();
+  renderTableHeaders();
   renderTable();
 }
 
@@ -1527,12 +1528,45 @@ function renderProspects() {
 // ════════════════════════════════════════════════════════
 //  SPONSOR TABLE
 // ════════════════════════════════════════════════════════
+function renderTableHeaders() {
+  const head = document.getElementById('stable-head');
+  if (!head) return;
+  if (curView === 'prospect') {
+    head.innerHTML = `<tr>
+      <th>Sponsor</th>
+      <th>Contact</th>
+      <th>Phone</th>
+      <th>Status</th>
+      <th colspan="3"></th>
+    </tr>`;
+  } else {
+    head.innerHTML = `<tr>
+      <th class="sortable" onclick="sortBy('name')" id="th-name">Sponsor <span class="sort-arrow" id="sa-name"></span></th>
+      <th class="sortable" onclick="sortBy('tier')" id="th-tier">Tier <span class="sort-arrow" id="sa-tier"></span></th>
+      <th class="sortable" onclick="sortBy('amount')" id="th-amount">Amount <span class="sort-arrow" id="sa-amount"></span></th>
+      <th class="sortable" onclick="sortBy('status')" id="th-status">Status <span class="sort-arrow" id="sa-status"></span></th>
+      <th class="sortable" onclick="sortBy('yrs')" id="th-yrs">Yrs <span class="sort-arrow" id="sa-yrs"></span></th>
+      <th>Contact</th><th></th>
+    </tr>`;
+    // Re-apply current sort indicator
+    ['name','tier','amount','status','yrs'].forEach(c => {
+      const th = document.getElementById('th-' + c);
+      const sa = document.getElementById('sa-' + c);
+      if (!th || !sa) return;
+      const active = c === curSort.col;
+      th.classList.toggle('sort-act', active);
+      sa.textContent = active ? (curSort.dir === 1 ? '▲' : '▼') : '';
+    });
+  }
+}
+
 function setView(v) {
   curView = v;
   document.getElementById('vtab-active').classList.toggle('act', v==='active');
   document.getElementById('vtab-prospect').classList.toggle('act', v==='prospect');
   document.getElementById('filters').style.display = v==='active' ? '' : 'none';
   if (v==='active') renderFilterTabs();
+  renderTableHeaders();
   renderTable();
 }
 
