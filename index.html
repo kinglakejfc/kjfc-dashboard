@@ -1156,7 +1156,7 @@ function populateYearDropdown() {
 //  STATS
 // ═══════════════════════════════════════════════════════
 function calcStats(year) {
-  const rows     = sponsors.filter(s => s.year === year);
+  const rows     = sponsors.filter(s => +s.year === +year);
   const cashRows = rows.filter(s => s.status !== 'inkind');
   const ikRows   = rows.filter(s => s.status === 'inkind');
   const total    = cashRows.reduce((a, s) => a + +s.amount, 0);
@@ -1166,9 +1166,9 @@ function calcStats(year) {
   const outCount = cashRows.filter(s => s.status !== 'paid').length;
   const byTier   = {};
   ['gold','silver','bronze','community'].forEach(t => {
-    const ts    = rows.filter(s => s.tier === t);           // all including inkind
-    const cash  = ts.filter(s => s.status !== 'inkind');
-    const ik    = ts.filter(s => s.status === 'inkind');
+    const ts   = rows.filter(s => String(s.tier).toLowerCase() === t);
+    const cash = ts.filter(s => s.status !== 'inkind');
+    const ik   = ts.filter(s => s.status === 'inkind');
     byTier[t] = { count: ts.length, cashCount: cash.length, ikCount: ik.length, amount: cash.reduce((a, s) => a + +s.amount, 0) };
   });
   return { total, recv, outstanding: total - recv, outCount, count: rows.length, ikCount: ikRows.length, byTier };
@@ -1526,15 +1526,16 @@ async function saveSponsor() {
   const status = document.getElementById('f-status').value;
   if (!name)             { showToast('Enter a sponsor name', 'warn'); return; }
   if (!tier)             { showToast('Select a tier', 'warn'); return; }
-  if (status === 'inkind') { document.getElementById('f-amount').value = '0'; }
-  if (status !== 'inkind' && (!amount || +amount <= 0)) { showToast('Enter a valid amount', 'warn'); return; }
   if (!status)           { showToast('Select a payment status', 'warn'); return; }
+  if (status !== 'inkind' && (!amount || +amount <= 0)) { showToast('Enter a valid amount', 'warn'); return; }
+  // For inkind, force amount to 0 after validation
+  const finalAmount = status === 'inkind' ? 0 : +amount;
 
   const data = {
     id:         editId || '',
     name, tier,
     year:       +document.getElementById('f-year').value,
-    amount:     +amount,
+    amount:     finalAmount,
     status,
     paidAmount: +document.getElementById('f-paid').value || 0,
     contact:    document.getElementById('f-contact').value.trim(),
