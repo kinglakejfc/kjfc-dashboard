@@ -166,6 +166,18 @@ header{
 .access-opt-body{flex:1;min-width:0;overflow:hidden;}
 .access-opt-title{font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;}
 .access-opt-desc{font-size:11px;color:var(--text-dim);margin-top:2px;line-height:1.4;word-wrap:break-word;}
+.logo-upload-wrap{border:2px dashed var(--border-s);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;background:var(--bg);text-align:center;}
+.logo-upload-wrap:hover{border-color:var(--green);background:var(--green-light);}
+.logo-upload-preview{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.logo-upload-preview img{max-height:80px;max-width:100%;object-fit:contain;border-radius:6px;}
+.logo-upload-icon{font-size:24px;}
+.logo-upload-hint{font-size:12px;color:var(--text-dim);}
+.logo-upload-wrap.has-logo{border-style:solid;border-color:var(--border-s);}
+/* Logo in table rows and cards */
+.slogo{width:32px;height:32px;border-radius:5px;object-fit:contain;background:var(--bg);border:1px solid var(--border);flex-shrink:0;}
+.slogo-init{width:32px;height:32px;border-radius:5px;background:var(--yellow-pale);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;color:var(--yellow-dark);flex-shrink:0;border:1.5px solid var(--yellow-dark);}
+/* Logo in detail view */
+.dlogo img{width:100%;height:100%;object-fit:contain;border-radius:6px;}
 .role-tag{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;font-size:13px;}
 .role-tag-del{background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:16px;line-height:1;padding:0 2px;}
 .role-tag-del:hover{color:var(--red);}
@@ -751,6 +763,20 @@ td{padding:10px 10px;vertical-align:middle;}
     <div class="frow full">
       <div class="fg"><label>Notes / Benefits</label><textarea id="f-notes" placeholder="Signage, social posts, PA announcements…"></textarea></div>
     </div>
+    <div class="frow full">
+      <div class="fg">
+        <label>Sponsor Logo</label>
+        <div class="logo-upload-wrap" id="logo-upload-wrap" onclick="document.getElementById('f-logo-input').click()">
+          <div class="logo-upload-preview" id="logo-preview">
+            <span class="logo-upload-icon">📷</span>
+            <span class="logo-upload-hint">Click to upload logo</span>
+            <span class="logo-upload-hint" style="font-size:10px;opacity:.6;">PNG, JPG or SVG · max 300KB</span>
+          </div>
+          <input type="file" id="f-logo-input" accept="image/*" style="display:none" onchange="handleLogoUpload(event)">
+        </div>
+        <button id="logo-clear-btn" onclick="clearLogo()" style="display:none;margin-top:6px;font-size:11px;color:var(--red);background:none;border:none;cursor:pointer;padding:0;">✕ Remove logo</button>
+      </div>
+    </div>
     <div class="mactions">
       <button class="mprimary" id="m-save">Add Sponsor</button>
       <button class="msecondary" id="m-cancel">Cancel</button>
@@ -883,7 +909,7 @@ td{padding:10px 10px;vertical-align:middle;}
 //  CONFIG — REPLACE THESE TWO VALUES
 // ═══════════════════════════════════════════════════════
 const GOOGLE_CLIENT_ID = '127701976947-881utr0ljs1eqrfmuoqrsbqh5635vtfl.apps.googleusercontent.com';
-const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbwKC6PhkqKzd0wBXUr7ZtpNN642og-5GbR_qmaT0tY1A3u_zOQCpt0TT94xxLlQSa3x/exec';
+const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbyRfcBKJZgUBGIGSsX4bQKPAVeOjEUYOUcgbfqLnNsq_PYnnlWoikcLhEch1dt-aq8w/exec';
 
 // ═══════════════════════════════════════════════════════
 //  STATE
@@ -1260,7 +1286,14 @@ function renderTable() {
       : `<div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px">${fmt(s.amount)}</div>`;
     const eBtn = me?.edit ? `<button class="actbtn" onclick="event.stopPropagation();openEdit('${s.id}')">Edit</button>` : '';
     return `<tr onclick="openDetail('${s.id}')">
-      <td><strong>${s.name}</strong></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${s.logo
+            ? `<img class="slogo" src="${s.logo}" alt="${s.name}">`
+            : `<div class="slogo-init">${s.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>`}
+          <strong>${s.name}</strong>
+        </div>
+      </td>
       <td><span class="tchip ${s.tier}">${TL[s.tier]}</span></td>
       <td>${aH}</td>
       <td><span class="sbadge ${s.status}">${cap(s.status)}</span></td>
@@ -1313,7 +1346,14 @@ function openDrill(title, rows) {
       ? `${fmt(s.amount)} <span style="font-size:10px;color:var(--orange)">(${fmt(s.paidAmount||0)} recv)</span>`
       : fmt(s.amount);
     return `<tr onclick="openDetail('${s.id}')" style="cursor:pointer">
-      <td><strong>${s.name}</strong></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${s.logo
+            ? `<img class="slogo" src="${s.logo}" alt="${s.name}">`
+            : `<div class="slogo-init">${s.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>`}
+          <strong>${s.name}</strong>
+        </div>
+      </td>
       <td><span class="tchip ${s.tier}">${TL[s.tier]}</span></td>
       <td style="font-family:'Barlow Condensed',sans-serif;font-weight:800">${aH}</td>
       <td><span class="sbadge ${s.status}">${cap(s.status)}</span></td>
@@ -1381,7 +1421,7 @@ async function openDetail(id) {
 
   document.getElementById('detail-content').innerHTML = `
     <div class="dheader">
-      <div class="dlogo">${init}</div>
+      <div class="dlogo">${s.logo ? `<img src="${s.logo}" alt="${s.name}">` : init}</div>
       <div class="dinfo">
         <h2>${s.name}</h2>
         <div class="dmeta">
@@ -1445,6 +1485,7 @@ function closeDetail() {
 // ═══════════════════════════════════════════════════════
 function resetModal() {
   ['f-name','f-amount','f-paid','f-contact','f-email','f-phone','f-website','f-notes'].forEach(id => document.getElementById(id).value = '');
+  clearLogo();
   document.getElementById('f-tier').value = '';
   document.getElementById('f-status').value = '';
   document.getElementById('f-partial-wrap').style.display = 'none';
@@ -1486,10 +1527,46 @@ function openEdit(id) {
   document.getElementById('f-website').value = s.website || '';
   document.getElementById('f-notes').value   = s.notes || '';
   document.getElementById('f-partial-wrap').style.display = s.status === 'partial' ? 'flex' : 'none';
+  // Load logo if present
+  clearLogo();
+  if (s.logo) setLogoPreview(s.logo);
   document.getElementById('sponsor-modal').classList.add('open');
 }
 
 function closeModal() { document.getElementById('sponsor-modal').classList.remove('open'); editId = null; }
+
+// ── LOGO HANDLING ────────────────────────────────────────────────
+window._currentLogo = '';
+
+function setLogoPreview(dataUrl) {
+  window._currentLogo = dataUrl;
+  const wrap = document.getElementById('logo-upload-wrap');
+  const prev = document.getElementById('logo-preview');
+  prev.innerHTML = `<img src="${dataUrl}" alt="Logo preview">`;
+  wrap.classList.add('has-logo');
+  document.getElementById('logo-clear-btn').style.display = 'block';
+}
+
+function clearLogo() {
+  window._currentLogo = '';
+  const wrap = document.getElementById('logo-upload-wrap');
+  const prev = document.getElementById('logo-preview');
+  if (wrap) wrap.classList.remove('has-logo');
+  if (prev) prev.innerHTML = '<span class="logo-upload-icon">📷</span><span class="logo-upload-hint">Click to upload logo</span><span class="logo-upload-hint" style="font-size:10px;opacity:.6;">PNG, JPG or SVG · max 300KB</span>';
+  const clearBtn = document.getElementById('logo-clear-btn');
+  if (clearBtn) clearBtn.style.display = 'none';
+  const input = document.getElementById('f-logo-input');
+  if (input) input.value = '';
+}
+
+function handleLogoUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 300 * 1024) { showToast('Logo must be under 300KB', 'warn'); return; }
+  const reader = new FileReader();
+  reader.onload = e => setLogoPreview(e.target.result);
+  reader.readAsDataURL(file);
+}
 
 async function saveSponsor() {
   if (!me?.edit) return;
@@ -1514,6 +1591,7 @@ async function saveSponsor() {
     phone:      document.getElementById('f-phone').value.trim(),
     website:    document.getElementById('f-website').value.trim(),
     notes:      document.getElementById('f-notes').value.trim(),
+    logo:       window._currentLogo || '',
   };
 
   setSyncState('loading', 'Saving…');
