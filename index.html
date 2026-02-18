@@ -2500,19 +2500,18 @@ function openEditMe() {
 function openUserModal(u) {
   editingUser = u;
   const isNew = !u;
-  // Is the current viewer an admin? (they can change access levels)
   const viewerIsAdmin = me && me.admin;
-  // Is this the current user editing themselves?
   const isSelf = u && me && u.email === me.email;
 
-  document.getElementById('um-title').textContent = isNew ? 'Add User' : (isSelf ? 'Edit My Profile' : 'Edit User');
+  document.getElementById('um-title').textContent = isNew ? 'Add User' : (isSelf ? 'My Profile' : 'Edit User');
   document.getElementById('um-email').value    = u ? u.email : '';
   document.getElementById('um-email').disabled = !isNew;
   document.getElementById('um-name').value     = u ? (u.name||'') : '';
+  document.getElementById('um-name').disabled  = !viewerIsAdmin;
   populateRoleSelect();
-  document.getElementById('um-role').value = u ? (u.role||'Member') : 'Member';
+  document.getElementById('um-role').value     = u ? (u.role||'Member') : 'Member';
+  document.getElementById('um-role').disabled  = !viewerIsAdmin;
 
-  // Access level: only show dropdown to admins, show info note to everyone else
   const accRow  = document.getElementById('um-access-row');
   const accNote = document.getElementById('um-access-note');
   if (viewerIsAdmin) {
@@ -2525,7 +2524,12 @@ function openUserModal(u) {
     accNote.style.display = 'block';
   }
 
-  // Delete button: only for admins, on other users (not self)
+  // Only admins can save; non-admins see read-only profile info
+  const saveBtn = document.getElementById('user-modal').querySelector('.mprimary');
+  if (saveBtn) saveBtn.style.display = viewerIsAdmin ? '' : 'none';
+  const cancelBtn = document.getElementById('user-modal').querySelector('.msecondary');
+  if (cancelBtn) cancelBtn.textContent = viewerIsAdmin ? 'Cancel' : 'Close';
+
   const delBtn = document.getElementById('um-del-btn');
   delBtn.style.display = (viewerIsAdmin && !isNew && !isSelf) ? 'block' : 'none';
 
@@ -2552,9 +2556,8 @@ async function confirmEditUser() {
   const btn = document.getElementById('user-modal').querySelector('.mprimary');
   btnLoading(btn, true);
   const isNew  = !editingUser;
-  const isSelf = editingUser && me && editingUser.email === me.email;
-  // Non-admins editing themselves use updateMe; admins use updateUser for anyone
-  const action = isNew ? 'addUser' : (isSelf && !(me && me.admin) ? 'updateMe' : 'updateUser');
+  // Always use updateUser - backend already exists. Access field simply won't be sent for non-admins.
+  const action = isNew ? 'addUser' : 'updateUser';
   const res = await api(action, payload);
   btnLoading(btn, false);
 
