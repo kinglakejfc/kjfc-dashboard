@@ -909,7 +909,7 @@ td{padding:10px 10px;vertical-align:middle;}
 //  CONFIG — REPLACE THESE TWO VALUES
 // ═══════════════════════════════════════════════════════
 const GOOGLE_CLIENT_ID = '127701976947-881utr0ljs1eqrfmuoqrsbqh5635vtfl.apps.googleusercontent.com';
-const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbzH856wehugmed9dReF0CVuOajaPad4JZIj-U9bxxFrnK8LkRpm1RrZ_ZjlHtD1mvr_/exec';
+const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbxk6kZIssgw-0upGB6vs_P8G9PpCUWbTv9Edi-oNHsOCCMjNI4883L12w2Zxtmk0QKZ/exec';
 
 // ═══════════════════════════════════════════════════════
 //  STATE
@@ -1602,7 +1602,10 @@ function handleLogoUpload(event) {
       const h = Math.round(img.height * scale);
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';  // white background for transparent PNGs
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
       setLogoPreview(canvas.toDataURL('image/jpeg', 0.85));
       window._logoDeleted = false;
     };
@@ -1613,36 +1616,42 @@ function handleLogoUpload(event) {
 
 async function uploadLogoToDrive(sponsorId, sponsorName, oldFileId) {
   if (!window._currentLogo) return null;
-  setSyncState('loading', 'Uploading logo to Google Drive…');
-  // Must use JSONP for this too — wrap image data in payload
-  // Image is already resized to ~400px so base64 is manageable via chunked approach
-  // We use the JSONP api() but pass imageData in payload (Apps Script reads e.postData for POST)
-  // Actually: use a direct fetch to the script with no-cors to POST the data
-  // Then use JSONP to confirm by reloading sponsors
+  setSyncState('loading', 'Uploading logo…');
+
+  // Split base64 into chunks that fit within JSONP URL limits (~900 chars each)
+  const CHUNK = 900;
+  const b64   = window._currentLogo; // full data URL
+  const total = Math.ceil(b64.length / CHUNK);
+
   try {
-    const payload = {
-      action: 'uploadLogo',
-      token,
-      payload: {
+    for (let i = 0; i < total; i++) {
+      const chunk = b64.slice(i * CHUNK, (i + 1) * CHUNK);
+      const isLast = (i === total - 1);
+      setSyncState('loading', `Uploading logo… ${i+1}/${total}`);
+      const res = await api('uploadLogo', {
         sponsorId,
         sponsorName,
-        imageData: window._currentLogo,
+        chunk,
+        chunkIndex: i,
+        totalChunks: total,
         mimeType: 'image/jpeg',
         oldFileId: oldFileId || '',
+        isFinal: isLast,
+      });
+      if (res && res.error) {
+        showToast('Logo upload failed: ' + res.error, 'err');
+        setSyncState('err', 'Upload failed');
+        return null;
       }
-    };
-    // Use no-cors fetch POST — we can't read the response, but Drive file is created
-    // Then we reload sponsors to get the new URL
-    await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    // Wait a moment for Apps Script to process, then reload
-    await new Promise(r => setTimeout(r, 2000));
-    setSyncState('ok', 'Logo uploaded');
+      if (isLast && res && res.url) {
+        setSyncState('ok', 'Logo uploaded to Drive ✓');
+        return res;
+      }
+    }
     return { ok: true };
   } catch(e) {
     showToast('Logo upload failed: ' + e.message, 'err');
+    setSyncState('err', 'Upload failed');
     return null;
   }
 }
