@@ -3392,7 +3392,7 @@ function openPlayerDetail(profileId) {
     <!-- School + Suburb + ATSI -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
       <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">School</div><div style="font-size:13px;">${p.school||'—'}</div><div style="font-size:11px;color:var(--text-dim);">Year ${p.schoolYear||'—'}</div></div>
-      <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">Address</div><div style="font-size:12px;">${[p.suburb,p.postcode,p.state].filter(Boolean).join(' ')}</div>${p.atsi&&p.atsi!=='No'?`<div style="font-size:10px;color:#7c3aed;margin-top:2px;">ATSI: ${p.atsi}</div>`:''}</div>
+      <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">Address</div>${p.address?`<div style="font-size:12px;">${p.address}</div>`:''}${[p.suburb,p.postcode,p.state].filter(Boolean).length?`<div style="font-size:12px;color:var(--text-dim);">${[p.suburb,p.postcode,p.state].filter(Boolean).join(' ')}</div>`:''}<div style="font-size:12px;">${(!p.address&&!p.suburb&&!p.postcode)?'—':''}</div>${p.atsi&&p.atsi!=='No'?`<div style="font-size:10px;color:#7c3aed;margin-top:2px;">ATSI: ${p.atsi}</div>`:''}</div>
     </div>
 
     <!-- Notes -->
@@ -3821,7 +3821,10 @@ function handleImportFile(file) {
       selEl.value = season;
     }
 
-    const seasonChanged = csvSeason && +csvSeason !== +plSeason;
+    // Compare against the import selector's value (not plSeason, which is the main
+    // dashboard season and may legitimately differ from the import target year)
+    const importSelSeason = +selEl.value;
+    const seasonChanged = csvSeason && +csvSeason !== importSelSeason;
 
     // Build existing player lookup for duplicate detection
     const pm = plPlayerMap();
@@ -3909,11 +3912,11 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
   ];
 
   review.innerHTML = `
-    <!-- Auto-detect notice -->
+    <!-- Auto-detect notice: only shown when CSV season differs from selector -->
     ${autoDetectedSeason ? `
-    <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;gap:8px;align-items:center;">
-      <span style="font-size:16px;">🔄</span>
-      <div style="font-size:13px;">Season auto-detected from file: <strong>${autoDetectedSeason}</strong>. Ages calculated against <strong>end of ${autoDetectedSeason}</strong>. You can override with the season selector above.</div>
+    <div style="background:#fefce8;border:1.5px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;gap:8px;align-items:center;">
+      <span style="font-size:16px;">⚠️</span>
+      <div style="font-size:13px;">CSV season (<strong>${autoDetectedSeason}</strong>) differs from the selected import season (<strong>${season}</strong>). Ages are calculated against <strong>end of ${season}</strong>. Use the selector above to correct this if needed.</div>
     </div>` : ''}
 
     <!-- Summary bar -->
