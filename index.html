@@ -518,7 +518,26 @@ td{padding:10px 10px;vertical-align:middle;}
 }
 
 
-/* ── Season entry rows in org detail ── */
+/* ── Package manager rows ── */
+.pkg-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;}
+
+
+.ss-checklist{background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;margin-bottom:10px;}
+.ss-checklist-title{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:10px;}
+.ss-checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+@media(max-width:420px){.ss-checks{grid-template-columns:1fr;}}
+.ss-check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-mid);user-select:none;}
+.ss-check input{position:absolute;opacity:0;width:0;height:0;}
+.ss-check-box{width:20px;height:20px;border-radius:5px;border:2px solid var(--border-s);background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.ss-check input:checked ~ .ss-check-box{background:var(--green);border-color:var(--green);}
+.ss-check input:checked ~ .ss-check-box::after{content:'✓';color:#fff;font-size:12px;font-weight:900;line-height:1;}
+.ss-check:hover .ss-check-box{border-color:var(--green);}
+
+/* ── Checklist badges on ss-row ── */
+.chk-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;background:var(--green-light);color:var(--green);}
+.chk-badge.miss{background:#fef2f2;color:#b91c1c;}
+
+
 .ss-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;cursor:pointer;transition:all .15s;}
 .ss-row:hover{border-color:var(--green);background:var(--green-light);}
 .ss-add-btn{background:var(--green);color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;transition:opacity .15s;white-space:nowrap;flex-shrink:0;}
@@ -823,28 +842,63 @@ td{padding:10px 10px;vertical-align:middle;}
 
 <!-- SEASON ENTRY MODAL (add/edit a season sponsorship for an org) -->
 <div class="moverlay" id="ss-modal" style="z-index:250;">
-  <div class="modal" style="max-width:440px;">
+  <div class="modal" style="max-width:500px;">
     <div class="modal-handle"></div>
     <button class="mclose" id="ss-mclose">×</button>
     <div class="mtitle" id="ss-m-title">Add Season Sponsorship</div>
     <div class="msub" id="ss-m-sub"></div>
 
+    <!-- Row 1: Year + Package selector -->
     <div class="frow two">
-      <div class="fg"><label>Season *</label><select id="sf-year"></select></div>
-      <div class="fg"><label>Tier / Package *</label>
-        <select id="sf-tier">
-          <option value="">Select tier</option>
-          <option value="gold">🥇 Gold</option>
-          <option value="silver">🥈 Silver</option>
-          <option value="bronze">🥉 Bronze</option>
-          <option value="community">🤝 Community</option>
+      <div class="fg">
+        <label>Season *</label>
+        <select id="sf-year"></select>
+      </div>
+      <div class="fg">
+        <label>Package *</label>
+        <select id="sf-package" onchange="onPackageSelect()">
+          <option value="">— Select package —</option>
         </select>
       </div>
     </div>
 
+    <!-- Package details card (populated on select) -->
+    <div id="sf-pkg-card" style="display:none;background:var(--green-light);border:1.5px solid var(--border-s);border-radius:9px;padding:10px 14px;margin-bottom:10px;font-size:12px;">
+      <div style="font-weight:700;color:var(--green);margin-bottom:3px;" id="sf-pkg-card-name"></div>
+      <div style="color:var(--text-dim);" id="sf-pkg-card-benefits"></div>
+    </div>
+
+    <!-- Custom package name (shown when "custom" selected) -->
+    <div class="frow" id="sf-custom-wrap" style="display:none;">
+      <div class="fg">
+        <label>Custom Package Name *</label>
+        <input type="text" id="sf-custom-name" placeholder="e.g. Naming Rights, Major Partner…">
+      </div>
+    </div>
+
+    <!-- Row 2: Tier + Amount -->
     <div class="frow two">
-      <div class="fg"><label>Payment Status *</label>
-        <select id="sf-status">
+      <div class="fg">
+        <label>Tier</label>
+        <select id="sf-tier">
+          <option value="gold">🥇 Gold</option>
+          <option value="silver">🥈 Silver</option>
+          <option value="bronze">🥉 Bronze</option>
+          <option value="community">🤝 Community</option>
+          <option value="custom">⭐ Custom</option>
+        </select>
+      </div>
+      <div class="fg" id="sf-amount-wrap">
+        <label>Agreed Amount ($) *</label>
+        <input type="number" id="sf-amount" placeholder="e.g. 1500" min="0" inputmode="numeric" oninput="updateBalance()">
+      </div>
+    </div>
+
+    <!-- Row 3: Payment status -->
+    <div class="frow two">
+      <div class="fg">
+        <label>Payment Status *</label>
+        <select id="sf-status" onchange="updateSSFields()">
           <option value="">Select status</option>
           <option value="paid">✅ Paid in full</option>
           <option value="outstanding">⏳ Outstanding</option>
@@ -852,17 +906,17 @@ td{padding:10px 10px;vertical-align:middle;}
           <option value="inkind">🤝 In-Kind (no cash)</option>
         </select>
       </div>
-      <div class="fg" id="sf-amount-wrap">
-        <label>Agreed Amount ($) *</label>
-        <input type="number" id="sf-amount" placeholder="e.g. 2000" min="0" inputmode="numeric">
+      <div class="fg">
+        <label>Invoice Number</label>
+        <input type="text" id="sf-invoice" placeholder="e.g. INV-2026-001">
       </div>
     </div>
 
-    <!-- Partial: amount received -->
+    <!-- Partial payment row -->
     <div class="frow two" id="sf-partial-wrap" style="display:none;">
       <div class="fg">
         <label>Amount Received ($)</label>
-        <input type="number" id="sf-paid" placeholder="e.g. 500" min="0" inputmode="numeric">
+        <input type="number" id="sf-paid" placeholder="e.g. 500" min="0" inputmode="numeric" oninput="updateBalance()">
       </div>
       <div class="fg">
         <label>Balance Owing</label>
@@ -870,7 +924,7 @@ td{padding:10px 10px;vertical-align:middle;}
       </div>
     </div>
 
-    <!-- In-kind: description of what's being provided -->
+    <!-- In-kind description -->
     <div class="frow" id="sf-inkind-wrap" style="display:none;">
       <div class="fg">
         <label>What are they providing? *</label>
@@ -878,11 +932,22 @@ td{padding:10px 10px;vertical-align:middle;}
       </div>
     </div>
 
-    <!-- Package notes -->
+    <!-- Checklist -->
+    <div class="ss-checklist">
+      <div class="ss-checklist-title">Admin Checklist</div>
+      <div class="ss-checks">
+        <label class="ss-check"><input type="checkbox" id="chk-invoice"><span class="ss-check-box"></span>Invoice sent</label>
+        <label class="ss-check"><input type="checkbox" id="chk-thankyou"><span class="ss-check-box"></span>Thank you email sent</label>
+        <label class="ss-check"><input type="checkbox" id="chk-logo"><span class="ss-check-box"></span>Logo on website</label>
+        <label class="ss-check"><input type="checkbox" id="chk-top"><span class="ss-check-box"></span>Added to training top</label>
+      </div>
+    </div>
+
+    <!-- Notes -->
     <div class="frow">
       <div class="fg">
-        <label>Package Notes / Benefits</label>
-        <textarea id="sf-notes" rows="2" placeholder="e.g. Logo on jerseys, banner at ground, social media mentions…"></textarea>
+        <label>Notes</label>
+        <textarea id="sf-notes" rows="2" placeholder="Any special arrangements, conditions, follow-ups…"></textarea>
       </div>
     </div>
 
@@ -1001,6 +1066,52 @@ td{padding:10px 10px;vertical-align:middle;}
   </div>
 </div>
 
+<!-- PACKAGE MANAGER MODAL -->
+<div class="moverlay" id="pkg-modal" style="z-index:330;">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-handle"></div>
+    <button class="mclose" onclick="closePkgModal()">×</button>
+    <div class="mtitle" id="pkg-m-title">Add Package</div>
+    <div class="frow two">
+      <div class="fg">
+        <label>Package Name *</label>
+        <input type="text" id="pf-name" placeholder="e.g. Gold, Naming Rights…">
+      </div>
+      <div class="fg">
+        <label>Tier</label>
+        <select id="pf-tier">
+          <option value="gold">🥇 Gold</option>
+          <option value="silver">🥈 Silver</option>
+          <option value="bronze">🥉 Bronze</option>
+          <option value="community">🤝 Community</option>
+          <option value="custom">⭐ Custom</option>
+        </select>
+      </div>
+    </div>
+    <div class="frow two">
+      <div class="fg">
+        <label>Default Amount ($)</label>
+        <input type="number" id="pf-amount" placeholder="e.g. 1500" min="0" inputmode="numeric">
+      </div>
+      <div class="fg">
+        <label>Short Description</label>
+        <input type="text" id="pf-desc" placeholder="e.g. Premium naming rights partner">
+      </div>
+    </div>
+    <div class="frow">
+      <div class="fg">
+        <label>Benefits / Inclusions</label>
+        <textarea id="pf-benefits" rows="3" placeholder="e.g. Logo on playing jersey, banner at ground, social media, website, training top…"></textarea>
+      </div>
+    </div>
+    <div class="mactions">
+      <button class="mprimary" id="pkg-m-save" onclick="savePkg()">Save Package</button>
+      <button class="msecondary" onclick="closePkgModal()">Cancel</button>
+      <button class="mdanger" id="pkg-m-del" style="display:none" onclick="deletePkg()">Delete</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADMIN MODAL -->
 <div class="moverlay" id="admin-modal">
   <div class="modal" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column;">
@@ -1009,6 +1120,7 @@ td{padding:10px 10px;vertical-align:middle;}
     <div class="adm-tabs">
       <button class="adm-tab" data-tab="log" onclick="document.querySelectorAll('.adm-tab').forEach(b=>b.classList.toggle('act',b===this));loadAdminTab('log')">Access Log</button>
       <button class="adm-tab" data-tab="users" onclick="document.querySelectorAll('.adm-tab').forEach(b=>b.classList.toggle('act',b===this));loadAdminTab('users')">Users</button>
+      <button class="adm-tab" data-tab="packages" onclick="document.querySelectorAll('.adm-tab').forEach(b=>b.classList.toggle('act',b===this));loadAdminTab('packages')">📦 Packages</button>
       <button class="adm-tab" data-tab="players" onclick="document.querySelectorAll('.adm-tab').forEach(b=>b.classList.toggle('act',b===this));loadAdminTab('players')">Players</button>
       <button class="adm-tab" data-tab="finance" onclick="document.querySelectorAll('.adm-tab').forEach(b=>b.classList.toggle('act',b===this));loadAdminTab('finance')">Finance</button>
     </div>
@@ -1024,7 +1136,7 @@ td{padding:10px 10px;vertical-align:middle;}
 //  CONFIG
 // ════════════════════════════════════════════════════════
 const GOOGLE_CLIENT_ID = '127701976947-881utr0ljs1eqrfmuoqrsbqh5635vtfl.apps.googleusercontent.com';
-const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbz4_R_1T_T9rUY0SmbiM6iEYDtlY4oMlxn3czghSdbjIB6OS1_3CGTKc0S8ErtiQqfK/exec';
+const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbzcIR3bT9TUyq-3fRNrS5CfG9ul2ZfRl_HIppOFbqpxtj5mMaJ5aZC3_bw7VKEDoTU/exec';
 
 // ════════════════════════════════════════════════════════
 //  STATE
@@ -1034,12 +1146,13 @@ let token        = null;
 let orgs         = [];      // SponsorOrgs — one per company
 let seasonEntries = [];     // SponsorSeasons — org × year
 let years        = [];      // available year list
+let packages     = [];      // SponsorPackages — standard packages
 let activeSeason = null;
 let curFilter    = 'all';
-let curView      = 'active'; // 'active' | 'prospect'
-let editOrgId    = null;     // org being edited
-let editSSId     = null;     // season entry being edited
-let editSSOrg    = null;     // orgId for season edit
+let curView      = 'active';
+let editOrgId    = null;
+let editSSId     = null;
+let editSSOrg    = null;
 
 const TO = {gold:1,silver:2,bronze:3,community:4};
 const TH = {gold:'#9a6700',silver:'#4a6070',bronze:'#7a4a28',community:'#013C1E'};
@@ -1142,7 +1255,9 @@ async function loadAll() {
     orgs          = data.orgs   || [];
     seasonEntries = data.seasons || [];
     years         = (data.years || []).sort((a,b) => b-a);
+    packages      = data.packages || [];
     if (!activeSeason || !years.includes(activeSeason)) activeSeason = years[0] || null;
+    populatePackageSelect();
     renderSeasonTabs();
     render();
     setSyncState('ok', 'Synced · ' + fmtTime(new Date()));
@@ -1392,7 +1507,7 @@ async function openOrgDetail(orgId) {
 // Render a single season-entry row (no nested template literals)
 function renderSSRow(s, orgId) {
   const tierCol  = TH[s.tier] || 'inherit';
-  const tierLbl  = TL[s.tier] || cap(s.tier);
+  const tierLbl  = s.customPackage || TL[s.tier] || cap(s.tier);
   const isInKind = s.status === 'inkind';
 
   const amtHtml = isInKind
@@ -1411,6 +1526,24 @@ function renderSSRow(s, orgId) {
     ? '<span style="font-size:11px;color:var(--text-dim);padding:2px 8px;background:var(--bg);border-radius:4px;border:1px solid var(--border);flex-shrink:0;margin-left:2px;">Edit →</span>'
     : '';
 
+  // Checklist mini-summary
+  const checks = [
+    { key: 'chkInvoiceSent', label: 'Invoice' },
+    { key: 'chkThankYou',    label: 'Thank you' },
+    { key: 'chkLogoWebsite', label: 'Website' },
+    { key: 'chkTrainingTop', label: 'Training top' },
+  ];
+  const total = checks.length;
+  const done  = checks.filter(c => s[c.key] === 'true').length;
+  const chkHtml = total > 0
+    ? '<span style="font-size:10px;font-weight:700;color:' + (done===total?'var(--green)':'var(--orange)') + ';background:' + (done===total?'var(--green-light)':'var(--orange-light)') + ';padding:2px 7px;border-radius:10px;white-space:nowrap;">'
+      + (done===total?'✓ All done':done+'/'+total+' done')+'</span>'
+    : '';
+
+  const invoiceHtml = s.invoiceNum
+    ? '<span style="font-size:10px;color:var(--text-dim);padding:2px 6px;background:var(--bg);border-radius:4px;border:1px solid var(--border);">🧾 ' + s.invoiceNum + '</span>'
+    : '';
+
   const subLine = (isInKind && s.inkindDesc)
     ? '<div style="font-size:11px;color:#6d28d9;margin-top:3px;">📦 ' + s.inkindDesc + '</div>'
     : (s.notes ? '<div style="font-size:11px;color:var(--text-dim);margin-top:3px;">📋 ' + s.notes + '</div>' : '');
@@ -1421,11 +1554,14 @@ function renderSSRow(s, orgId) {
     +     '<div class="tdot ' + s.tier + '" style="flex-shrink:0;"></div>'
     +     '<span style="font-weight:800;font-size:14px;color:' + tierCol + ';">' + tierLbl + '</span>'
     +     '<span style="font-size:12px;color:var(--text-dim);font-weight:600;">' + s.year + '</span>'
+    +     invoiceHtml
     +   '</div>'
     +   subLine
+    +   '<div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap;">' + chkHtml + '</div>'
     + '</div>'
-    + '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
-    +   amtHtml + paidHtml + statusBadge + editHint
+    + '<div style="display:flex;align-items:flex-start;gap:5px;flex-shrink:0;flex-direction:column;align-items:flex-end;">'
+    +   '<div style="display:flex;gap:5px;align-items:center;">' + amtHtml + paidHtml + '</div>'
+    +   '<div style="display:flex;gap:5px;align-items:center;">' + statusBadge + editHint + '</div>'
     + '</div>'
     + '</div>';
 }
@@ -1653,6 +1789,78 @@ async function deleteOrg() {
 // ════════════════════════════════════════════════════════
 //  SEASON ENTRY MODAL
 // ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  SEASON ENTRY MODAL — package-aware with checklist
+// ════════════════════════════════════════════════════════
+function populatePackageSelect() {
+  const sel = document.getElementById('sf-package');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Select package —</option>';
+  const active = packages.filter(p => p.active !== 'false');
+  active.sort((a,b) => (a.tier==='gold'?1:a.tier==='silver'?2:a.tier==='bronze'?3:4) - (b.tier==='gold'?1:b.tier==='silver'?2:b.tier==='bronze'?3:4));
+  active.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name + (p.amount ? ' — $' + Number(p.amount).toLocaleString('en-AU') : '');
+    sel.appendChild(opt);
+  });
+  const custom = document.createElement('option');
+  custom.value = 'custom';
+  custom.textContent = '⭐ Custom / Other…';
+  sel.appendChild(custom);
+  if (cur) sel.value = cur;
+}
+
+function onPackageSelect() {
+  const pkgId = document.getElementById('sf-package').value;
+  const card  = document.getElementById('sf-pkg-card');
+  const customWrap = document.getElementById('sf-custom-wrap');
+
+  if (pkgId === 'custom') {
+    card.style.display = 'none';
+    customWrap.style.display = '';
+    document.getElementById('sf-tier').value = 'custom';
+    document.getElementById('sf-amount').value = '';
+    return;
+  }
+  customWrap.style.display = 'none';
+
+  const pkg = packages.find(p => p.id === pkgId);
+  if (!pkg) { card.style.display = 'none'; return; }
+
+  // Auto-fill tier and amount
+  document.getElementById('sf-tier').value   = pkg.tier || 'gold';
+  document.getElementById('sf-amount').value = pkg.amount || '';
+
+  // Show benefits card
+  document.getElementById('sf-pkg-card-name').textContent     = pkg.name + (pkg.description ? ' — ' + pkg.description : '');
+  document.getElementById('sf-pkg-card-benefits').textContent = pkg.benefits ? '✓ ' + pkg.benefits : '';
+  card.style.display = '';
+  updateBalance();
+}
+
+function resetSSModal() {
+  document.getElementById('sf-package').value    = '';
+  document.getElementById('sf-tier').value       = 'gold';
+  document.getElementById('sf-status').value     = '';
+  document.getElementById('sf-amount').value     = '';
+  document.getElementById('sf-paid').value       = '';
+  document.getElementById('sf-invoice').value    = '';
+  document.getElementById('sf-notes').value      = '';
+  document.getElementById('sf-inkind-desc').value = '';
+  document.getElementById('sf-custom-name').value = '';
+  document.getElementById('chk-invoice').checked = false;
+  document.getElementById('chk-thankyou').checked = false;
+  document.getElementById('chk-logo').checked    = false;
+  document.getElementById('chk-top').checked     = false;
+  document.getElementById('sf-pkg-card').style.display    = 'none';
+  document.getElementById('sf-custom-wrap').style.display = 'none';
+  document.getElementById('sf-partial-wrap').style.display = 'none';
+  document.getElementById('sf-inkind-wrap').style.display  = 'none';
+  document.getElementById('sf-amount-wrap').style.display  = '';
+}
+
 function openAddSS(orgId) {
   if (!me || !me.edit) return;
   editSSId  = null;
@@ -1662,15 +1870,7 @@ function openAddSS(orgId) {
   document.getElementById('ss-m-sub').textContent   = org ? org.name : '';
   document.getElementById('ss-m-save').textContent  = 'Add Sponsorship';
   document.getElementById('ss-m-del').style.display = 'none';
-  document.getElementById('sf-tier').value      = '';
-  document.getElementById('sf-status').value    = '';
-  document.getElementById('sf-amount').value    = '';
-  document.getElementById('sf-paid').value      = '';
-  document.getElementById('sf-notes').value     = '';
-  document.getElementById('sf-inkind-desc').value = '';
-  document.getElementById('sf-partial-wrap').style.display  = 'none';
-  document.getElementById('sf-inkind-wrap').style.display   = 'none';
-  document.getElementById('sf-amount-wrap').style.display   = '';
+  resetSSModal();
   const sel = document.getElementById('sf-year');
   if (sel) sel.value = activeSeason;
   document.getElementById('ss-modal').classList.add('open');
@@ -1686,13 +1886,35 @@ function openEditSS(ssId, orgId) {
   document.getElementById('ss-m-sub').textContent   = (org ? org.name : '') + ' · ' + ss.year;
   document.getElementById('ss-m-save').textContent  = 'Save Changes';
   document.getElementById('ss-m-del').style.display = 'block';
+
+  resetSSModal();
   document.getElementById('sf-year').value      = ss.year;
-  document.getElementById('sf-tier').value      = ss.tier;
+  document.getElementById('sf-tier').value      = ss.tier || 'gold';
   document.getElementById('sf-status').value    = ss.status;
-  document.getElementById('sf-amount').value    = ss.status === 'inkind' ? '' : ss.amount;
+  document.getElementById('sf-amount').value    = ss.status === 'inkind' ? '' : (ss.amount || '');
   document.getElementById('sf-paid').value      = ss.paidAmount || '';
+  document.getElementById('sf-invoice').value   = ss.invoiceNum || '';
   document.getElementById('sf-notes').value     = ss.notes || '';
   document.getElementById('sf-inkind-desc').value = ss.inkindDesc || '';
+  document.getElementById('sf-custom-name').value = ss.customPackage || '';
+  document.getElementById('chk-invoice').checked  = ss.chkInvoiceSent  === 'true';
+  document.getElementById('chk-thankyou').checked = ss.chkThankYou     === 'true';
+  document.getElementById('chk-logo').checked     = ss.chkLogoWebsite  === 'true';
+  document.getElementById('chk-top').checked      = ss.chkTrainingTop  === 'true';
+
+  // Try to match a package
+  if (ss.customPackage) {
+    document.getElementById('sf-package').value = 'custom';
+    document.getElementById('sf-custom-wrap').style.display = '';
+  } else {
+    const matchPkg = packages.find(p => p.tier === ss.tier && +p.amount === +ss.amount);
+    if (matchPkg) {
+      document.getElementById('sf-package').value = matchPkg.id;
+      document.getElementById('sf-pkg-card-name').textContent     = matchPkg.name + (matchPkg.description ? ' — ' + matchPkg.description : '');
+      document.getElementById('sf-pkg-card-benefits').textContent = matchPkg.benefits ? '✓ ' + matchPkg.benefits : '';
+      document.getElementById('sf-pkg-card').style.display = '';
+    }
+  }
   updateSSFields();
   document.getElementById('ss-modal').classList.add('open');
 }
@@ -1706,7 +1928,7 @@ function updateSSFields() {
   document.getElementById('sf-partial-wrap').style.display  = isPartial ? '' : 'none';
   document.getElementById('sf-inkind-wrap').style.display   = isInKind  ? '' : 'none';
   document.getElementById('sf-amount-wrap').style.display   = isInKind  ? 'none' : '';
-  if (isInKind) { document.getElementById('sf-amount').value = '0'; }
+  if (isInKind) document.getElementById('sf-amount').value  = '0';
   updateBalance();
 }
 
@@ -1716,33 +1938,44 @@ function updateBalance() {
   const bal    = document.getElementById('sf-balance');
   if (!bal) return;
   const owing = amount - paid;
-  bal.textContent = owing > 0 ? '$' + owing.toLocaleString('en-AU') : owing === 0 ? '✓ Fully paid' : 'Overpaid';
+  bal.textContent = owing > 0 ? '$' + owing.toLocaleString('en-AU') : owing === 0 ? '✓ Fully paid' : 'Overpaid!';
   bal.style.color = owing > 0 ? 'var(--orange)' : 'var(--green-bright)';
+  bal.style.background = owing > 0 ? 'var(--orange-light)' : 'var(--green-light)';
 }
 
 document.getElementById('sf-status').addEventListener('change', updateSSFields);
-document.getElementById('sf-amount').addEventListener('input',  updateBalance);
-document.getElementById('sf-paid').addEventListener('input',    updateBalance);
 
 async function saveSS() {
-  const tier      = document.getElementById('sf-tier').value;
-  const status    = document.getElementById('sf-status').value;
-  const amount    = document.getElementById('sf-amount').value;
-  const notes     = document.getElementById('sf-notes').value.trim();
-  const inkindDesc= document.getElementById('sf-inkind-desc').value.trim();
-  if (!tier)   { showToast('Select a tier / package', 'warn'); return; }
+  const pkgId      = document.getElementById('sf-package').value;
+  const tier       = document.getElementById('sf-tier').value;
+  const status     = document.getElementById('sf-status').value;
+  const amount     = document.getElementById('sf-amount').value;
+  const notes      = document.getElementById('sf-notes').value.trim();
+  const inkindDesc = document.getElementById('sf-inkind-desc').value.trim();
+  const customPkg  = document.getElementById('sf-custom-name').value.trim();
+
+  if (!pkgId)  { showToast('Select a package', 'warn'); return; }
   if (!status) { showToast('Select a payment status', 'warn'); return; }
+  if (pkgId === 'custom' && !customPkg) { showToast('Enter the custom package name', 'warn'); return; }
   if (status === 'inkind' && !inkindDesc) { showToast('Describe what they\'re providing', 'warn'); return; }
   const finalAmount = status === 'inkind' ? 0 : +amount;
-  if (status !== 'inkind' && (!amount || +amount <= 0)) { showToast('Enter the agreed amount', 'warn'); return; }
+  if (status !== 'inkind' && finalAmount <= 0) { showToast('Enter the agreed amount', 'warn'); return; }
+
   const data = {
     id: editSSId || '', orgId: editSSOrg,
-    year: +document.getElementById('sf-year').value,
-    tier, status,
-    amount: finalAmount,
-    paidAmount: +document.getElementById('sf-paid').value || 0,
-    notes, inkindDesc,
+    year:          +document.getElementById('sf-year').value,
+    tier,  status,
+    amount:        finalAmount,
+    paidAmount:    +document.getElementById('sf-paid').value || 0,
+    notes,         inkindDesc,
+    invoiceNum:    document.getElementById('sf-invoice').value.trim(),
+    chkInvoiceSent:  String(document.getElementById('chk-invoice').checked),
+    chkThankYou:     String(document.getElementById('chk-thankyou').checked),
+    chkLogoWebsite:  String(document.getElementById('chk-logo').checked),
+    chkTrainingTop:  String(document.getElementById('chk-top').checked),
+    customPackage:   pkgId === 'custom' ? customPkg : '',
   };
+
   setSyncState('loading', 'Saving…');
   btnLoading(document.getElementById('ss-m-save'), true);
   const res = await api('saveSeason', { data, isNew: !editSSId });
@@ -1765,9 +1998,9 @@ async function deleteSS() {
   btnLoading(document.getElementById('ss-m-del'), false);
   if (res.error) { showToast('Error: '+res.error, 'err'); return; }
   const reopenOrgId = editSSOrg;
-  seasonEntries = seasonEntries.filter(s=>s.id!==editSSId);
+  seasonEntries = seasonEntries.filter(s => s.id !== editSSId);
   closeSSModal(); render();
-  showToast('Season entry removed');
+  showToast('Sponsorship entry removed');
   if (reopenOrgId) setTimeout(() => openOrgDetail(reopenOrgId), 100);
   loadAll();
 }
@@ -1917,6 +2150,10 @@ async function loadAdminTab(tab) {
     </div>`;
     return;
   }
+  if (tab==='packages') {
+    renderPackageManager();
+    return;
+  }
   if (tab==='log') {
     body.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;">Loading…</div>';
     const res = await api('getLog');
@@ -1961,6 +2198,107 @@ async function confirmEditUser() {
   const res = await api('updateUser', { email: editingUser.email, name: document.getElementById('um-name').value.trim(), role: document.getElementById('um-role').value });
   if (res.error) { showToast('Error: '+res.error,'err'); return; }
   closeUserModal(); showToast('User updated ✓'); loadAll();
+}
+
+// ════════════════════════════════════════════════════════
+//  PACKAGE MANAGER (admin tab)
+// ════════════════════════════════════════════════════════
+let editPkgId = null;
+
+function renderPackageManager() {
+  const body = document.getElementById('adm-body');
+  const tierLabel = { gold:'🥇 Gold', silver:'🥈 Silver', bronze:'🥉 Bronze', community:'🤝 Community', custom:'⭐ Custom' };
+
+  const rows = packages.length ? packages.map(function(p) {
+    const usageCount = seasonEntries.filter(function(s) {
+      return s.tier === p.tier && +s.amount === +p.amount && !s.customPackage;
+    }).length;
+    return '<div class="pkg-row">'
+      + '<div style="display:flex;align-items:flex-start;gap:10px;flex:1;min-width:0;">'
+      +   '<div class="tdot ' + (p.tier||'gold') + '" style="flex-shrink:0;margin-top:3px;"></div>'
+      +   '<div style="flex:1;min-width:0;">'
+      +     '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">'
+      +       '<span style="font-weight:800;font-size:15px;">' + p.name + '</span>'
+      +       '<span style="font-size:11px;color:var(--text-dim);">' + (tierLabel[p.tier]||p.tier) + '</span>'
+      +       (p.active === 'false' ? '<span style="font-size:9px;background:#f3f4f6;color:#6b7280;padding:1px 6px;border-radius:8px;font-weight:700;">Inactive</span>' : '')
+      +     '</div>'
+      +     (p.description ? '<div style="font-size:12px;color:var(--text-dim);margin-top:2px;">' + p.description + '</div>' : '')
+      +     (p.benefits ? '<div style="font-size:11px;color:var(--green);margin-top:3px;">✓ ' + p.benefits + '</div>' : '')
+      +   '</div>'
+      + '</div>'
+      + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">'
+      +   '<div style="font-size:16px;font-weight:900;color:var(--text);">$' + Number(p.amount||0).toLocaleString('en-AU') + '</div>'
+      +   '<div style="font-size:10px;color:var(--text-dim);">' + usageCount + ' use' + (usageCount!==1?'s':'') + '</div>'
+      +   (me && me.edit ? '<button class="actbtn" onclick="openPkgModal(\'' + p.id + '\')">Edit</button>' : '')
+      + '</div>'
+      + '</div>';
+  }).join('') : '<div style="color:var(--text-dim);font-size:13px;padding:16px 0;text-align:center;">No packages yet. Add your first one below.</div>';
+
+  body.innerHTML = '<div style="padding-bottom:4px;">'
+    + (me && me.edit ? '<button class="ss-add-btn" style="margin-bottom:14px;width:100%;text-align:center;" onclick="openPkgModal(null)">+ Add New Package</button>' : '')
+    + '<div style="display:flex;flex-direction:column;gap:8px;">' + rows + '</div>'
+    + '<div style="margin-top:16px;padding:12px;background:var(--yellow-pale);border:1.5px solid var(--yellow-dark);border-radius:9px;font-size:12px;color:#6b4900;">'
+    +   '<strong>💡 Tip:</strong> Packages define your standard sponsorship tiers. When adding a sponsor to a season, you\'ll pick from these packages — the amount auto-fills. Use <em>Custom/Other</em> for one-off arrangements.'
+    + '</div>'
+    + '</div>';
+}
+
+function openPkgModal(pkgId) {
+  editPkgId = pkgId;
+  const pkg = pkgId ? packages.find(function(p){ return p.id === pkgId; }) : null;
+  document.getElementById('pkg-m-title').textContent = pkg ? 'Edit Package' : 'Add Package';
+  document.getElementById('pf-name').value     = pkg ? pkg.name      : '';
+  document.getElementById('pf-tier').value     = pkg ? (pkg.tier||'gold') : 'gold';
+  document.getElementById('pf-amount').value   = pkg ? pkg.amount    : '';
+  document.getElementById('pf-desc').value     = pkg ? pkg.description : '';
+  document.getElementById('pf-benefits').value = pkg ? pkg.benefits  : '';
+  document.getElementById('pkg-m-del').style.display = pkg ? 'block' : 'none';
+  document.getElementById('pkg-modal').classList.add('open');
+}
+
+function closePkgModal() {
+  document.getElementById('pkg-modal').classList.remove('open');
+  editPkgId = null;
+}
+
+async function savePkg() {
+  const name = document.getElementById('pf-name').value.trim();
+  if (!name) { showToast('Enter a package name', 'warn'); return; }
+  const data = {
+    id:          editPkgId || '',
+    name,
+    tier:        document.getElementById('pf-tier').value,
+    amount:      +document.getElementById('pf-amount').value || 0,
+    description: document.getElementById('pf-desc').value.trim(),
+    benefits:    document.getElementById('pf-benefits').value.trim(),
+    active:      'true',
+  };
+  btnLoading(document.getElementById('pkg-m-save'), true);
+  const res = await api('savePackage', { data, isNew: !editPkgId });
+  btnLoading(document.getElementById('pkg-m-save'), false);
+  if (res.error) { showToast('Error: ' + res.error, 'err'); return; }
+  if (!editPkgId) { data.id = res.id; packages.push(data); }
+  else { const idx = packages.findIndex(function(p){ return p.id === editPkgId; }); if (idx>=0) packages[idx] = {...packages[idx], ...data}; }
+  populatePackageSelect();
+  closePkgModal();
+  renderPackageManager();
+  showToast(editPkgId ? 'Package updated ✓' : 'Package added ✓');
+}
+
+async function deletePkg() {
+  if (!editPkgId) return;
+  const pkg = packages.find(function(p){ return p.id === editPkgId; });
+  const inUse = seasonEntries.filter(function(s){ return s.tier === (pkg&&pkg.tier) && +s.amount === +(pkg&&pkg.amount) && !s.customPackage; }).length;
+  if (inUse > 0 && !confirm('This package is used by ' + inUse + ' sponsor entry/entries. Delete anyway?')) return;
+  btnLoading(document.getElementById('pkg-m-del'), true);
+  const res = await api('deletePackage', { id: editPkgId });
+  btnLoading(document.getElementById('pkg-m-del'), false);
+  if (res.error) { showToast('Error: ' + res.error, 'err'); return; }
+  packages = packages.filter(function(p){ return p.id !== editPkgId; });
+  populatePackageSelect();
+  closePkgModal();
+  renderPackageManager();
+  showToast('Package deleted');
 }
 
 // ════════════════════════════════════════════════════════
@@ -2059,6 +2397,10 @@ function init() {
   // Wire admin modal
   const _am = document.getElementById('admin-modal');
   if (_am) _am.addEventListener('click', e => { if(e.target===_am) closeAdminModal(); });
+
+  // Wire pkg modal
+  const _pm = document.getElementById('pkg-modal');
+  if (_pm) _pm.addEventListener('click', e => { if(e.target===_pm) closePkgModal(); });
 
   // Hide loading screen
   setTimeout(() => {
