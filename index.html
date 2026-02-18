@@ -1451,43 +1451,7 @@ async function api(action, body = {}) {
   });
 }
 
-// ── CSV row → compact object (short keys to stay within URL limits) ─────────
-// Apps Script JSONP runs via URL params; 82 full rows would exceed ~8KB limit.
-// We compress each row to short keys, send in batches of 7, backend expands them.
-const CSV_KEY_MAP = {
-  'Profile ID':'pid', 'First Name':'fn', 'Last Name':'ln', 'Preferred Name':'pn',
-  'Date of Birth':'dob', 'Gender':'gen',
-  'Participant Address':'addr', 'Participant Suburb/Town':'sub',
-  'Participant Postcode':'pcode', 'Participant State/County/City':'state',
-  'Participant Country':'cntry',
-  'Registration Timestamp':'regts', 'New To Club':'ntc', 'New To Association':'nta', 'Source':'src',
-  'Age Group':'ag', 'Role':'role', 'Club':'club', 'Status':'stat',
-  'Competition':'comp', 'Team':'team',
-  'School Details':'sch', 'School Year':'schyr',
-  'Does the participant have any medical conditions or allergies that you would like the club  centre to be aware of':'medf',
-  'Please outline those medical conditions or allergies and other relevant information note please ensure you liaise directly with relevant people at your club  centre to ensure relevant first aid management plans are in place':'medd',
-  'Aboriginal/Torres Strait Islander':'atsi',
-  'Participant Country of Birth':'cob', 'Parent/Guardian Born Overseas?':'pbo',
-  'Disability':'dis', 'Disability Type':'dist',
-  'Account Holder':'ah', 'Account Holder Mobile':'ahm', 'Account Holder Email':'ahe',
-  'Parent/Guardian1 First Name':'p1f', 'Parent/Guardian1 Last Name':'p1l',
-  'Parent/Guardian1 Mobile Number':'p1ph', 'Parent/Guardian1 Email':'p1em',
-  'Parent/Guardian1 Address':'p1ad', 'Parent/Guardian1 Suburb/Town':'p1sub', 'Parent/Guardian1 Postcode':'p1pc',
-  'Parent/Guardian2 First Name':'p2f', 'Parent/Guardian2 Last Name':'p2l',
-  'Parent/Guardian2 Mobile Number':'p2ph', 'Parent/Guardian2 Email':'p2em',
-  'Parent/Guardian2 Address':'p2ad', 'Parent/Guardian2 Suburb/Town':'p2sub', 'Parent/Guardian2 Postcode':'p2pc',
-  'Emergency Contact First Name':'ecf', 'Emergency Contact Last Name':'ecl',
-  'Emergency Contact Mobile Number':'ecph', 'Emergency Contact Email':'ecem',
-  'Emergency Contact Relationship':'ecrel',
-};
-function compressRow(r) {
-  const out = {};
-  for (const [full, short] of Object.entries(CSV_KEY_MAP)) {
-    const v = (r[full]||'').trim();
-    if (v) out[short] = v;
-  }
-  return out;
-}
+
 
 // ════════════════════════════════════════════════════════
 //  GOOGLE SIGN-IN
@@ -3690,7 +3654,7 @@ function handleImportFile(file) {
                excludeReason, dupType, _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'csv_duplicate' };
     });
 
-    _importData = { season, rows: categorised, file: file.name };
+    _importData = { season, rows: categorised, file: file.name, rawCsv: ev.target.result };
     renderImportReview(categorised, season, file.name, seasonChanged ? csvSeason : null);
   };
   reader.readAsText(file);
@@ -3848,60 +3812,96 @@ function updateImportCount(rows) {
 
 async function runImport() {
   if (!_importData) return;
-  const selected = _importData.rows.filter(r => r._checked).map(r => r.r);
+  const selected = _importData.rows.filter(r => r._checked);
   const season   = _importData.season;
   if (!selected.length) { showToast('No players selected', 'err'); return; }
 
-  const btn      = document.getElementById('imp-confirm-btn');
-  const countEl  = document.getElementById('imp-sel-count');
-  const BATCH    = 7; // safe size for JSONP URL limit (~8KB)
-  const batches  = [];
-  for (let i = 0; i < selected.length; i += BATCH) batches.push(selected.slice(i, i + BATCH));
+  const btn     = document.getElementById('imp-confirm-btn');
+  const countEl = document.getElementById('imp-sel-count');
+  btn.disabled  = true;
 
-  btn.disabled = true;
-  const totals = { imported: 0, updated: 0, seniors: 0, skipped: 0, errors: 0 };
+  const setStatus = (msg, colour) => {
+    if (!countEl) return;
+    countEl.innerHTML = `<span style="font-size:13px;color:${colour||'var(--text-dim)'};">${msg}</span>`;
+  };
 
-  for (let b = 0; b < batches.length; b++) {
-    // Show progress
-    const pct   = Math.round((b / batches.length) * 100);
-    const done  = b * BATCH;
-    if (countEl) countEl.innerHTML =
-      `<div style="display:flex;align-items:center;gap:10px;">
-        <div style="flex:1;background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
-          <div style="height:100%;background:var(--green);width:${pct}%;transition:width .3s;"></div>
-        </div>
-        <span style="font-size:12px;color:var(--text-dim);white-space:nowrap;">
-          ${done} / ${selected.length} players sent…
-        </span>
-      </div>`;
+  // ── Step 1: Build filtered CSV (only selected rows) ───────────────────────
+  setStatus('Preparing CSV…');
+  const allParsed   = parseCSV(_importData.rawCsv);
+  const selectedKeys = new Set(selected.map(item => {
+    const r = item.r;
+    return (r['Profile ID']||'').trim() ||
+      ((r['First Name']||'').trim()+'_'+(r['Last Name']||'').trim()+'_'+(r['Date of Birth']||'').trim());
+  }));
+  const filteredRows = allParsed.filter(r => {
+    const key = (r['Profile ID']||'').trim() ||
+      ((r['First Name']||'').trim()+'_'+(r['Last Name']||'').trim()+'_'+(r['Date of Birth']||'').trim());
+    return selectedKeys.has(key);
+  });
+  const csvHeaders = Object.keys(allParsed[0] || {});
+  const esc = v => { const s = String(v||''); return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const csvText = [
+    csvHeaders.map(esc).join(','),
+    ...filteredRows.map(r => csvHeaders.map(h => esc(r[h]||'')).join(','))
+  ].join('\n');
 
-    const compressedBatch = batches[b].map(compressRow);
-    const res = await api('importPlayers', { rows: compressedBatch, season });
-    if (res.error) {
-      btn.disabled = false;
-      if (countEl) countEl.textContent = `${selected.length} players selected for import`;
-      showToast('Import failed (batch ' + (b+1) + '): ' + res.error, 'err');
-      return;
+  // ── Step 2: Get a Drive resumable upload URL from the backend ─────────────
+  // Backend creates an empty file in the hidden temp folder and returns a
+  // resumable upload URL using its own service OAuth token.
+  setStatus('Requesting upload slot…');
+  const urlRes = await api('getUploadUrl', { name: _importData.file });
+  if (urlRes.error) {
+    btn.disabled = false;
+    setStatus(selected.length + ' players selected for import');
+    showToast('Could not get upload slot: ' + urlRes.error, 'err');
+    return;
+  }
+  const { uploadUrl, fileId } = urlRes;
+
+  // ── Step 3: PUT the CSV directly to Google Drive ──────────────────────────
+  // This is a direct browser→Drive request — no Apps Script in the path,
+  // no URL length limits, CORS is allowed by Google for resumable upload URLs.
+  setStatus('Uploading to Drive…');
+  try {
+    const uploadRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'text/plain; charset=UTF-8' },
+      body: csvText,
+    });
+    if (!uploadRes.ok) {
+      const errText = await uploadRes.text().catch(() => uploadRes.status);
+      throw new Error('HTTP ' + uploadRes.status + ': ' + String(errText).slice(0, 150));
     }
-    const s = res.stats || {};
-    totals.imported += s.imported || 0;
-    totals.updated  += s.updated  || 0;
-    totals.seniors  += s.seniors  || 0;
-    totals.skipped  += s.skipped  || 0;
-    totals.errors   += s.errors   || 0;
+  } catch (err) {
+    btn.disabled = false;
+    setStatus(selected.length + ' players selected for import');
+    showToast('Drive upload failed: ' + err.message, 'err');
+    return;
   }
 
-  // Done
-  if (countEl) countEl.innerHTML =
-    `<span style="color:var(--green);font-weight:700;">✓ Import complete</span>`;
-  showToast(`Import done — ${totals.imported} new · ${totals.updated} updated · ${totals.seniors} seniors excluded${totals.errors?' · '+totals.errors+' errors':''}`);
+  // ── Step 4: Trigger backend import from the Drive file ────────────────────
+  // Backend reads the file, runs the full import logic, then trashes the file.
+  setStatus('Importing players…');
+  const res = await api('importPlayers', { fileId, season });
+
+  btn.disabled = false;
+  if (res.error) {
+    setStatus(selected.length + ' players selected for import');
+    showToast('Import failed: ' + res.error, 'err');
+    return;
+  }
+
+  const s = res.stats || {};
+  setStatus('✓ Import complete', 'var(--green)');
+  showToast(`Import done — ${s.imported} new · ${s.updated} updated · ${s.seniors} seniors excluded${s.errors?' · '+s.errors+' errors':''}`);
   _importData = null;
-  plData = null;
-  plSeason = season;
+  plData      = null;
+  plSeason    = season;
   document.getElementById('pl-season-sel').value = season;
   await loadPlayerData();
   switchPlTab(document.querySelector('.pl-tab[data-tab="overview"]'), 'overview');
 }
+
 
 // Client-side age calc (mirrors backend)
 function calcAgeClient(dobStr, season) {
