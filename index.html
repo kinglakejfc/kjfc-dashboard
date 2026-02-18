@@ -3651,7 +3651,10 @@ function handleImportFile(file) {
       }
 
       return { r, idx, firstName, lastName, dob, profileId, age, ageGroup, gender, school, suburb,
-               excludeReason, dupType, _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'csv_duplicate' };
+               excludeReason, dupType,
+               // Pre-checked: new players + returning (contact update) + name_dob_match (contact update)
+               // Unchecked: already_this_season (skip), csv_duplicate (skip), any excluded row
+               _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'csv_duplicate' };
     });
 
     _importData = { season, rows: categorised, file: file.name, rawCsv: ev.target.result };
@@ -3690,7 +3693,7 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
         <span><strong style="color:var(--green)">${include.length}</strong> to include</span>
         <span><strong style="color:var(--red)">${exclude.length}</strong> excluded</span>
         <span><strong style="color:#ca8a04">${dups.length}</strong> flagged</span>
-        <span><strong>${fresh.length}</strong> new · <strong>${returning.length}</strong> returning</span>
+        <span><strong>${fresh.length}</strong> new · <strong>${returning.length}</strong> update contact details · <strong>${rows.filter(r=>r.dupType==='already_this_season').length}</strong> already imported</span>
       </div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:5px;">Age eligibility assessed at end of ${season} (player's age turning during ${season} calendar year)</div>
     </div>
@@ -3743,7 +3746,7 @@ function renderImportTab(tabId, rows) {
   let filtered;
   if (tabId === 'inc') filtered = rows.filter(r => !r.excludeReason);
   else if (tabId === 'exc') filtered = rows.filter(r =>  r.excludeReason);
-  else filtered = rows.filter(r => !r.excludeReason && r.dupType && r.dupType !== 'returning');
+  else filtered = rows.filter(r => !r.excludeReason && r.dupType);
 
   if (!filtered.length) {
     list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-dim);font-size:13px;">No records in this category.</div>`;
@@ -3751,9 +3754,9 @@ function renderImportTab(tabId, rows) {
   }
 
   const dupColour = {
-    already_this_season: { bg:'#f0fdf4', badge:'#16a34a', label:'Already in season' },
-    returning:           { bg:'#eff6ff', badge:'#2563eb', label:'Returning' },
-    name_dob_match:      { bg:'#fefce8', badge:'#ca8a04', label:'Name+DOB match' },
+    already_this_season: { bg:'#f0fdf4', badge:'#16a34a', label:'Already imported' },
+    returning:           { bg:'#eff6ff', badge:'#2563eb', label:'Returning — will update contact details' },
+    name_dob_match:      { bg:'#fefce8', badge:'#ca8a04', label:'Name+DOB match — will update contact details' },
     csv_duplicate:       { bg:'#fef2f2', badge:'#dc2626', label:'Duplicate in file' },
   };
 
@@ -3871,16 +3874,24 @@ async function runImport() {
   }
   const uploadId = startRes.uploadId;
 
-  // 2b: Send chunks sequentially
-  for (let i = 0; i < chunks.length; i++) {
-    setStatus(`Uploading… ${i + 1}/${chunks.length}`);
-    const chunkRes = await api('appendChunk', { uploadId, index: i, data: chunks[i] });
-    if (chunkRes.error) {
-      btn.disabled = false;
-      setStatus('❌ Chunk ' + i + ' failed: ' + chunkRes.error, '#dc2626');
-      showToast('Upload failed at chunk ' + i + ': ' + chunkRes.error, 'err');
-      return;
+  // 2b: Send chunks in parallel batches of 8 — ~8x faster than sequential
+  const PARALLEL = 8;
+  let sent = 0;
+  for (let i = 0; i < chunks.length; i += PARALLEL) {
+    const batch = chunks.slice(i, i + PARALLEL);
+    const results = await Promise.all(
+      batch.map((data, j) => api('appendChunk', { uploadId, index: i + j, data }))
+    );
+    for (let j = 0; j < results.length; j++) {
+      if (results[j].error) {
+        btn.disabled = false;
+        setStatus('❌ Chunk ' + (i+j) + ' failed: ' + results[j].error, '#dc2626');
+        showToast('Upload failed: ' + results[j].error, 'err');
+        return;
+      }
     }
+    sent += batch.length;
+    setStatus('Uploading… ' + sent + '/' + chunks.length);
   }
 
   // 2c: Finalise — backend reassembles, saves to Drive, runs import
