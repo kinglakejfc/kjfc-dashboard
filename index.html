@@ -1030,6 +1030,11 @@ function setSyncState(state, text) {
 async function init() {
   loadSession();
   initGoogleSignIn();
+  // Attach listeners safely now DOM is guaranteed ready
+  const _nri = document.getElementById('new-role-input');
+  if (_nri) _nri.addEventListener('keydown', e => { if (e.key === 'Enter') addCustomRole(); });
+  const _rm = document.getElementById('roles-modal');
+  if (_rm) _rm.addEventListener('click', e => { if (e.target === _rm) closeManageRoles(); });
 
   if (token && me) {
     // Verify token is still valid
@@ -1682,8 +1687,7 @@ function deleteRole(idx) {
   saveRoles(roles);
   renderRolesList();
 }
-document.getElementById('new-role-input').addEventListener('keydown', e => { if (e.key === 'Enter') addCustomRole(); });
-document.getElementById('roles-modal').addEventListener('click', e => { if (e.target === document.getElementById('roles-modal')) closeManageRoles(); });
+// These are attached inside init() to ensure DOM is ready
 
 // ── EDIT USER ────────────────────────────────────────────────────
 function openEditUser(email, name, role, isAdmin, canEdit) {
