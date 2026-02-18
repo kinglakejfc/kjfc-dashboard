@@ -126,6 +126,9 @@ header{
 .logo-text h1{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;text-transform:uppercase;letter-spacing:.4px;line-height:1.1;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .logo-text small{font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;display:none;}
 .huser{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.hnav{display:flex;align-items:center;gap:4px;}
+.hnav-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.85);padding:5px 11px;border-radius:5px;font-size:11px;cursor:pointer;transition:all .15s;font-weight:600;white-space:nowrap;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.4px;}
+.hnav-btn:hover{background:rgba(255,255,255,.25);color:#fff;}
 .uchip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:16px;padding:3px 10px 3px 4px;cursor:pointer;transition:background .15s;max-width:160px;}
 .uchip:hover{background:rgba(255,255,255,.2);}
 .uav{width:24px;height:24px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--yellow);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:var(--green);font-family:'Barlow Condensed',sans-serif;}
@@ -184,9 +187,7 @@ header{
 main{
   padding:16px max(16px,env(safe-area-inset-right)) calc(16px + var(--safe-bottom)) max(16px,env(safe-area-inset-left));
   max-width:1440px;
-  display:flex;
-  gap:20px;
-  align-items:flex-start;
+  margin:0 auto;
 }
 .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;}
 .stitle{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;text-transform:uppercase;letter-spacing:1px;color:var(--text);}
@@ -560,17 +561,18 @@ td{padding:10px 10px;vertical-align:middle;}
 
 /* ── MISSING LAYOUT CSS ── */
 .hright{display:flex;align-items:center;gap:10px;flex-shrink:0;}
-.season-head{display:flex;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap;}
+.season-head{display:flex;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap;width:100%;}
 .sadd{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;}
 .sadd:hover{background:rgba(255,255,255,.25);}
-.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px;}
-@media(min-width:600px){.kpis{grid-template-columns:repeat(4,1fr);}}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+@media(max-width:700px){.kpis{grid-template-columns:repeat(2,1fr);}}
 .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
 .ftab{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;border:1.5px solid var(--border);background:var(--card);cursor:pointer;transition:all .15s;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
 .ftab.act{background:var(--green);color:#fff;border-color:var(--green);}
-.left-col{flex:1;min-width:0;}
-.right-col{width:300px;flex-shrink:0;}
-@media(max-width:900px){.right-col{width:100%;}}
+.mid-row{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px;}
+.mid-left{flex:1;min-width:0;margin-bottom:0!important;}
+.mid-right{width:260px;flex-shrink:0;margin-bottom:0!important;}
+@media(max-width:800px){.mid-row{flex-direction:column;}.mid-right{width:100%;}}
 .panel-title{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--text);margin-bottom:10px;}
 .side-panel{position:fixed;top:0;right:-420px;width:min(420px,100vw);height:100vh;background:var(--card);box-shadow:-4px 0 24px rgba(0,0,0,.13);z-index:200;transition:right .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden;}
 .side-panel.open{right:0;}
@@ -586,6 +588,12 @@ td{padding:10px 10px;vertical-align:middle;}
 .sync-ok{background:var(--green-light);color:var(--green);}
 .sync-loading{background:var(--yellow-pale);color:var(--yellow-dark);}
 .sync-err{background:var(--red-light);color:var(--red);}
+
+/* ── Admin modal tabs ── */
+.adm-tabs{display:flex;gap:4px;padding-bottom:12px;border-bottom:1.5px solid var(--border);flex-wrap:wrap;}
+.adm-tab{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;border:1.5px solid var(--border);background:var(--bg);cursor:pointer;transition:all .15s;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);}
+.adm-tab.act{background:var(--green);color:#fff;border-color:var(--green);}
+.adm-tab:hover:not(.act){border-color:var(--green);color:var(--green);}
 
 </style>
 </head>
@@ -631,6 +639,12 @@ td{padding:10px 10px;vertical-align:middle;}
         <img id="user-pic" src="" style="width:28px;height:28px;border-radius:50%;display:none;object-fit:cover;">
         <span id="user-name"></span>
       </div>
+      <button class="hnav-btn" onclick="openAdminModal('players')">Players</button>
+      <button class="hnav-btn" onclick="openAdminModal('finance')">Finance</button>
+      <div class="hnav" id="admin-nav-btns" style="display:none;">
+        <button class="hnav-btn" onclick="openAdminModal('log')">Access Log</button>
+        <button class="hnav-btn" onclick="openAdminModal('users')">Users</button>
+      </div>
       <button class="lobtn" onclick="doLogout()">Sign Out</button>
     </div>
   </header>
@@ -643,118 +657,95 @@ td{padding:10px 10px;vertical-align:middle;}
 
   <!-- MAIN -->
   <main>
-    <!-- LEFT: KPIs + Charts -->
-    <div class="left-col">
-      <div class="season-head">
-        <h2 class="section-title" id="season-span">SPONSORSHIP</h2>
-        <button class="actbtn" onclick="openAddOrg()" id="add-sponsor-btn" style="margin-left:auto">+ Add Sponsor</button>
-      </div>
+    <!-- ROW 1: Season title + Add button -->
+    <div class="season-head">
+      <h2 class="section-title" id="season-span">SPONSORSHIP</h2>
+      <button class="actbtn" onclick="openAddOrg()" id="add-sponsor-btn" style="margin-left:auto">+ Add Sponsor</button>
+    </div>
 
-      <!-- KPI CARDS -->
-      <div class="kpis">
-        <div class="kcard" onclick="drillTotal()" style="cursor:pointer">
-          <div class="klbl">Total Committed</div>
-          <div class="kval" id="k-total" style="color:var(--yellow-dark)">$0</div>
-          <div class="ksub" id="k-count">0 sponsors</div>
-          <div class="ktrend" id="k-trend"></div>
-          <div class="klink">View all →</div>
-        </div>
-        <div class="kcard" onclick="drillPaid()" style="cursor:pointer">
-          <div class="klbl">Received</div>
-          <div class="kval" id="k-paid" style="color:var(--green)">$0</div>
-          <div class="ksub" id="k-ppct">0% collected</div>
-          <div class="pbtrack"><div class="pbfill" id="k-bar" style="width:0%"></div></div>
-          <div class="klink">Paid &amp; partial →</div>
-        </div>
-        <div class="kcard" onclick="drillOut()" style="cursor:pointer">
-          <div class="klbl">Outstanding</div>
-          <div class="kval" id="k-out" style="color:var(--red)">$0</div>
-          <div class="ksub" id="k-outc">0 invoices pending</div>
-          <div class="klink">View outstanding →</div>
-        </div>
-        <div class="kcard">
-          <div class="klbl">By Tier</div>
-          <div id="tier-mini" style="display:flex;flex-direction:column;gap:5px;margin-top:7px;"></div>
-        </div>
+    <!-- ROW 2: KPI CARDS (full width, 4 col) -->
+    <div class="kpis">
+      <div class="kcard" onclick="drillTotal()">
+        <div class="klbl">Total Committed</div>
+        <div class="kval" id="k-total" style="color:var(--yellow-dark)">$0</div>
+        <div class="ksub" id="k-count">0 sponsors</div>
+        <div class="ktrend" id="k-trend"></div>
+        <div class="klink">View all →</div>
       </div>
-
-      <!-- IN-KIND STRIP -->
-      <div id="inkind-strip" style="display:none;background:var(--card);border:1.5px solid #e9d5ff;border-radius:11px;padding:12px 16px;margin-bottom:16px;align-items:center;gap:12px;">
-        <span style="font-size:18px;">🤝</span>
-        <div>
-          <div style="font-size:11px;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:.5px;">In-Kind Sponsors</div>
-          <div id="inkind-summary" style="font-size:13px;color:var(--text-mid);"></div>
-        </div>
+      <div class="kcard" onclick="drillPaid()">
+        <div class="klbl">Received</div>
+        <div class="kval" id="k-paid" style="color:var(--green)">$0</div>
+        <div class="ksub" id="k-ppct">0% collected</div>
+        <div class="pbtrack"><div class="pbfill" id="k-bar" style="width:0%"></div></div>
+        <div class="klink">Paid &amp; partial →</div>
       </div>
+      <div class="kcard" onclick="drillOut()">
+        <div class="klbl">Outstanding</div>
+        <div class="kval" id="k-out" style="color:var(--red)">$0</div>
+        <div class="ksub" id="k-outc">0 invoices pending</div>
+        <div class="klink">View outstanding →</div>
+      </div>
+      <div class="kcard" style="cursor:default;">
+        <div class="klbl">By Tier</div>
+        <div id="tier-mini" style="display:flex;flex-direction:column;gap:5px;margin-top:7px;"></div>
+      </div>
+    </div>
 
-      <!-- YOY -->
-      <div class="panel" style="margin-bottom:16px;">
+    <!-- IN-KIND STRIP -->
+    <div id="inkind-strip" style="display:none;background:var(--card);border:1.5px solid #e9d5ff;border-radius:11px;padding:12px 16px;margin-bottom:16px;align-items:center;gap:12px;">
+      <span style="font-size:18px;">🤝</span>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:.5px;">In-Kind Sponsors</div>
+        <div id="inkind-summary" style="font-size:13px;color:var(--text-mid);"></div>
+      </div>
+    </div>
+
+    <!-- ROW 3: YOY left + Revenue by Tier right -->
+    <div class="mid-row">
+      <div class="mid-left panel">
         <div class="panel-title">Year-on-Year <span style="color:var(--green)">Comparison</span> <span style="font-size:10px;font-weight:400;color:var(--text-dim)">(tap to switch season)</span></div>
         <div id="year-bars" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;"></div>
       </div>
-
-      <!-- PROSPECT PIPELINE -->
-      <div class="panel" style="margin-bottom:16px;" id="prospect-panel">
-        <div class="panel-title">🎯 Prospect Pipeline</div>
-        <div id="prospect-list" style="margin-top:10px;"></div>
-      </div>
-    </div>
-
-    <!-- RIGHT: Tier breakdown + Sponsor list -->
-    <div class="right-col">
-      <div class="panel" style="margin-bottom:16px;">
+      <div class="mid-right panel">
         <div class="panel-title">Revenue <span style="color:var(--green)">by Tier</span></div>
         <div class="tlist" id="tier-list"></div>
       </div>
+    </div>
 
-      <!-- SPONSOR TABLE -->
-      <div class="panel">
-        <!-- View toggle: Active | Prospects -->
-        <div class="view-tabs" id="view-tabs">
-          <button class="vtab act" onclick="setView('active')" id="vtab-active">Active</button>
-          <button class="vtab prospect-tab" onclick="setView('prospect')" id="vtab-prospect">Prospects</button>
-        </div>
-        <!-- Tier filters -->
-        <div class="filters" id="filters" style="margin-bottom:12px;">
-          <button class="ftab act" onclick="filterTable('all')">All</button>
-          <button class="ftab" onclick="filterTable('gold')">Gold</button>
-          <button class="ftab" onclick="filterTable('silver')">Silver</button>
-          <button class="ftab" onclick="filterTable('bronze')">Bronze</button>
-          <button class="ftab" onclick="filterTable('community')">Community</button>
-          <button class="ftab" onclick="filterTable('outstanding')">⚠ Owing</button>
-        </div>
-        <table class="stable" id="stable">
-          <thead><tr>
-            <th>Sponsor</th><th>Tier</th><th>Amount</th><th>Status</th><th>Yrs</th><th>Contact</th><th></th>
-          </tr></thead>
-          <tbody id="tbody"></tbody>
-        </table>
-        <div id="tbl-empty" style="display:none;text-align:center;padding:24px;color:var(--text-dim);font-size:13px;">No sponsors for this season yet.</div>
-        <div id="export-wrap" style="margin-top:10px;display:flex;justify-content:flex-end;">
-          <button class="actbtn" onclick="exportCSV()" style="font-size:11px;padding:5px 10px;">Export CSV</button>
-        </div>
+    <!-- ROW 4: Sponsor table — full width -->
+    <div class="panel">
+      <div class="view-tabs" id="view-tabs">
+        <button class="vtab act" onclick="setView('active')" id="vtab-active">Active</button>
+        <button class="vtab prospect-tab" onclick="setView('prospect')" id="vtab-prospect">Prospects</button>
       </div>
+      <div class="filters" id="filters" style="margin-bottom:12px;">
+        <button class="ftab act" onclick="filterTable('all')">All</button>
+        <button class="ftab" onclick="filterTable('gold')">Gold</button>
+        <button class="ftab" onclick="filterTable('silver')">Silver</button>
+        <button class="ftab" onclick="filterTable('bronze')">Bronze</button>
+        <button class="ftab" onclick="filterTable('community')">Community</button>
+        <button class="ftab" onclick="filterTable('outstanding')">⚠ Owing</button>
+      </div>
+      <table class="stable" id="stable">
+        <thead><tr>
+          <th>Sponsor</th><th>Tier</th><th>Amount</th><th>Status</th><th>Yrs</th><th>Contact</th><th></th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div id="tbl-empty" style="display:none;text-align:center;padding:24px;color:var(--text-dim);font-size:13px;">No sponsors for this season yet.</div>
+      <div style="margin-top:10px;display:flex;justify-content:flex-end;">
+        <button class="actbtn" onclick="exportCSV()" style="font-size:11px;padding:5px 10px;">Export CSV</button>
+      </div>
+    </div>
+
+    <!-- ROW 5: Prospect pipeline (full width, shown only when prospects exist) -->
+    <div class="panel" id="prospect-panel" style="display:none;">
+      <div class="panel-title">🎯 Prospect Pipeline</div>
+      <div id="prospect-list" style="margin-top:10px;"></div>
     </div>
   </main>
 
-  <!-- TABS (Players, Finance coming soon) -->
-  <div class="ptabs">
-    <button class="ptab ptab-soon" disabled title="Coming soon">Players <span class="soon-badge">Soon</span></button>
-    <button class="ptab ptab-soon" disabled title="Coming soon">Finance <span class="soon-badge">Soon</span></button>
-  </div>
 
-  <!-- ADMIN PANEL -->
-  <div id="admin-section" style="display:none;">
-    <div class="panel" style="margin:16px;max-width:900px;margin-left:auto;margin-right:auto;">
-      <div class="panel-title">Admin Tools</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-        <button class="actbtn" onclick="renderAccessLog()">Access Log</button>
-        <button class="actbtn" onclick="renderUserGrid()">Manage Users</button>
-      </div>
-      <div id="access-log-wrap" style="margin-top:14px;display:none;"></div>
-      <div id="user-grid-wrap" style="margin-top:14px;display:none;"></div>
-    </div>
-  </div>
 
 </div><!-- /app -->
 
@@ -963,6 +954,21 @@ td{padding:10px 10px;vertical-align:middle;}
   </div>
 </div>
 
+<!-- ADMIN MODAL -->
+<div class="moverlay" id="admin-modal">
+  <div class="modal" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column;">
+    <div class="modal-handle"></div>
+    <button class="mclose" onclick="closeAdminModal()">×</button>
+    <div class="adm-tabs">
+      <button class="adm-tab" data-tab="log" onclick="document.querySelectorAll('.adm-tab').forEach(b=>b.classList.toggle('act',b===this));loadAdminTab('log')">Access Log</button>
+      <button class="adm-tab" data-tab="users" onclick="document.querySelectorAll('.adm-tab').forEach(b=>b.classList.toggle('act',b===this));loadAdminTab('users')">Users</button>
+      <button class="adm-tab" data-tab="players" onclick="document.querySelectorAll('.adm-tab').forEach(b=>b.classList.toggle('act',b===this));loadAdminTab('players')">Players</button>
+      <button class="adm-tab" data-tab="finance" onclick="document.querySelectorAll('.adm-tab').forEach(b=>b.classList.toggle('act',b===this));loadAdminTab('finance')">Finance</button>
+    </div>
+    <div id="adm-body" style="flex:1;overflow-y:auto;padding:16px 0 4px;"></div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -1114,7 +1120,7 @@ function renderUserUI() {
   document.getElementById('user-name').textContent = me.name || me.email;
   const pic = document.getElementById('user-pic');
   if (me.picture) { pic.src = me.picture; pic.style.display = 'block'; }
-  if (me.admin) document.getElementById('admin-section').style.display = 'block';
+  if (me.admin) { const el = document.getElementById('admin-nav-btns'); if(el) el.style.display='flex'; }
   if (!me.edit) { const b = document.getElementById('add-sponsor-btn'); if(b) b.style.display='none'; }
 }
 
@@ -1736,37 +1742,57 @@ async function confirmLogout() {
 }
 
 // ════════════════════════════════════════════════════════
-//  ADMIN: ACCESS LOG + USER GRID
+//  ADMIN MODAL
 // ════════════════════════════════════════════════════════
-async function renderAccessLog() {
-  const wrap = document.getElementById('access-log-wrap');
-  wrap.style.display = wrap.style.display==='none' ? 'block' : 'none';
-  if (wrap.style.display==='none') return;
-  wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">Loading…</div>';
-  const res = await api('getLog');
-  if (!Array.isArray(res)) { wrap.innerHTML='<div style="color:var(--red)">Failed to load</div>'; return; }
-  wrap.innerHTML = `<table class="stable" style="font-size:11px;">
-    <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
-    <tbody>${res.map(r=>`<tr><td>${fmtD(r.timestamp)}</td><td>${r.user||''}</td><td>${r.action||''}</td><td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.details||''}</td></tr>`).join('')}</tbody>
-  </table>`;
+async function openAdminModal(tab) {
+  const modal = document.getElementById('admin-modal');
+  modal.classList.add('open');
+  // Set active tab
+  document.querySelectorAll('.adm-tab').forEach(b => b.classList.toggle('act', b.dataset.tab===tab));
+  await loadAdminTab(tab);
+}
+function closeAdminModal() { document.getElementById('admin-modal').classList.remove('open'); }
+
+async function loadAdminTab(tab) {
+  const body = document.getElementById('adm-body');
+  if (tab==='players' || tab==='finance') {
+    const label = tab==='players' ? 'Players' : 'Finance';
+    body.innerHTML = `<div style="text-align:center;padding:48px 24px;">
+      <div style="font-size:48px;margin-bottom:16px;">${tab==='players'?'⚽':'💰'}</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${label} Module</div>
+      <div style="font-size:13px;color:var(--text-dim);max-width:280px;margin:0 auto;">This section is coming soon. We're building it out — check back next season.</div>
+      <div style="display:inline-block;margin-top:16px;background:var(--yellow-pale);border:1.5px solid var(--yellow-dark);color:var(--yellow-dark);font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;">Coming Soon</div>
+    </div>`;
+    return;
+  }
+  if (tab==='log') {
+    body.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;">Loading…</div>';
+    const res = await api('getLog');
+    if (!Array.isArray(res)) { body.innerHTML='<div style="color:var(--red)">Failed to load</div>'; return; }
+    body.innerHTML = `<div style="overflow-x:auto;"><table class="stable" style="font-size:12px;min-width:500px;">
+      <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
+      <tbody>${res.map(r=>`<tr style="cursor:default"><td style="white-space:nowrap">${fmtD(r.timestamp)}</td><td>${r.user||''}</td><td><span style="font-weight:700">${r.action||''}</span></td><td style="color:var(--text-dim)">${r.details||''}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+    return;
+  }
+  if (tab==='users') {
+    body.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;">Loading…</div>';
+    const res = await api('getUsers');
+    if (!Array.isArray(res)) { body.innerHTML='<div style="color:var(--red)">Failed</div>'; return; }
+    body.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;">
+      ${res.map(u=>`<div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg);border-radius:9px;border:1.5px solid var(--border);">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:14px;color:var(--green);flex-shrink:0;">${(u.name||u.email).charAt(0).toUpperCase()}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:14px;">${u.name||u.email}</div>
+          <div style="font-size:11px;color:var(--text-dim);">${u.email} · <span style="color:var(--green);font-weight:600">${u.role}</span> · ${u.admin?'Admin':u.edit?'Can Edit':'Read Only'}</div>
+        </div>
+        <button class="actbtn" onclick="openUserModal(${JSON.stringify(u).replace(/"/g,'&quot;')})">Edit</button>
+      </div>`).join('')}
+    </div>`;
+  }
 }
 
 let editingUser = null;
-async function renderUserGrid() {
-  const wrap = document.getElementById('user-grid-wrap');
-  wrap.style.display = wrap.style.display==='none' ? 'block' : 'none';
-  if (wrap.style.display==='none') return;
-  wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">Loading…</div>';
-  const res = await api('getUsers');
-  if (!Array.isArray(res)) { wrap.innerHTML='<div style="color:var(--red)">Failed</div>'; return; }
-  wrap.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
-    ${res.map(u=>`<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border-radius:8px;">
-      <div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;">${u.name||u.email}</div>
-      <div style="font-size:11px;color:var(--text-dim);">${u.email} · ${u.role}</div></div>
-      <button class="actbtn" onclick="openUserModal(${JSON.stringify(u).replace(/"/g,'&quot;')})">Edit</button>
-    </div>`).join('')}
-  </div>`;
-}
 
 function openUserModal(u) {
   editingUser = u;
@@ -1877,6 +1903,10 @@ function init() {
   if (_nri) _nri.addEventListener('keydown', e => { if(e.key==='Enter') addCustomRole(); });
   const _rm = document.getElementById('roles-modal');
   if (_rm) _rm.addEventListener('click', e => { if(e.target===_rm) closeManageRoles(); });
+
+  // Wire admin modal
+  const _am = document.getElementById('admin-modal');
+  if (_am) _am.addEventListener('click', e => { if(e.target===_am) closeAdminModal(); });
 
   // Hide loading screen
   setTimeout(() => {
