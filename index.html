@@ -47,12 +47,37 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-
    ════════════════════════════════════════ */
 #loading-screen{
   position:fixed;inset:0;z-index:1000;background:var(--green);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
-  transition:opacity .4s;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+  transition:opacity .5s ease;
 }
 #loading-screen.fade{opacity:0;pointer-events:none;}
-.ls-crest{width:72px;height:72px;background:var(--yellow);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:22px;color:var(--green);}
-.ls-text{font-family:'Barlow Condensed',sans-serif;font-size:16px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:2px;}
+.ls-crest{
+  width:80px;height:80px;background:var(--yellow);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;color:var(--green);
+  animation:ls-pulse 1.8s ease-in-out infinite;
+  box-shadow:0 0 0 0 rgba(251,226,1,0.5);
+}
+@keyframes ls-pulse{
+  0%{box-shadow:0 0 0 0 rgba(251,226,1,0.5);transform:scale(1);}
+  50%{box-shadow:0 0 0 18px rgba(251,226,1,0);transform:scale(1.06);}
+  100%{box-shadow:0 0 0 0 rgba(251,226,1,0);transform:scale(1);}
+}
+.ls-text{
+  font-family:'Barlow Condensed',sans-serif;font-size:15px;
+  color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:3px;
+  animation:ls-blink 1.4s ease-in-out infinite;
+}
+@keyframes ls-blink{0%,100%{opacity:.4;}50%{opacity:1;}}
+.ls-bar{width:160px;height:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden;}
+.ls-bar-fill{height:100%;width:0;background:var(--yellow);border-radius:2px;animation:ls-load 2s ease-in-out forwards;}
+@keyframes ls-load{0%{width:0;}60%{width:75%;}90%{width:90%;}100%{width:100%;}}
+
+/* Dashboard fade-in on load */
+@keyframes dash-fadein{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+header{animation:dash-fadein .4s ease both;}
+.sbar{animation:dash-fadein .4s ease .1s both;}
+main{animation:dash-fadein .5s ease .15s both;}
 .ls-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--yellow);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
@@ -131,6 +156,19 @@ header{
    ════════════════════════════════════════ */
 .ptabs-top{display:flex;gap:4px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
 .ptabs-top::-webkit-scrollbar{display:none;}
+.access-opt{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;}
+.access-opt:has(input:checked){border-color:var(--green);background:var(--green-light);}
+.access-opt input[type=radio]{margin-top:2px;accent-color:var(--green);flex-shrink:0;}
+.access-opt-body{flex:1;}
+.access-opt-title{font-weight:700;font-size:14px;color:var(--text);}
+.access-opt-desc{font-size:11px;color:var(--text-dim);margin-top:2px;line-height:1.4;}
+.role-tag{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;font-size:13px;}
+.role-tag-del{background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:16px;line-height:1;padding:0 2px;}
+.role-tag-del:hover{color:var(--red);}
+.role-tag-default{font-size:10px;color:var(--text-dim);font-style:italic;}
+.ptab-soon{opacity:.45;cursor:not-allowed!important;position:relative;}
+.ptab-soon:hover{background:var(--card)!important;color:var(--text-dim)!important;border-color:var(--border)!important;}
+.soon-badge{display:inline-block;font-size:8px;font-weight:800;background:var(--yellow);color:var(--green);border-radius:3px;padding:1px 4px;margin-left:5px;vertical-align:middle;text-transform:uppercase;letter-spacing:.5px;}
 .ptab{padding:7px 14px;border-radius:6px;background:var(--card);color:var(--text-dim);border:1.5px solid var(--border);font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;flex-shrink:0;}
 .ptab.act{background:var(--green);color:#fff;border-color:var(--green);}
 
@@ -519,6 +557,8 @@ td{padding:10px 10px;vertical-align:middle;}
     <button class="ptab act" onclick="setTab('overview',this)">Overview</button>
     <button class="ptab" id="tab-access-btn" onclick="setTab('access',this)" style="display:none">Access Log</button>
     <button class="ptab" id="tab-users-btn" onclick="setTab('users',this)" style="display:none">Users</button>
+    <button class="ptab ptab-soon" disabled title="Coming soon">Players <span class="soon-badge">Soon</span></button>
+    <button class="ptab ptab-soon" disabled title="Coming soon">Finance <span class="soon-badge">Soon</span></button>
   </div>
 
   <!-- SYNC STATUS -->
@@ -753,20 +793,76 @@ td{padding:10px 10px;vertical-align:middle;}
   </div>
 </div>
 
-<!-- ════════ RESET PW MODAL ════════ -->
+<!-- ════════ EDIT USER MODAL ════════ -->
 <div class="moverlay" id="reset-modal" style="align-items:center;padding:20px;">
-  <div class="smodal-inner">
+  <div class="smodal-inner" style="max-width:420px;width:100%;">
     <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;text-transform:uppercase;margin-bottom:4px">Edit User</div>
-    <div class="msub" id="reset-sub">Update display name and role.</div>
+    <div class="msub" id="reset-sub">Update display name, role and access level.</div>
     <input type="hidden" id="reset-email">
-    <div class="fg" style="margin-bottom:10px"><label>Display Name</label><input type="text" id="reset-name" placeholder="Display name"></div>
-    <div class="fg" style="margin-bottom:14px"><label>Role</label><input type="text" id="reset-role" placeholder="e.g. Treasurer"></div>
+
+    <div class="fg" style="margin-bottom:10px">
+      <label>Display Name</label>
+      <input type="text" id="reset-name" placeholder="Display name">
+    </div>
+
+    <div class="fg" style="margin-bottom:10px">
+      <label>Role</label>
+      <div style="display:flex;gap:6px;">
+        <select id="reset-role" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);cursor:pointer;"></select>
+        <button onclick="openManageRoles()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;font-size:13px;color:var(--text-dim);white-space:nowrap;" title="Manage role list">⚙ Roles</button>
+      </div>
+    </div>
+
+    <div class="fg" style="margin-bottom:14px">
+      <label>Access Level</label>
+      <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px;" id="access-level-group">
+        <label class="access-opt" id="opt-admin">
+          <input type="radio" name="access-level" value="admin">
+          <div class="access-opt-body">
+            <div class="access-opt-title">Admin</div>
+            <div class="access-opt-desc">Full access — manage users, seasons, access log & all sponsor data</div>
+          </div>
+        </label>
+        <label class="access-opt" id="opt-edit">
+          <input type="radio" name="access-level" value="edit">
+          <div class="access-opt-body">
+            <div class="access-opt-title">Can Edit</div>
+            <div class="access-opt-desc">Add, edit and delete sponsors. Cannot manage users or view logs.</div>
+          </div>
+        </label>
+        <label class="access-opt" id="opt-readonly">
+          <input type="radio" name="access-level" value="readonly">
+          <div class="access-opt-body">
+            <div class="access-opt-title">Read Only</div>
+            <div class="access-opt-desc">View dashboard only. Cannot make any changes.</div>
+          </div>
+        </label>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--text-dim);line-height:1.4;">
+        ⚠ Access level changes take effect after updating <code>PERMISSIONS</code> in Code.gs and re-deploying.
+      </div>
+    </div>
+
     <div class="msg-ok" id="reset-ok">Saved successfully.</div>
     <div class="msg-err" id="reset-err">Something went wrong.</div>
     <div style="display:flex;gap:8px;margin-top:12px">
       <button class="mprimary" onclick="confirmEditUser()">Save</button>
       <button class="msecondary" onclick="closeResetModal()">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- ════════ MANAGE ROLES MODAL ════════ -->
+<div class="moverlay" id="roles-modal" style="align-items:center;padding:20px;">
+  <div class="smodal-inner" style="max-width:360px;width:100%;">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;text-transform:uppercase;margin-bottom:4px">Manage Roles</div>
+    <div class="msub">Add or remove roles from the dropdown list.</div>
+    <div id="roles-list" style="margin:12px 0;display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;"></div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <input type="text" id="new-role-input" placeholder="New role name…" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Barlow',sans-serif;">
+      <button class="mprimary" onclick="addCustomRole()" style="padding:8px 14px;">Add</button>
+    </div>
+    <button class="msecondary" onclick="closeManageRoles()" style="width:100%;">Done</button>
   </div>
 </div>
 
@@ -1523,16 +1619,80 @@ async function renderUserGrid() {
         ${u.edit?'<span class="ubadge edit">Can Edit</span>':'<span class="ubadge view">View Only</span>'}
       </div>
       <div class="ucard-actions">
-        <button class="uact-btn" onclick="openEditUser('${u.email}','${u.name}','${u.role}')">Edit Name/Role</button>
+        <button class="uact-btn" onclick="openEditUser('${u.email}','${u.name}','${u.role}',${u.admin},${u.edit})">Edit Name/Role</button>
       </div>
     </div>`;
   }).join('');
 }
 
-function openEditUser(email, name, role) {
+// ── ROLES MANAGEMENT ────────────────────────────────────────────
+const DEFAULT_ROLES = ['President','Vice President','Treasurer','Secretary','Registrar',
+  'Committee Member','Coach','Team Manager','Volunteer','Administrator','Member'];
+
+function getRoles() {
+  try {
+    const stored = localStorage.getItem('kjfc_roles');
+    return stored ? JSON.parse(stored) : [...DEFAULT_ROLES];
+  } catch(e) { return [...DEFAULT_ROLES]; }
+}
+function saveRoles(roles) {
+  localStorage.setItem('kjfc_roles', JSON.stringify(roles));
+}
+function populateRoleSelect(currentRole) {
+  const sel = document.getElementById('reset-role');
+  const roles = getRoles();
+  sel.innerHTML = roles.map(r => `<option value="${r}"${r===currentRole?' selected':''}>${r}</option>`).join('');
+  if (!sel.value && roles.length) sel.value = roles[0];
+}
+function openManageRoles() {
+  renderRolesList();
+  document.getElementById('roles-modal').classList.add('open');
+}
+function closeManageRoles() {
+  document.getElementById('roles-modal').classList.remove('open');
+  // Refresh the role select with any changes
+  const currentRole = document.getElementById('reset-role').value;
+  populateRoleSelect(currentRole);
+}
+function renderRolesList() {
+  const roles = getRoles();
+  document.getElementById('roles-list').innerHTML = roles.map((r, i) => `
+    <div class="role-tag">
+      <span>${r}</span>
+      ${DEFAULT_ROLES.includes(r)
+        ? '<span class="role-tag-default">default</span>'
+        : `<button class="role-tag-del" onclick="deleteRole(${i})" title="Remove">✕</button>`}
+    </div>`).join('');
+}
+function addCustomRole() {
+  const input = document.getElementById('new-role-input');
+  const val = input.value.trim();
+  if (!val) return;
+  const roles = getRoles();
+  if (roles.includes(val)) { showToast('Role already exists'); return; }
+  roles.push(val);
+  saveRoles(roles);
+  input.value = '';
+  renderRolesList();
+  showToast('Role added ✓');
+}
+function deleteRole(idx) {
+  const roles = getRoles();
+  roles.splice(idx, 1);
+  saveRoles(roles);
+  renderRolesList();
+}
+document.getElementById('new-role-input').addEventListener('keydown', e => { if (e.key === 'Enter') addCustomRole(); });
+document.getElementById('roles-modal').addEventListener('click', e => { if (e.target === document.getElementById('roles-modal')) closeManageRoles(); });
+
+// ── EDIT USER ────────────────────────────────────────────────────
+function openEditUser(email, name, role, isAdmin, canEdit) {
   document.getElementById('reset-email').value = email;
   document.getElementById('reset-name').value  = name;
-  document.getElementById('reset-role').value  = role;
+  populateRoleSelect(role);
+  // Set access level radio
+  const level = isAdmin ? 'admin' : canEdit ? 'edit' : 'readonly';
+  document.querySelector(`input[name="access-level"][value="${level}"]`).checked = true;
   document.getElementById('reset-sub').textContent = 'Editing ' + email;
   document.getElementById('reset-ok').style.display  = 'none';
   document.getElementById('reset-err').style.display = 'none';
@@ -1542,17 +1702,18 @@ function closeResetModal() { document.getElementById('reset-modal').classList.re
 document.getElementById('reset-modal').addEventListener('click', e => { if (e.target === document.getElementById('reset-modal')) closeResetModal(); });
 
 async function confirmEditUser() {
-  const email = document.getElementById('reset-email').value;
-  const name  = document.getElementById('reset-name').value.trim();
-  const role  = document.getElementById('reset-role').value.trim();
+  const email  = document.getElementById('reset-email').value;
+  const name   = document.getElementById('reset-name').value.trim();
+  const role   = document.getElementById('reset-role').value.trim();
+  const access = document.querySelector('input[name="access-level"]:checked')?.value || 'readonly';
   const ok = document.getElementById('reset-ok'), err = document.getElementById('reset-err');
   ok.style.display = 'none'; err.style.display = 'none';
-  const res = await api('updateUser', { email, name, role });
+  const res = await api('updateUser', { email, name, role, access });
   if (res.error) { err.textContent = res.error; err.style.display = 'block'; return; }
   ok.style.display = 'block';
   setTimeout(() => closeResetModal(), 1200);
   showToast('User updated ✓');
-  renderUserGrid();
+  loadAll();
 }
 
 // ═══════════════════════════════════════════════════════
