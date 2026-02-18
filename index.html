@@ -1219,7 +1219,7 @@ function render() {
 
   document.getElementById('tier-mini').innerHTML = ['gold','silver','bronze','community'].map(t => {
     const d = s.byTier[t]; if (!d.count) return '';
-    const ikBit = d.ikCount > 0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:600"> +${d.ikCount}ik</span>` : '';
+    const ikBit = d.ikCount > 0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:600"> (inc. ${d.ikCount} in-kind)</span>` : '';
     return `<div style="display:flex;align-items:center;gap:7px"><div style="width:6px;height:6px;border-radius:50%;background:${TH[t]};flex-shrink:0"></div><span style="font-size:11px;flex:1">${TL[t]}</span><span style="font-size:12px;font-weight:800;color:${TH[t]}">${d.count}${ikBit}</span></div>`;
   }).join('');
 
@@ -1241,7 +1241,7 @@ function render() {
   // Tier breakdown
   document.getElementById('tier-list').innerHTML = ['gold','silver','bronze','community'].map(t => {
     const d = s.byTier[t]; if (!d.count) return '';
-    const ikLabel = d.ikCount > 0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:700;margin-left:4px">+${d.ikCount} in-kind</span>` : '';
+    const ikLabel = d.ikCount > 0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:700;margin-left:4px">(inc. ${d.ikCount} in-kind)</span>` : '';
     return `<div class="trow" onclick="filterTable('${t}',null)">
       <div class="tdot ${t}"></div>
       <div class="tname">${TL[t]}${ikLabel}</div>
