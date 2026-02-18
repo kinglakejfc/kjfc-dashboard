@@ -759,12 +759,7 @@ td{padding:10px 10px;vertical-align:middle;}
         <button class="vtab prospect-tab" onclick="setView('prospect')" id="vtab-prospect">Not in Season</button>
       </div>
       <div class="filters" id="filters" style="margin-bottom:12px;">
-        <button class="ftab act" onclick="filterTable('all')">All</button>
-        <button class="ftab" onclick="filterTable('gold')">Gold</button>
-        <button class="ftab" onclick="filterTable('silver')">Silver</button>
-        <button class="ftab" onclick="filterTable('bronze')">Bronze</button>
-        <button class="ftab" onclick="filterTable('community')">Community</button>
-        <button class="ftab" onclick="filterTable('outstanding')">⚠ Owing</button>
+        <!-- dynamically rendered by renderFilterTabs() -->
       </div>
       <table class="stable" id="stable">
         <thead><tr>
@@ -1222,14 +1217,9 @@ function ssForOrg(orgId) {
 function activeOrgIds(year) {
   return new Set(ssForYear(year).map(s => s.orgId));
 }
-// Count consecutive years for an org
+// Total number of seasons an org has sponsored
 function consecYears(orgId) {
-  const ys = ssForOrg(orgId).map(s => +s.year).sort((a,b) => b-a);
-  let c = 0;
-  for (let i = 0; i < ys.length; i++) {
-    if (ys[i] === (years[0] - i)) c++; else break;
-  }
-  return c;
+  return ssForOrg(orgId).length;
 }
 
 // ════════════════════════════════════════════════════════
@@ -1451,6 +1441,7 @@ function render() {
   // Prospect pipeline
   renderProspects();
 
+  renderFilterTabs();
   renderTable();
 }
 
@@ -1483,15 +1474,33 @@ function setView(v) {
   curView = v;
   document.getElementById('vtab-active').classList.toggle('act', v==='active');
   document.getElementById('vtab-prospect').classList.toggle('act', v==='prospect');
-  // Hide tier filters for prospect view
   document.getElementById('filters').style.display = v==='active' ? '' : 'none';
+  if (v==='active') renderFilterTabs();
   renderTable();
+}
+
+function renderFilterTabs() {
+  const container = document.getElementById('filters');
+  if (!container) return;
+  // Get tiers actually used this season, sorted by tier order
+  const ss = ssForYear(activeSeason);
+  const usedTiers = [...new Set(ss.map(s => s.tier).filter(Boolean))]
+    .sort((a,b) => (TO[a]||9) - (TO[b]||9));
+  const hasOwing = ss.some(s => s.status !== 'paid' && s.status !== 'inkind');
+
+  let html = `<button class="ftab${curFilter==='all'?' act':''}" onclick="filterTable('all')">All</button>`;
+  usedTiers.forEach(t => {
+    html += `<button class="ftab${curFilter===t?' act':''}" onclick="filterTable('${t}')">${TL[t]||cap(t)}</button>`;
+  });
+  if (hasOwing) {
+    html += `<button class="ftab${curFilter==='outstanding'?' act':''}" onclick="filterTable('outstanding')">⚠ Owing</button>`;
+  }
+  container.innerHTML = html;
 }
 
 function filterTable(f) {
   curFilter = f;
-  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('act'));
-  event.target.classList.add('act');
+  renderFilterTabs();
   renderTable();
 }
 
@@ -1536,7 +1545,7 @@ function renderTable() {
   tbody.innerHTML = ss.map(s => {
     const org   = orgs.find(o => o.id===s.orgId) || { name: s.orgId, primaryContact:'', phone:'' };
     const c     = consecYears(s.orgId);
-    const cBadge = c>1 ? `<span class="cbadge">★ ${c} yrs</span>` : `<span style="color:var(--text-dim);font-size:11px">1st</span>`;
+    const cBadge = c>1 ? `<span class="cbadge">★ ${c} yrs</span>` : `<span style="color:var(--text-dim);font-size:11px">New</span>`;
     const amtH = s.status==='inkind' ? '<span style="color:#6d28d9;font-size:11px;font-weight:700">In-Kind</span>' :
                  s.status==='partial' ? `${fmt(s.amount)}<br><span style="font-size:10px;color:var(--orange)">${fmt(s.paidAmount||0)} recv</span>` :
                  fmt(s.amount);
