@@ -156,9 +156,13 @@ header{
    ════════════════════════════════════════ */
 .ptabs-top{display:flex;gap:4px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
 .ptabs-top::-webkit-scrollbar{display:none;}
-.access-opt{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;width:100%;box-sizing:border-box;overflow:hidden;}
+.access-opt{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;width:100%;box-sizing:border-box;overflow:hidden;position:relative;}
 .access-opt:has(input:checked){border-color:var(--green);background:var(--green-light);}
-.access-opt input[type=radio]{margin-top:3px;accent-color:var(--green);flex-shrink:0;width:16px;height:16px;}
+.access-opt input[type=radio]{position:absolute;opacity:0;width:0;height:0;}
+/* Custom radio circle */
+.access-opt-check{width:18px;height:18px;border-radius:50%;border:2px solid var(--border-s);background:#fff;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.access-opt:has(input:checked) .access-opt-check{border-color:var(--green);background:var(--green);}
+.access-opt:has(input:checked) .access-opt-check::after{content:'✓';color:#fff;font-size:11px;font-weight:900;line-height:1;}
 .access-opt-body{flex:1;min-width:0;overflow:hidden;}
 .access-opt-title{font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;}
 .access-opt-desc{font-size:11px;color:var(--text-dim);margin-top:2px;line-height:1.4;word-wrap:break-word;}
@@ -818,6 +822,7 @@ td{padding:10px 10px;vertical-align:middle;}
       <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px;width:100%;overflow:hidden;" id="access-level-group">
         <label class="access-opt" id="opt-admin">
           <input type="radio" name="access-level" value="admin">
+          <div class="access-opt-check"></div>
           <div class="access-opt-body">
             <div class="access-opt-title">Admin</div>
             <div class="access-opt-desc">Full access — manage users, seasons, access log & all sponsor data</div>
@@ -825,6 +830,7 @@ td{padding:10px 10px;vertical-align:middle;}
         </label>
         <label class="access-opt" id="opt-edit">
           <input type="radio" name="access-level" value="edit">
+          <div class="access-opt-check"></div>
           <div class="access-opt-body">
             <div class="access-opt-title">Can Edit</div>
             <div class="access-opt-desc">Add, edit and delete sponsors. Cannot manage users or view logs.</div>
@@ -832,6 +838,7 @@ td{padding:10px 10px;vertical-align:middle;}
         </label>
         <label class="access-opt" id="opt-readonly">
           <input type="radio" name="access-level" value="readonly">
+          <div class="access-opt-check"></div>
           <div class="access-opt-body">
             <div class="access-opt-title">Read Only</div>
             <div class="access-opt-desc">View dashboard only. Cannot make any changes.</div>
