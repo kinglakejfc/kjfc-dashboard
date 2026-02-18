@@ -783,12 +783,13 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     </div>
 
     <!-- IN-KIND STRIP -->
-    <div id="inkind-strip" style="display:none;background:var(--card);border:1.5px solid #e9d5ff;border-radius:11px;padding:12px 16px;margin-bottom:16px;align-items:center;gap:12px;">
+    <div id="inkind-strip" onclick="drillInKind()" style="display:none;background:var(--card);border:1.5px solid #e9d5ff;border-radius:11px;padding:12px 16px;margin-bottom:16px;align-items:center;gap:12px;cursor:pointer;transition:background .15s;" onmouseenter="this.style.background='#f5f0ff'" onmouseleave="this.style.background='var(--card)'">
       <span style="font-size:18px;">🤝</span>
-      <div>
+      <div style="flex:1">
         <div style="font-size:11px;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:.5px;">In-Kind Sponsors</div>
         <div id="inkind-summary" style="font-size:13px;color:var(--text-mid);"></div>
       </div>
+      <span style="font-size:11px;color:#6d28d9;font-weight:600;">View all →</span>
     </div>
 
     <!-- ROW 3: YOY left + Revenue by Tier right -->
@@ -1526,7 +1527,7 @@ function render() {
   document.getElementById('tier-mini').innerHTML = activeTiers.map(t => {
     const d = s.byTier[t]; if (!d.count) return '';
     const col = TH[t] || 'var(--text-dim)';
-    const ikBit = d.ikCount>0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:600"> (inc. ${d.ikCount} in-kind)</span>` : '';
+    const ikBit = d.ikCount>0 ? `<span style="font-size:9px;color:#6d28d9;font-weight:600">&nbsp;(inc. ${d.ikCount} in-kind)</span>` : '';
     return `<div style="display:flex;align-items:center;gap:7px"><div style="width:6px;height:6px;border-radius:50%;background:${col};flex-shrink:0"></div><span style="font-size:11px;flex:1">${TL[t]||cap(t)}</span><span style="font-size:12px;font-weight:800;color:${col}">${d.count}${ikBit}</span></div>`;
   }).join('');
 
@@ -2377,7 +2378,12 @@ function openDrill(title, ssList) {
   const _btf_drillPanel = document.getElementById('drillPanel'); bringToFront(_btf_drillPanel); _btf_drillPanel.classList.add('open');
 }
 
-function closeDrill() { document.getElementById('drillPanel').classList.remove('open'); }
+function drillInKind() {
+  const ss = ssForYear(activeSeason).filter(s => s.status === 'inkind');
+  openDrill('In-Kind Sponsors — ' + activeSeason + ' (' + ss.length + ')', ss);
+}
+
+
 
 function drillTotal() {
   const ss = ssForYear(activeSeason).sort((a,b)=>(TO[a.tier]||5)-(TO[b.tier]||5));
