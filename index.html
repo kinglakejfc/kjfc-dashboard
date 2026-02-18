@@ -2383,8 +2383,7 @@ function drillInKind() {
   openDrill('In-Kind Sponsors — ' + activeSeason + ' (' + ss.length + ')', ss);
 }
 
-
-
+function closeDrill() { document.getElementById('drillPanel').classList.remove('open'); }
 function drillTotal() {
   const ss = ssForYear(activeSeason).sort((a,b)=>(TO[a.tier]||5)-(TO[b.tier]||5));
   openDrill('All Sponsors — ' + activeSeason + ' (' + fmt(ss.filter(s=>s.status!=='inkind').reduce((a,s)=>a+ +s.amount,0)) + ')', ss);
