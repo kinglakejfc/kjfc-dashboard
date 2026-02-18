@@ -1571,7 +1571,7 @@ function renderProspects() {
         <strong>${o.name}</strong>
         ${o.primaryContact ? `<span style="color:var(--text-dim);font-size:12px;margin-left:6px">${o.primaryContact}</span>` : ''}
       </div>
-      ${o.phone ? `<span style="font-size:11px;color:var(--text-dim)">${o.phone}</span>` : ''}
+      ${o.phone ? `<span style="font-size:11px;color:var(--text-dim)">${fmtPhone(o.phone)}</span>` : ''}
     </div>`;
   }).join('');
 }
@@ -1698,7 +1698,7 @@ function renderTable() {
       return `<tr onclick="openOrgDetail('${o.id}')" style="cursor:pointer">
         <td><strong>${nameHl2}</strong></td>
         <td style="color:var(--text-dim);font-size:12px">${o.primaryContact||'—'}</td>
-        <td style="color:var(--text-dim);font-size:12px">${o.phone||'—'}</td>
+        <td style="color:var(--text-dim);font-size:12px">${fmtPhone(o.phone)}</td>
         <td><span class="ostatus ${statusClass}">${statusLabel}</span></td>
         <td colspan="2"></td>
         <td style="display:flex;gap:4px;">
@@ -1906,7 +1906,7 @@ function renderOrgDetail(org, clog, loading) {
       + '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);font-weight:700;margin-bottom:8px;">Contact Details</div>'
       + (org.primaryContact ? '<div style="font-size:13px;font-weight:600;margin-bottom:4px;">👤 ' + org.primaryContact + '</div>' : '')
       + (org.email ? '<div style="font-size:12px;margin-bottom:3px;">✉ <a href="mailto:' + org.email + '" style="color:var(--green)">' + org.email + '</a></div>' : '')
-      + (org.phone ? '<div style="font-size:12px;margin-bottom:3px;">📞 ' + org.phone + '</div>' : '')
+      + (org.phone ? '<div style="font-size:12px;margin-bottom:3px;">📞 ' + fmtPhone(org.phone) + '</div>' : '')
       + addrHtml
       + '</div>';
   }
@@ -2739,6 +2739,34 @@ function setSyncState(state, text) {
 }
 
 function fmt(n)    { return '$' + Number(n).toLocaleString('en-AU'); }
+
+function fmtPhone(p) {
+  if (!p) return '—';
+  // Strip all spaces and non-digits except leading +
+  var s = String(p).trim();
+  var digits = s.replace(/\D/g, '');
+  // Ensure leading zero for local Australian numbers
+  if (digits.length === 9 && !digits.startsWith('0')) digits = '0' + digits;
+  // Mobile: 04xx xxx xxx (10 digits starting with 04)
+  if (digits.length === 10 && digits.startsWith('04')) {
+    return digits.slice(0,4) + ' ' + digits.slice(4,7) + ' ' + digits.slice(7);
+  }
+  // Local landline: 0x xxxx xxxx (10 digits starting with 0, second digit not 4)
+  if (digits.length === 10 && digits.startsWith('0')) {
+    return digits.slice(0,2) + ' ' + digits.slice(2,6) + ' ' + digits.slice(6);
+  }
+  // 1300/1800 freecall: 1xxx xxx xxx
+  if (digits.length === 10 && (digits.startsWith('13') || digits.startsWith('18'))) {
+    return digits.slice(0,4) + ' ' + digits.slice(4,7) + ' ' + digits.slice(7);
+  }
+  // International +61
+  if (s.startsWith('+61') && digits.length === 11) {
+    return '+61 ' + fmtPhone('0' + digits.slice(2));
+  }
+  // Fallback — return as-is but ensure leading zero preserved
+  return s;
+}
+
 function cap(s)    { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
 function fmtTime(d){ return d.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' }); }
 function fmtD(iso) {
