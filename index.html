@@ -770,7 +770,7 @@ td{padding:10px 10px;vertical-align:middle;}
           <div class="logo-upload-preview" id="logo-preview">
             <span class="logo-upload-icon">📷</span>
             <span class="logo-upload-hint">Click to upload logo</span>
-            <span class="logo-upload-hint" style="font-size:10px;opacity:.6;">PNG, JPG or SVG · max 300KB</span>
+            <span class="logo-upload-hint" style="font-size:10px;opacity:.6;">PNG or JPG · auto-compressed</span>
           </div>
           <input type="file" id="f-logo-input" accept="image/*" style="display:none" onchange="handleLogoUpload(event)">
         </div>
@@ -1552,7 +1552,7 @@ function clearLogo() {
   const wrap = document.getElementById('logo-upload-wrap');
   const prev = document.getElementById('logo-preview');
   if (wrap) wrap.classList.remove('has-logo');
-  if (prev) prev.innerHTML = '<span class="logo-upload-icon">📷</span><span class="logo-upload-hint">Click to upload logo</span><span class="logo-upload-hint" style="font-size:10px;opacity:.6;">PNG, JPG or SVG · max 300KB</span>';
+  if (prev) prev.innerHTML = '<span class="logo-upload-icon">📷</span><span class="logo-upload-hint">Click to upload logo</span><span class="logo-upload-hint" style="font-size:10px;opacity:.6;">PNG or JPG · auto-compressed</span>';
   const clearBtn = document.getElementById('logo-clear-btn');
   if (clearBtn) clearBtn.style.display = 'none';
   const input = document.getElementById('f-logo-input');
@@ -1562,9 +1562,37 @@ function clearLogo() {
 function handleLogoUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
-  if (file.size > 300 * 1024) { showToast('Logo must be under 300KB', 'warn'); return; }
+  if (file.size > 5 * 1024 * 1024) { showToast('Logo must be under 5MB', 'warn'); return; }
   const reader = new FileReader();
-  reader.onload = e => setLogoPreview(e.target.result);
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      // Resize to max 120x120 and compress to keep base64 under URL limits
+      const MAX = 120;
+      const scale = Math.min(MAX / img.width, MAX / img.height, 1);
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', 0.7);
+      // Check final size fits in URL (~6KB limit for payload param)
+      if (compressed.length > 8000) {
+        // Try smaller
+        const canvas2 = document.createElement('canvas');
+        const s2 = Math.min(80 / img.width, 80 / img.height, 1);
+        canvas2.width = Math.round(img.width * s2);
+        canvas2.height = Math.round(img.height * s2);
+        canvas2.getContext('2d').drawImage(img, 0, 0, canvas2.width, canvas2.height);
+        setLogoPreview(canvas2.toDataURL('image/jpeg', 0.65));
+      } else {
+        setLogoPreview(compressed);
+      }
+    };
+    img.src = e.target.result;
+  };
   reader.readAsDataURL(file);
 }
 
