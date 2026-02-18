@@ -606,6 +606,46 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 .vtab.prospect-tab.act{background:#b45309;border-color:#b45309;}
 
 
+/* ── PLAYER MODULE ── */
+.pl-tab{padding:10px 16px;background:transparent;border:none;border-bottom:3px solid transparent;font-size:12px;font-weight:700;cursor:pointer;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);white-space:nowrap;transition:all .15s;}
+.pl-tab:hover{color:var(--text);background:var(--green-light);}
+.pl-tab.act{color:var(--green);border-bottom-color:var(--green);background:#fff;}
+.pl-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+@media(max-width:600px){.pl-kpi-grid{grid-template-columns:repeat(2,1fr);}}
+.pl-kpi{background:var(--card);border:1.5px solid var(--border);border-radius:11px;padding:14px 16px;}
+.pl-kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:4px;}
+.pl-kpi-val{font-size:28px;font-weight:900;font-family:'Barlow Condensed',sans-serif;color:var(--green);}
+.pl-kpi-sub{font-size:11px;color:var(--text-dim);margin-top:2px;}
+.ag-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:20px;}
+.ag-card{border-radius:10px;padding:14px;cursor:pointer;border:2px solid transparent;transition:all .15s;position:relative;}
+.ag-card.green{background:#dcfce7;border-color:#16a34a;}
+.ag-card.amber{background:#fef9c3;border-color:#ca8a04;}
+.ag-card.red{background:#fee2e2;border-color:#dc2626;}
+.ag-card.grey{background:var(--bg);border-color:var(--border);}
+.ag-card:hover{transform:translateY(-1px);box-shadow:var(--shm);}
+.ag-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);}
+.ag-count{font-size:32px;font-weight:900;font-family:'Barlow Condensed',sans-serif;line-height:1;}
+.ag-bar-wrap{height:6px;background:rgba(0,0,0,.08);border-radius:3px;margin:8px 0 4px;}
+.ag-bar-fill{height:100%;border-radius:3px;transition:width .4s;}
+.ag-meta{font-size:10px;color:var(--text-dim);}
+.ag-disp{position:absolute;top:6px;right:8px;font-size:9px;font-weight:700;color:#7c3aed;background:#ede9fe;border-radius:4px;padding:1px 5px;}
+.pl-table{width:100%;border-collapse:collapse;font-size:13px;}
+.pl-table th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);font-weight:700;padding:6px 8px;border-bottom:2px solid var(--border);}
+.pl-table td{padding:9px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.pl-table tbody tr{cursor:pointer;transition:background .12s;}
+.pl-table tbody tr:hover{background:var(--green-light);}
+.disp-tag{background:#ede9fe;color:#7c3aed;font-size:9px;font-weight:700;border-radius:4px;padding:1px 6px;text-transform:uppercase;letter-spacing:.3px;}
+.pl-avatar{width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--green);font-family:'Barlow Condensed',sans-serif;flex-shrink:0;}
+.pl-avatar img{width:100%;height:100%;object-fit:cover;}
+.pl-search{width:100%;padding:9px 12px 9px 34px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7a6b' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;margin-bottom:12px;}
+.pl-search:focus{outline:none;border-color:var(--green);}
+.school-bar-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+.school-bar-track{flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden;}
+.school-bar-fill{height:100%;background:var(--green);border-radius:4px;transition:width .4s;}
+.import-drop{border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);}
+.import-drop.drag{border-color:var(--green);background:var(--green-light);}
+.lapsed-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+
 /* ── HEADER MOBILE ── */
 @media(max-width:640px){
   header{flex-wrap:wrap;padding:8px 12px;gap:6px;}
@@ -732,6 +772,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div id="admin-nav-btns" style="display:none;align-items:center;gap:4px;">
         <button class="hnav-btn" onclick="openAdminModal('log')">Access Log</button>
         <button class="hnav-btn" onclick="openAdminModal('users')">Users</button>
+        <button class="hnav-btn" id="players-nav-btn" onclick="openPlayersModal()" style="opacity:0.5;" title="Players — Admin only (beta)">🏉 Players</button>
       </div>
       <!-- Sync + Refresh + Sign Out -->
       <div style="display:flex;align-items:center;gap:4px;margin-left:auto;">
@@ -1203,6 +1244,51 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button class="mprimary" id="pkg-m-save" onclick="savePkg()">Save Package</button>
       <button class="msecondary" onclick="closePkgModal()">Cancel</button>
       <button class="mdanger" id="pkg-m-del" style="display:none" onclick="deletePkg()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- PLAYERS MODAL -->
+<div class="moverlay" id="players-modal" style="align-items:stretch;padding:0;">
+  <div style="background:var(--card);width:100%;max-width:100%;height:100vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="background:var(--green);padding:14px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+      <span style="font-size:22px;">🏉</span>
+      <div style="flex:1;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;color:#fff;text-transform:uppercase;letter-spacing:.5px;">Player & Recruitment Dashboard</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:1px;">Admin only — Beta</div>
+      </div>
+      <select id="pl-season-sel" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;" onchange="loadPlayerView()"></select>
+      <button onclick="closePlayersModal()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
+    </div>
+    <!-- Tab bar -->
+    <div style="display:flex;gap:0;background:var(--bg);border-bottom:2px solid var(--border);flex-shrink:0;overflow-x:auto;">
+      <button class="pl-tab act" data-tab="overview"  onclick="switchPlTab(this,'overview')">📊 Overview</button>
+      <button class="pl-tab"     data-tab="players"   onclick="switchPlTab(this,'players')">👥 Players</button>
+      <button class="pl-tab"     data-tab="lapsed"    onclick="switchPlTab(this,'lapsed')">⚠️ Not Returned</button>
+      <button class="pl-tab"     data-tab="schools"   onclick="switchPlTab(this,'schools')">🏫 Schools</button>
+      <button class="pl-tab"     data-tab="import"    onclick="switchPlTab(this,'import')">📥 Import</button>
+      <button class="pl-tab"     data-tab="settings"  onclick="switchPlTab(this,'settings')">⚙️ Settings</button>
+    </div>
+    <!-- Body -->
+    <div id="pl-body" style="flex:1;overflow-y:auto;padding:20px;"></div>
+  </div>
+</div>
+
+<!-- PLAYER DETAIL MODAL -->
+<div class="moverlay" id="player-detail-modal" style="align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--card);border-radius:14px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--card);z-index:1;">
+      <div id="pdm-avatar" style="width:48px;height:48px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:var(--green);font-family:'Barlow Condensed',sans-serif;"></div>
+      <div style="flex:1;min-width:0;">
+        <div id="pdm-name" style="font-weight:700;font-size:16px;"></div>
+        <div id="pdm-meta" style="font-size:12px;color:var(--text-dim);"></div>
+      </div>
+      <button onclick="closePlayerDetail()" style="background:var(--bg);border:1.5px solid var(--border);border-radius:50%;width:30px;height:30px;font-size:16px;cursor:pointer;">×</button>
+    </div>
+    <div id="pdm-body" style="padding:20px;"></div>
+    <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;">
+      <button class="msecondary" onclick="closePlayerDetail()">Close</button>
+      <button class="mprimary" id="pdm-save-btn" onclick="savePlayerDetail()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -2863,6 +2949,726 @@ function init() {
     document.getElementById('login-view').style.display='flex';
     initGoogleSignIn();
   }
+}
+
+
+// ════════════════════════════════════════════════════════
+//  PLAYER MODULE
+// ════════════════════════════════════════════════════════
+let plData       = null;  // { players, seasons, seasonYears, settings }
+let plSeason     = null;
+let plTab        = 'overview';
+let plSearchQ    = '';
+let plDetailId   = null;  // profileId of open player detail
+
+// ── OPEN / CLOSE ─────────────────────────────────────────────────
+function openPlayersModal() {
+  const modal = document.getElementById('players-modal');
+  bringToFront(modal);
+  modal.classList.add('open');
+  initPlayerSeasonSel();
+  if (!plData) loadPlayerData();
+}
+
+function closePlayersModal() {
+  document.getElementById('players-modal').classList.remove('open');
+}
+
+function closePlayerDetail() {
+  document.getElementById('player-detail-modal').classList.remove('open');
+  plDetailId = null;
+}
+
+// ── SEASON SELECTOR ───────────────────────────────────────────────
+function initPlayerSeasonSel() {
+  const sel = document.getElementById('pl-season-sel');
+  // Use sponsorship years as baseline, player seasons will add more
+  const opts = [...(years||[])].sort((a,b)=>b-a);
+  const cur  = new Date().getFullYear();
+  sel.innerHTML = opts.map(y =>
+    `<option value="${y}" ${y==cur?'selected':''}>${y}</option>`
+  ).join('');
+  plSeason = cur;
+}
+
+// ── LOAD PLAYER DATA ──────────────────────────────────────────────
+async function loadPlayerData() {
+  document.getElementById('pl-body').innerHTML =
+    '<div style="text-align:center;padding:40px;color:var(--text-dim)"><div class="ls-spinner" style="margin:0 auto 12px"></div>Loading player data…</div>';
+  const res = await api('getPlayerData', { season: plSeason });
+  if (res.error) {
+    document.getElementById('pl-body').innerHTML =
+      `<div style="color:var(--red);padding:20px">${res.error}</div>`;
+    return;
+  }
+  plData = res;
+  // Merge player season years into season selector
+  if (res.seasonYears && res.seasonYears.length) {
+    const sel = document.getElementById('pl-season-sel');
+    const existing = [...sel.options].map(o=>+o.value);
+    res.seasonYears.forEach(y => {
+      if (!existing.includes(+y)) {
+        const o = document.createElement('option');
+        o.value = y; o.textContent = y;
+        sel.appendChild(o);
+      }
+    });
+  }
+  renderPlTab();
+}
+
+async function loadPlayerView() {
+  plSeason = +document.getElementById('pl-season-sel').value;
+  plData = null;
+  await loadPlayerData();
+}
+
+// ── TAB SWITCHING ─────────────────────────────────────────────────
+function switchPlTab(btn, tab) {
+  document.querySelectorAll('.pl-tab').forEach(b => b.classList.toggle('act', b===btn));
+  plTab = tab;
+  renderPlTab();
+}
+
+function renderPlTab() {
+  if (!plData) { loadPlayerData(); return; }
+  const fns = {
+    overview: renderPlOverview,
+    players:  renderPlPlayers,
+    lapsed:   renderPlLapsed,
+    schools:  renderPlSchools,
+    import:   renderPlImport,
+    settings: renderPlSettings,
+  };
+  (fns[plTab] || renderPlOverview)();
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────
+function plSeasonRows() {
+  return (plData.seasons||[]).filter(s => +s.year === +plSeason);
+}
+
+function plPlayerMap() {
+  const m = {};
+  (plData.players||[]).forEach(p => m[p.profileId] = p);
+  return m;
+}
+
+// Effective age group for a player in a season row:
+// dispensation overrides to assignedTeam, else calcAge → U-group
+function effectiveAgeGroup(ps) {
+  if (ps.dispensation && ps.assignedTeam) return ps.assignedTeam;
+  if (ps.calcAge) return 'U' + ps.calcAge;
+  if (ps.ageGroupRaw) return ps.ageGroupRaw;
+  return '?';
+}
+
+// Get settings map: ageGroup → setting
+function settingsMap() {
+  const m = {};
+  (plData.settings||[]).forEach(s => m[s.ageGroup] = s);
+  return m;
+}
+
+function agColour(count, min, max) {
+  if (!min) return 'grey';
+  if (count >= min) return 'green';
+  if (count >= Math.ceil(min * 0.7)) return 'amber';
+  return 'red';
+}
+
+function plInitials(p) {
+  return ((p.firstName||'?')[0] + (p.lastName||'?')[0]).toUpperCase();
+}
+
+// ── OVERVIEW TAB ─────────────────────────────────────────────────
+function renderPlOverview() {
+  const rows   = plSeasonRows();
+  const pm     = plPlayerMap();
+  const sm     = settingsMap();
+  const total  = rows.length;
+  const boys   = rows.filter(r => (pm[r.profileId]||{}).gender === 'Male').length;
+  const girls  = rows.filter(r => (pm[r.profileId]||{}).gender === 'Female').length;
+  const newP   = rows.filter(r => r.newToClub === 'Yes').length;
+  const disp   = rows.filter(r => r.dispensation === true || r.dispensation === 'true').length;
+
+  // Group by effective age group
+  const byAG = {};
+  rows.forEach(r => {
+    const ag = effectiveAgeGroup(r);
+    if (!byAG[ag]) byAG[ag] = [];
+    byAG[ag].push(r);
+  });
+
+  const agOrder = ['U9','U10','U11','U12','U13','U14','U15','U16','U17','?'];
+  const agCards = agOrder.filter(ag => byAG[ag]).map(ag => {
+    const group   = byAG[ag];
+    const setting = sm[ag] || { minPlayers: 14, maxPlayers: 24 };
+    const count   = group.length;
+    const min     = +setting.minPlayers || 14;
+    const max     = +setting.maxPlayers || 24;
+    const colour  = agColour(count, min, max);
+    const pct     = Math.min(100, Math.round(count/max*100));
+    const dispCount = group.filter(r=>r.dispensation===true||r.dispensation==='true').length;
+    const boyCount = group.filter(r=>(pm[r.profileId]||{}).gender==='Male').length;
+    const girlCount = group.filter(r=>(pm[r.profileId]||{}).gender==='Female').length;
+    return `<div class="ag-card ${colour}" onclick="showAgeGroup('${ag}')">
+      ${dispCount>0?`<div class="ag-disp">⚡ ${dispCount} disp.</div>`:''}
+      <div class="ag-label">${ag}</div>
+      <div class="ag-count" style="color:${colour==='green'?'#16a34a':colour==='amber'?'#ca8a04':'#dc2626'}">${count}</div>
+      <div class="ag-bar-wrap"><div class="ag-bar-fill" style="width:${pct}%;background:${colour==='green'?'#16a34a':colour==='amber'?'#ca8a04':'#dc2626'}"></div></div>
+      <div class="ag-meta">Min ${min} · Max ${max}</div>
+      <div class="ag-meta">${boyCount}M · ${girlCount}F</div>
+    </div>`;
+  }).join('');
+
+  // Recruit needed: age groups with enough players to plausibly need just a few more
+  const alerts = agOrder.filter(ag => byAG[ag]).map(ag => {
+    const count = (byAG[ag]||[]).length;
+    const min   = +(sm[ag]||{minPlayers:14}).minPlayers || 14;
+    if (count < min) {
+      const need = min - count;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;border-radius:8px;margin-bottom:6px;border-left:3px solid ${count<Math.ceil(min*.5)?'#dc2626':'#ca8a04'}">
+        <span style="font-size:18px;">${count<Math.ceil(min*.5)?'🔴':'🟡'}</span>
+        <div><strong>${ag}</strong> — needs ${need} more player${need!==1?'s':''} <span style="color:var(--text-dim);font-size:11px">(${count}/${min} min)</span></div>
+      </div>`;
+    }
+    return null;
+  }).filter(Boolean);
+
+  document.getElementById('pl-body').innerHTML = `
+    <div class="pl-kpi-grid">
+      <div class="pl-kpi"><div class="pl-kpi-label">Registered ${plSeason}</div><div class="pl-kpi-val">${total}</div><div class="pl-kpi-sub">${boys} boys · ${girls} girls</div></div>
+      <div class="pl-kpi"><div class="pl-kpi-label">Age Groups</div><div class="pl-kpi-val">${Object.keys(byAG).filter(k=>k!=='?').length}</div><div class="pl-kpi-sub">${agOrder.filter(ag=>byAG[ag]&&(byAG[ag].length>=(+(sm[ag]||{}).minPlayers||14))).length} viable teams</div></div>
+      <div class="pl-kpi"><div class="pl-kpi-label">New to Club</div><div class="pl-kpi-val" style="color:var(--green-bright)">${newP}</div><div class="pl-kpi-sub">first season at KJFC</div></div>
+      <div class="pl-kpi"><div class="pl-kpi-label">Dispensations</div><div class="pl-kpi-val" style="color:#7c3aed">${disp}</div><div class="pl-kpi-sub">age override active</div></div>
+    </div>
+
+    <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;color:var(--text);">Age Group Breakdown — ${plSeason}</h3>
+    ${total===0?'<div style="color:var(--text-dim);padding:20px;text-align:center">No player data for this season. Use the Import tab to load players.</div>':agCards||'<div style="color:var(--text-dim)">No players this season.</div>'}
+
+    ${alerts.length?`<h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;text-transform:uppercase;letter-spacing:.5px;margin:20px 0 10px;color:var(--text);">🎯 Recruitment Focus</h3><div style="background:var(--bg);border-radius:10px;padding:12px;">${alerts.join('')}</div>`:''}
+  `;
+}
+
+function showAgeGroup(ag) {
+  switchPlTab(document.querySelector('.pl-tab[data-tab="players"]'), 'players');
+  setTimeout(()=>{ document.getElementById('pl-filter-ag').value=ag; renderFilteredPlayers(); }, 50);
+}
+
+// ── PLAYERS TAB ───────────────────────────────────────────────────
+function renderPlPlayers() {
+  const rows = plSeasonRows();
+  const pm   = plPlayerMap();
+  const ags  = [...new Set(rows.map(r=>effectiveAgeGroup(r)))].sort();
+
+  document.getElementById('pl-body').innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+      <input class="pl-search" id="pl-search" placeholder="Search name, school, suburb…" oninput="renderFilteredPlayers()" style="flex:1;min-width:180px;">
+      <select id="pl-filter-ag" onchange="renderFilteredPlayers()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--card);">
+        <option value="">All age groups</option>
+        ${ags.map(a=>`<option value="${a}">${a}</option>`).join('')}
+      </select>
+      <select id="pl-filter-gender" onchange="renderFilteredPlayers()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--card);">
+        <option value="">All genders</option>
+        <option value="Male">Boys</option>
+        <option value="Female">Girls</option>
+      </select>
+    </div>
+    <div id="pl-table-wrap"></div>
+  `;
+  renderFilteredPlayers();
+}
+
+function renderFilteredPlayers() {
+  const rows   = plSeasonRows();
+  const pm     = plPlayerMap();
+  const q      = (document.getElementById('pl-search')?.value||'').toLowerCase();
+  const agF    = document.getElementById('pl-filter-ag')?.value||'';
+  const genF   = document.getElementById('pl-filter-gender')?.value||'';
+
+  let filtered = rows.map(r => ({ ps: r, p: pm[r.profileId]||{} }))
+    .filter(({ps,p}) => {
+      if (agF  && effectiveAgeGroup(ps) !== agF)  return false;
+      if (genF && p.gender !== genF)               return false;
+      if (q) {
+        const hay = [p.firstName,p.lastName,p.school,p.suburb,effectiveAgeGroup(ps)].join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    })
+    .sort((a,b) => (a.p.lastName||'').localeCompare(b.p.lastName||''));
+
+  const wrap = document.getElementById('pl-table-wrap');
+  if (!wrap) return;
+  if (!filtered.length) {
+    wrap.innerHTML = '<div style="color:var(--text-dim);padding:20px;text-align:center;">No players match.</div>';
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">${filtered.length} player${filtered.length!==1?'s':''}</div>
+    <div style="overflow-x:auto;">
+    <table class="pl-table">
+      <thead><tr>
+        <th></th><th>Name</th><th>Age Grp</th><th>Gender</th><th>School</th><th>Suburb</th><th>New</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${filtered.map(({ps,p}) => {
+          const ag   = effectiveAgeGroup(ps);
+          const init = plInitials(p);
+          const photo = p.photoUrl ? `<img src="${p.photoUrl}" onerror="this.style.display='none'">` : init;
+          const dispTag = (ps.dispensation===true||ps.dispensation==='true') ? '<span class="disp-tag">disp.</span>' : '';
+          return `<tr onclick="openPlayerDetail('${p.profileId}')">
+            <td><div class="pl-avatar">${photo}</div></td>
+            <td><strong>${p.firstName||''} ${p.lastName||''}</strong></td>
+            <td>${ag} ${dispTag}</td>
+            <td>${p.gender||'—'}</td>
+            <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.school||'—'}</td>
+            <td style="font-size:11px;">${p.suburb||'—'}</td>
+            <td>${ps.newToClub==='Yes'?'<span style="color:var(--green);font-weight:700;font-size:11px;">✓ New</span>':'—'}</td>
+            <td><button class="actbtn" onclick="event.stopPropagation();openPlayerDetail('${p.profileId}')">View</button></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>
+  `;
+}
+
+// ── PLAYER DETAIL MODAL ───────────────────────────────────────────
+function openPlayerDetail(profileId) {
+  const p   = (plData.players||[]).find(x=>x.profileId===profileId);
+  if (!p) return;
+  const ps  = plSeasonRows().find(r=>r.profileId===profileId) || {};
+  plDetailId = profileId;
+
+  const init  = plInitials(p);
+  const photo = p.photoUrl;
+  const ag    = effectiveAgeGroup(ps);
+  const disp  = ps.dispensation===true||ps.dispensation==='true';
+
+  document.getElementById('pdm-avatar').innerHTML = photo
+    ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display='none'">${init}`
+    : init;
+  document.getElementById('pdm-name').textContent  = `${p.firstName} ${p.lastName}`;
+  document.getElementById('pdm-meta').textContent  = `${ag} · ${p.gender||''} · DOB ${p.dob||''} · ${p.suburb||''}`;
+
+  // Compute age + eligibility for nearby groups
+  const calcAgeVal = ps.calcAge ? +ps.calcAge : null;
+  const eligible = calcAgeVal ? [calcAgeVal-1, calcAgeVal, calcAgeVal+1].filter(a=>a>=9&&a<=17).map(a=>'U'+a) : [];
+
+  document.getElementById('pdm-body').innerHTML = `
+    <!-- Photo -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+      <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;background:var(--green-light);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:var(--green);font-family:'Barlow Condensed',sans-serif;">
+        ${photo?`<img src="${photo}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">`:''}
+        ${init}
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Profile photo URL</div>
+        <input id="pdm-photo" type="text" value="${p.photoUrl||''}" placeholder="https://... or leave blank for initials"
+          style="width:280px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;">
+      </div>
+    </div>
+
+    <!-- Age / Dispensation -->
+    <div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">Age & Team Assignment</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+        <span style="font-size:13px;">Calculated age <strong>${calcAgeVal||'?'}</strong> → eligible: ${eligible.map(g=>`<span style="background:var(--green-light);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">${g}</span>`).join(' ')}</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="pdm-disp" ${disp?'checked':''} onchange="document.getElementById('pdm-disp-note-wrap').style.display=this.checked?'block':'none'">
+          <span style="font-weight:600;color:#7c3aed;">Dispensation — override age group</span>
+        </label>
+      </div>
+      <div id="pdm-disp-note-wrap" style="display:${disp?'block':'none'};margin-top:8px;">
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Assigned team (dispensation)</div>
+        <div style="display:flex;gap:8px;">
+          <select id="pdm-assigned-team" style="padding:6px 8px;border:1.5px solid #a78bfa;border-radius:6px;font-size:12px;">
+            ${['U9','U10','U11','U12','U13','U14','U15','U16','U17'].map(g=>`<option value="${g}" ${(ps.assignedTeam===g)?'selected':''}>${g}</option>`).join('')}
+          </select>
+          <input id="pdm-disp-note" type="text" value="${ps.dispensationNote||''}" placeholder="Dispensation note (e.g. League approved 12/02/26)"
+            style="flex:1;padding:6px 8px;border:1.5px solid #a78bfa;border-radius:6px;font-size:12px;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact details -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+      ${[
+        ['Parent/Guardian 1','parent1Name',p.parent1Name,'parent1Phone',p.parent1Phone,'parent1Email',p.parent1Email],
+        ['Parent/Guardian 2','parent2Name',p.parent2Name,'parent2Phone',p.parent2Phone,'parent2Email',p.parent2Email],
+      ].map(([label,nk,nv,pk,pv,ek,ev])=>`
+        <div style="background:var(--bg);border-radius:8px;padding:10px 12px;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:6px;">${label}</div>
+          <div style="font-size:12px;font-weight:600;">${nv||'—'}</div>
+          <div style="font-size:12px;color:var(--text-dim);">${pv?fmtPhone(pv):'—'}</div>
+          <div style="font-size:11px;color:var(--text-dim);word-break:break-all;">${ev||'—'}</div>
+        </div>`).join('')}
+    </div>
+
+    <!-- Emergency contact -->
+    <div style="background:#fff8f0;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#b45309;margin-bottom:4px;">Emergency Contact</div>
+      <div style="font-size:13px;font-weight:600;">${p.emergencyName||'—'} ${p.emergencyRelationship?'('+p.emergencyRelationship+')':''}</div>
+      <div style="font-size:12px;color:var(--text-dim);">${p.emergencyPhone?fmtPhone(p.emergencyPhone):'—'}</div>
+    </div>
+
+    <!-- School + Suburb -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+      <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">School</div><div style="font-size:13px;">${p.school||'—'}</div><div style="font-size:11px;color:var(--text-dim);">Year ${p.schoolYear||'—'}</div></div>
+      <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">Suburb</div><div style="font-size:13px;">${p.suburb||'—'} ${p.postcode||''}</div></div>
+    </div>
+
+    <!-- Notes -->
+    <div><div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">Season Notes</div>
+    <textarea id="pdm-notes" rows="2" placeholder="Any notes about this player for ${plSeason}…"
+      style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;resize:vertical;">${ps.notes||''}</textarea></div>
+  `;
+
+  const modal = document.getElementById('player-detail-modal');
+  bringToFront(modal);
+  modal.classList.add('open');
+}
+
+async function savePlayerDetail() {
+  if (!plDetailId) return;
+  const ps = plSeasonRows().find(r=>r.profileId===plDetailId)||{};
+
+  const photoUrl     = document.getElementById('pdm-photo')?.value?.trim()||'';
+  const dispensation = document.getElementById('pdm-disp')?.checked||false;
+  const assignedTeam = document.getElementById('pdm-assigned-team')?.value||'';
+  const dispNote     = document.getElementById('pdm-disp-note')?.value?.trim()||'';
+  const notes        = document.getElementById('pdm-notes')?.value?.trim()||'';
+
+  const btn = document.getElementById('pdm-save-btn');
+  btnLoading(btn, true);
+
+  const [r1, r2] = await Promise.all([
+    api('updatePlayer', { profileId: plDetailId, photoUrl }),
+    ps.id ? api('updatePlayerSeason', { id: ps.id, dispensation, assignedTeam, dispensationNote: dispNote, notes }) : Promise.resolve({ok:true})
+  ]);
+
+  btnLoading(btn, false);
+  if (r1.error || r2?.error) { showToast('Save failed: '+(r1.error||r2?.error), 'err'); return; }
+
+  // Update local data
+  const p = (plData.players||[]).find(x=>x.profileId===plDetailId);
+  if (p) p.photoUrl = photoUrl;
+  if (ps.id) {
+    Object.assign(ps, { dispensation, assignedTeam, dispensationNote: dispNote, notes });
+  }
+
+  showToast('Player saved ✓');
+  closePlayerDetail();
+  renderPlTab();
+}
+
+// ── LAPSED / NOT RETURNED TAB ─────────────────────────────────────
+async function renderPlLapsed() {
+  document.getElementById('pl-body').innerHTML =
+    '<div style="text-align:center;padding:32px;color:var(--text-dim)"><div class="ls-spinner" style="margin:0 auto 12px"></div>Finding lapsed players…</div>';
+  const res = await api('getLapsedPlayers', { year: plSeason });
+  if (res.error) { document.getElementById('pl-body').innerHTML=`<div style="color:var(--red);padding:20px">${res.error}</div>`; return; }
+  const lapsed = res.lapsed||[];
+  if (!lapsed.length) {
+    document.getElementById('pl-body').innerHTML =
+      `<div style="text-align:center;padding:40px;color:var(--text-dim);">
+        <div style="font-size:32px;margin-bottom:8px;">✅</div>
+        All players from ${res.prevYear} have re-registered for ${plSeason}${res.prevYear?(', or there is no '+res.prevYear+' data yet'):''}.</div>`;
+    return;
+  }
+
+  const calcCurAge = p => p.calcAge;
+
+  document.getElementById('pl-body').innerHTML = `
+    <div style="background:#fef9c3;border:1.5px solid #ca8a04;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:center;">
+      <span style="font-size:20px;">⚠️</span>
+      <div><strong>${lapsed.length} player${lapsed.length!==1?'s':''}</strong> registered in ${res.prevYear} have not yet re-registered for ${res.year}.</div>
+    </div>
+    <input class="pl-search" id="lapsed-search" placeholder="Search name, school…" oninput="filterLapsed()" style="width:100%;margin-bottom:12px;">
+    <div id="lapsed-list">
+    ${lapsed.map(p => `
+      <div class="lapsed-row" id="lapsed-${p.profileId}">
+        <div class="pl-avatar">${plInitials(p)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:13px;">${p.firstName} ${p.lastName}</div>
+          <div style="font-size:11px;color:var(--text-dim);">Last: ${p.lastAgeGroup||'—'} · Age ${calcCurAge(p)||'?'} this year · ${p.school||'—'} · ${p.suburb||'—'}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          ${p.parent1Phone?`<div style="font-size:12px;font-weight:600;">${fmtPhone(p.parent1Phone)}</div>`:''}
+          ${p.parent1Email?`<div style="font-size:11px;color:var(--text-dim);word-break:break-all;">${p.parent1Email}</div>`:''}
+        </div>
+      </div>`).join('')}
+    </div>
+    <div style="margin-top:12px;text-align:right;">
+      <button class="msecondary" onclick="exportLapsed(${JSON.stringify(lapsed).replace(/"/g,'&quot;')})">⬇ Export CSV</button>
+    </div>
+  `;
+}
+
+function filterLapsed() {
+  const q = (document.getElementById('lapsed-search')?.value||'').toLowerCase();
+  document.querySelectorAll('.lapsed-row').forEach(row => {
+    row.style.display = !q || row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function exportLapsed(lapsed) {
+  const rows = [['First Name','Last Name','Last Age Group','Age This Year','School','Suburb','Parent Name','Parent Phone','Parent Email']];
+  lapsed.forEach(p => rows.push([p.firstName,p.lastName,p.lastAgeGroup||'',p.calcAge||'',p.school||'',p.suburb||'',p.parent1Name||'',p.parent1Phone||'',p.parent1Email||'']));
+  const csv = rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `lapsed_players_${plSeason}.csv`;
+  a.click();
+}
+
+// ── SCHOOLS TAB ───────────────────────────────────────────────────
+function renderPlSchools() {
+  const rows = plSeasonRows();
+  const pm   = plPlayerMap();
+  const bySch = {};
+  rows.forEach(r => {
+    const p   = pm[r.profileId]||{};
+    const sch = p.school || 'Unknown';
+    // Shorten school name for display
+    const short = sch.replace(/,.*$/,'').trim();
+    if (!bySch[short]) bySch[short] = { count:0, boys:0, girls:0, ags:{} };
+    bySch[short].count++;
+    if (p.gender==='Male') bySch[short].boys++;
+    if (p.gender==='Female') bySch[short].girls++;
+    const ag = effectiveAgeGroup(r);
+    bySch[short].ags[ag] = (bySch[short].ags[ag]||0)+1;
+  });
+
+  const sorted = Object.entries(bySch).sort((a,b)=>b[1].count-a[1].count);
+  const max    = sorted[0]?.[1]?.count||1;
+
+  if (!sorted.length) {
+    document.getElementById('pl-body').innerHTML = '<div style="color:var(--text-dim);padding:20px;text-align:center;">No player data. Import players first.</div>';
+    return;
+  }
+
+  document.getElementById('pl-body').innerHTML = `
+    <div style="margin-bottom:16px;font-size:13px;color:var(--text-dim);">${rows.length} players across ${sorted.length} schools · ${plSeason}</div>
+    ${sorted.map(([sch,d])=>`
+      <div class="school-bar-row">
+        <div style="width:180px;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${sch}">${sch}</div>
+        <div class="school-bar-track"><div class="school-bar-fill" style="width:${Math.round(d.count/max*100)}%"></div></div>
+        <div style="width:36px;text-align:right;font-size:13px;font-weight:700;color:var(--green);">${d.count}</div>
+        <div style="width:80px;text-align:right;font-size:11px;color:var(--text-dim);">${d.boys}M · ${d.girls}F</div>
+      </div>`).join('')}
+  `;
+}
+
+// ── IMPORT TAB ────────────────────────────────────────────────────
+function renderPlImport() {
+  document.getElementById('pl-body').innerHTML = `
+    <div style="max-width:560px;">
+      <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:17px;text-transform:uppercase;margin-bottom:8px;">Import PlayHQ Data</h3>
+      <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
+        Export a <strong>participants CSV</strong> from the PlayHQ admin portal, then drag it here. The system will automatically filter to Kinglake junior players (17 and under) and exclude seniors.
+      </p>
+      <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;">
+        <label style="font-size:12px;font-weight:700;color:var(--text-dim);">Import for season:</label>
+        <select id="import-season" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;">
+          ${(years||[new Date().getFullYear()]).map(y=>`<option value="${y}" ${y==plSeason?'selected':''}>${y}</option>`).join('')}
+        </select>
+      </div>
+      <div class="import-drop" id="import-drop"
+        ondragover="event.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="handleImportDrop(event)"
+        onclick="document.getElementById('import-file-input').click()">
+        <div style="font-size:32px;margin-bottom:8px;">📂</div>
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px;">Drop participants CSV here</div>
+        <div style="font-size:12px;color:var(--text-dim);">or click to browse · PlayHQ participants export</div>
+      </div>
+      <input type="file" id="import-file-input" accept=".csv" style="display:none" onchange="handleImportFile(this.files[0])">
+      <div id="import-preview" style="margin-top:16px;"></div>
+    </div>
+  `;
+}
+
+function handleImportDrop(e) {
+  e.preventDefault();
+  document.getElementById('import-drop').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) handleImportFile(file);
+}
+
+function handleImportFile(file) {
+  if (!file) return;
+  const preview = document.getElementById('import-preview');
+  preview.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">Reading file…</div>';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    const rows = parseCSV(text);
+    const season = +document.getElementById('import-season').value;
+    const valid  = rows.filter(r => (r['First Name']||'').trim());
+
+    // Preview stats
+    const juniors = valid.filter(r => {
+      const age = calcAgeClient(r['Date of Birth'], season);
+      const ag  = (r['Age Group']||'').toUpperCase();
+      const role = r['Role']||'';
+      const club = r['Club']||'';
+      if (role && role !== 'Player') return false;
+      if (club && !club.toLowerCase().includes('kinglake')) return false;
+      if (ag === 'SENIOR' || (age !== null && age > 17)) return false;
+      return true;
+    });
+    const seniors = valid.length - juniors.length;
+
+    preview.innerHTML = `
+      <div style="background:var(--green-light);border:1.5px solid var(--green);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+        <div style="font-weight:700;font-size:14px;color:var(--green);margin-bottom:6px;">✓ File parsed: ${file.name}</div>
+        <div style="font-size:13px;">Found <strong>${juniors.length} junior players</strong> · ${seniors} seniors/others excluded</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Season: ${season} · First player: ${juniors[0]?juniors[0]['First Name']+' '+juniors[0]['Last Name']:'none'}</div>
+      </div>
+      <button class="mprimary" style="width:100%;" onclick="confirmImport(${JSON.stringify(valid).replace(/"/g,'&quot;')}, ${season})">
+        Import ${juniors.length} players into ${season} season
+      </button>
+    `;
+  };
+  reader.readAsText(file);
+}
+
+// Client-side age calc (mirrors backend)
+function calcAgeClient(dobStr, season) {
+  if (!dobStr) return null;
+  const parts = dobStr.toString().split('/');
+  if (parts.length < 3) return null;
+  let yr = parseInt(parts[2], 10);
+  if (yr < 100) yr += (yr < 30 ? 2000 : 1900);
+  return parseInt(season, 10) - yr;
+}
+
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/);
+  if (!lines.length) return [];
+  const headers = parseCSVLine(lines[0]);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = parseCSVLine(lines[i]);
+    if (!vals.some(v=>v.trim())) continue;
+    const obj = {};
+    headers.forEach((h,i) => obj[h] = vals[i]||'');
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur);
+  return result;
+}
+
+async function confirmImport(rows, season) {
+  const btn = document.querySelector('#import-preview .mprimary');
+  if (btn) btnLoading(btn, true);
+  const res = await api('importPlayers', { rows, season });
+  if (btn) btnLoading(btn, false);
+  if (res.error) { showToast('Import failed: '+res.error, 'err'); return; }
+  const s = res.stats||{};
+  showToast(`Import complete: ${s.imported} new, ${s.updated} updated, ${s.seniors} seniors excluded`);
+  plData = null;
+  plSeason = season;
+  document.getElementById('pl-season-sel').value = season;
+  await loadPlayerData();
+  switchPlTab(document.querySelector('.pl-tab[data-tab="overview"]'), 'overview');
+}
+
+// ── SETTINGS TAB ─────────────────────────────────────────────────
+function renderPlSettings() {
+  const settings = plData.settings || [];
+
+  document.getElementById('pl-body').innerHTML = `
+    <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:17px;text-transform:uppercase;margin-bottom:8px;">Age Group Settings</h3>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
+      Configure minimum and maximum player numbers per age group based on NFNL rules. These thresholds determine the colour coding on the overview (green/amber/red).
+    </p>
+    <div style="overflow-x:auto;">
+    <table class="pl-table" id="settings-table">
+      <thead><tr>
+        <th>Age Group</th><th>Gender</th><th>Phase</th><th>Min Players</th><th>Max Players</th><th></th>
+      </tr></thead>
+      <tbody id="settings-tbody">
+        ${settings.map((s,i)=>`
+          <tr id="sg-row-${i}">
+            <td><strong>${s.ageGroup}</strong></td>
+            <td><select data-field="gender" style="padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;">
+              ${['Mixed','Male','Female'].map(g=>`<option ${s.gender===g?'selected':''}>${g}</option>`).join('')}
+            </select></td>
+            <td><select data-field="phase" style="padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;">
+              ${['Development','Competition'].map(p=>`<option ${s.phase===p?'selected':''}>${p}</option>`).join('')}
+            </select></td>
+            <td><input type="number" data-field="minPlayers" value="${s.minPlayers}" min="1" max="30"
+              style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:13px;"></td>
+            <td><input type="number" data-field="maxPlayers" value="${s.maxPlayers}" min="1" max="50"
+              style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:13px;"></td>
+            <td><button class="actbtn" style="color:var(--red)" onclick="removeSettingRow(${i})">Remove</button></td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="msecondary" onclick="addSettingRow()">+ Add Age Group</button>
+      <button class="mprimary" onclick="saveSettings()">Save Settings</button>
+    </div>
+  `;
+}
+
+function addSettingRow() {
+  const tbody = document.getElementById('settings-tbody');
+  const i = tbody.rows.length;
+  const tr = document.createElement('tr');
+  tr.id = 'sg-row-' + i;
+  tr.innerHTML = `
+    <td><input type="text" data-field="ageGroup" value="U" placeholder="U12"
+      style="width:55px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-weight:700;"></td>
+    <td><select data-field="gender" style="padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;">
+      <option>Mixed</option><option>Male</option><option>Female</option>
+    </select></td>
+    <td><select data-field="phase" style="padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;">
+      <option>Competition</option><option>Development</option>
+    </select></td>
+    <td><input type="number" data-field="minPlayers" value="14" min="1" max="30"
+      style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:13px;"></td>
+    <td><input type="number" data-field="maxPlayers" value="24" min="1" max="50"
+      style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:13px;"></td>
+    <td><button class="actbtn" style="color:var(--red)" onclick="this.closest('tr').remove()">Remove</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function removeSettingRow(i) {
+  document.getElementById('sg-row-' + i)?.remove();
+}
+
+async function saveSettings() {
+  const rows = [...document.querySelectorAll('#settings-tbody tr')].map(tr => {
+    const get = f => tr.querySelector(`[data-field="${f}"]`)?.value?.trim()||'';
+    return { ageGroup: get('ageGroup'), gender: get('gender'), phase: get('phase'),
+             minPlayers: +get('minPlayers')||14, maxPlayers: +get('maxPlayers')||24 };
+  }).filter(r => r.ageGroup);
+  const res = await api('saveAgeSettings', { settings: rows });
+  if (res.error) { showToast('Save failed: '+res.error, 'err'); return; }
+  plData.settings = rows;
+  showToast('Settings saved ✓');
 }
 
 document.addEventListener('DOMContentLoaded', init);
