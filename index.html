@@ -1878,7 +1878,7 @@ function populatePackageSelect() {
   const cur = sel.value;
   sel.innerHTML = '<option value="">— Select package —</option>';
   const active = packages.filter(p => p.active !== 'false');
-  active.sort((a,b) => (TO[a.tier]||9) - (TO[b.tier]||9));
+  active.sort((a,b) => (b.amount||0) - (a.amount||0));
   active.forEach(p => {
     const opt = document.createElement('option');
     opt.value = p.id;
@@ -2303,7 +2303,7 @@ function renderPackageManager() {
   const body = document.getElementById('adm-body');
   const tierLabel = { gold:'🥇 Gold', silver:'🥈 Silver', bronze:'🥉 Bronze', community:'🤝 Community', custom:'⭐ Custom' };
 
-  const rows = packages.length ? packages.map(function(p) {
+  const rows = packages.length ? packages.slice().sort((a,b) => (b.amount||0) - (a.amount||0)).map(function(p) {
     const usageCount = seasonEntries.filter(function(s) {
       return s.tier === p.tier && +s.amount === +p.amount && !s.customPackage;
     }).length;
