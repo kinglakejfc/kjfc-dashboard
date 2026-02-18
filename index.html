@@ -1293,8 +1293,16 @@ function renderSeasonTabs() {
   document.getElementById('season-tabs').innerHTML = years.map(y =>
     `<button class="stab${+y===+activeSeason?' act':''}" onclick="switchSeason(${y})">${y}</button>`
   ).join('');
+  // Only rebuild the year select if the SS modal is NOT open (avoid resetting user's choice)
   const sel = document.getElementById('sf-year');
-  if (sel) { sel.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join(''); sel.value = activeSeason; }
+  if (sel && !document.getElementById('ss-modal').classList.contains('open')) {
+    sel.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join('');
+    sel.value = activeSeason;
+  } else if (sel && !sel.innerHTML) {
+    // First time — always populate
+    sel.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join('');
+    sel.value = activeSeason;
+  }
 }
 
 function switchSeason(y) { activeSeason = +y; renderSeasonTabs(); render(); }
@@ -1873,8 +1881,12 @@ function openAddSS(orgId) {
   document.getElementById('ss-m-save').textContent  = 'Add Sponsorship';
   document.getElementById('ss-m-del').style.display = 'none';
   resetSSModal();
+  // Always rebuild year select fresh when opening modal
   const sel = document.getElementById('sf-year');
-  if (sel) sel.value = activeSeason;
+  if (sel) {
+    sel.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join('');
+    sel.value = activeSeason;
+  }
   document.getElementById('ss-modal').classList.add('open');
 }
 
