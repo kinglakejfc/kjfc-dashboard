@@ -1267,6 +1267,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button class="pl-tab"     data-tab="players"   onclick="switchPlTab(this,'players')">👥 Players</button>
       <button class="pl-tab"     data-tab="lapsed"    onclick="switchPlTab(this,'lapsed')">⚠️ Not Returned</button>
       <button class="pl-tab"     data-tab="schools"   onclick="switchPlTab(this,'schools')">🏫 Schools</button>
+      <button class="pl-tab"     data-tab="teams"     onclick="switchPlTab(this,'teams')">🏉 Teams</button>
       <button class="pl-tab"     data-tab="import"    onclick="switchPlTab(this,'import')">📥 Import</button>
       <button class="pl-tab"     data-tab="settings"  onclick="switchPlTab(this,'settings')">⚙️ Settings</button>
     </div>
@@ -2979,7 +2980,7 @@ function init() {
 // ════════════════════════════════════════════════════════
 //  PLAYER MODULE
 // ════════════════════════════════════════════════════════
-let plData       = null;  // { players, seasons, seasonYears, settings }
+let plData       = null;  // { players, seasons, seasonYears, settings, teams }
 let plSeason     = null;
 let plTab        = 'overview';
 let plSearchQ    = '';
@@ -3066,6 +3067,7 @@ function renderPlTab() {
     players:  renderPlPlayers,
     lapsed:   renderPlLapsed,
     schools:  renderPlSchools,
+    teams:    renderPlTeams,
     import:   renderPlImport,
     settings: renderPlSettings,
   };
@@ -3075,6 +3077,14 @@ function renderPlTab() {
 // ── HELPERS ───────────────────────────────────────────────────────
 function plSeasonRows() {
   return (plData.seasons||[]).filter(s => +s.year === +plSeason);
+}
+
+function plSeasonTeams() {
+  return (plData.teams||[]).filter(t => +t.season === +plSeason);
+}
+
+function plTeamById(id) {
+  return (plData.teams||[]).find(t => t.id === id) || null;
 }
 
 function plPlayerMap() {
@@ -3260,7 +3270,7 @@ function renderFilteredPlayers() {
             <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.school||'—'}</td>
             <td style="font-size:11px;">${p.suburb||'—'}</td>
             <td>${ps.newToClub==='Yes'?'<span style="color:var(--green);font-weight:700;font-size:11px;">✓ New</span>':'—'}</td>
-            <td style="text-align:center;">${p.photoConsent==='Yes'?'<span style="color:var(--green);font-size:13px;" title="Photo consent given">✓</span>':'<span style="color:var(--text-dim);font-size:11px;" title="No photo consent">—</span>'}</td>
+            <td style="text-align:center;">${p.photoConsent==='No'?'<span style="color:#dc2626;font-size:11px;" title="Opted out">✗</span>':'<span style="color:var(--green);font-size:13px;" title="Consent given (or assumed by default)">✓</span>'}</td>
             <td><button class="actbtn" onclick="event.stopPropagation();openPlayerDetail('${p.profileId}')">View</button></td>
           </tr>`;
         }).join('')}
@@ -3304,11 +3314,13 @@ function openPlayerDetail(profileId) {
           style="width:280px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;">
         <div style="margin-top:8px;">
           <label style="font-size:12px;display:flex;align-items:center;gap:7px;cursor:pointer;">
-            <input type="checkbox" id="pdm-photo-consent" ${p.photoConsent==='Yes'?'checked':''}
+            <input type="checkbox" id="pdm-photo-consent" ${p.photoConsent!=='No'?'checked':''}
               style="width:14px;height:14px;accent-color:var(--green);cursor:pointer;">
-            <span style="font-weight:600;">📸 Photo consent given</span>
+            <span style="font-weight:600;">📸 Photo consent</span>
           </label>
-          <div style="font-size:10px;color:var(--text-dim);margin-top:2px;margin-left:21px;">Parent/guardian has consented to publication of player photos</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:2px;margin-left:21px;">
+            ${p.photoConsent==='No' ? '<span style="color:#dc2626;">Opted out — do not publish photos</span>' : 'Consent assumed (default Yes). Uncheck only if parent has explicitly opted out.'}
+          </div>
         </div>
       </div>
     </div>
@@ -3319,21 +3331,25 @@ function openPlayerDetail(profileId) {
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
         <span style="font-size:13px;">Calculated age <strong>${calcAgeVal||'?'}</strong> → eligible: ${eligible.map(g=>`<span style="background:var(--green-light);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">${g}</span>`).join(' ')}</span>
       </div>
+      <!-- Team assignment — always visible -->
+      <div style="margin-bottom:10px;">
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Assigned team</div>
+        <select id="pdm-assigned-team" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;width:100%;">
+          <option value="">— unassigned —</option>
+          ${plSeasonTeams().map(t=>`<option value="${t.id}" ${ps.assignedTeam===t.id?'selected':''}>${t.name}</option>`).join('')}
+          ${!plSeasonTeams().length ? '<option disabled style="color:#999;">No teams yet — set up in Teams tab</option>' : ''}
+        </select>
+      </div>
+      <!-- Dispensation -->
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
           <input type="checkbox" id="pdm-disp" ${disp?'checked':''} onchange="document.getElementById('pdm-disp-note-wrap').style.display=this.checked?'block':'none'">
-          <span style="font-weight:600;color:#7c3aed;">Dispensation — override age group</span>
+          <span style="font-weight:600;color:#7c3aed;">Dispensation — playing outside natural age group</span>
         </label>
       </div>
       <div id="pdm-disp-note-wrap" style="display:${disp?'block':'none'};margin-top:8px;">
-        <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Assigned team (dispensation)</div>
-        <div style="display:flex;gap:8px;">
-          <select id="pdm-assigned-team" style="padding:6px 8px;border:1.5px solid #a78bfa;border-radius:6px;font-size:12px;">
-            ${['U9','U10','U11','U12','U13','U14','U15','U16','U17'].map(g=>`<option value="${g}" ${(ps.assignedTeam===g)?'selected':''}>${g}</option>`).join('')}
-          </select>
-          <input id="pdm-disp-note" type="text" value="${ps.dispensationNote||''}" placeholder="Dispensation note (e.g. League approved 12/02/26)"
-            style="flex:1;padding:6px 8px;border:1.5px solid #a78bfa;border-radius:6px;font-size:12px;">
-        </div>
+        <input id="pdm-disp-note" type="text" value="${ps.dispensationNote||''}" placeholder="Dispensation note (e.g. League approved 12/02/26)"
+          style="width:100%;padding:6px 8px;border:1.5px solid #a78bfa;border-radius:6px;font-size:12px;">
       </div>
     </div>
 
@@ -3525,6 +3541,220 @@ function renderPlSchools() {
 // ── IMPORT TAB ────────────────────────────────────────────────────
 // ── IMPORT STATE ─────────────────────────────────────────────────
 let _importData = null; // { season, include[], exclude[] } set after parsing
+
+// ── TEAMS TAB ────────────────────────────────────────────────────────────────
+function renderPlTeams() {
+  const body     = document.getElementById('pl-body');
+  const teams    = plSeasonTeams();
+  const seasons  = (plData.players||[]).length ? null : null; // just for reference
+  const allSeasonRows = (plData.seasons||[]).filter(s => +s.year === +plSeason);
+  const pm       = plPlayerMap();
+
+  // Count players per team
+  const teamCount = {};
+  allSeasonRows.forEach(s => { if (s.assignedTeam) teamCount[s.assignedTeam] = (teamCount[s.assignedTeam]||0)+1; });
+  const unassigned = allSeasonRows.filter(s => !s.assignedTeam).length;
+
+  body.innerHTML = `
+    <div style="padding:16px 20px;">
+
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:14px;font-weight:700;">${plSeason} Teams</div>
+          <div style="font-size:12px;color:var(--text-dim);">${teams.length} team${teams.length!==1?'s':''} · ${allSeasonRows.length} registered · ${unassigned} unassigned</div>
+        </div>
+        <button class="mprimary" onclick="openTeamModal(null)" style="font-size:12px;padding:7px 14px;">+ Add Team</button>
+      </div>
+
+      <!-- Teams grid -->
+      ${teams.length === 0 ? `
+        <div style="text-align:center;padding:40px 20px;color:var(--text-dim);">
+          <div style="font-size:32px;margin-bottom:10px;">🏉</div>
+          <div style="font-weight:700;margin-bottom:6px;">No teams set up for ${plSeason}</div>
+          <div style="font-size:13px;margin-bottom:16px;">Add teams first, then assign players from the Players tab or bulk-assign below.</div>
+          <button class="mprimary" onclick="openTeamModal(null)">+ Add First Team</button>
+        </div>
+      ` : `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:24px;">
+          ${teams.map(t => {
+            const count  = teamCount[t.id] || 0;
+            const roster = allSeasonRows.filter(s => s.assignedTeam === t.id).map(s => pm[s.profileId]).filter(Boolean);
+            return `
+              <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;">
+                <div style="background:var(--green);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                  <div>
+                    <div style="font-weight:800;font-size:14px;color:#fff;font-family:'Barlow Condensed',sans-serif;">${t.name}</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,.75);">${[t.ageGroup,t.gender].filter(Boolean).join(' · ')}</div>
+                  </div>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <span style="background:rgba(255,255,255,.2);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">${count} player${count!==1?'s':''}</span>
+                    <button onclick="openTeamModal('${t.id}')" style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">Edit</button>
+                    <button onclick="deleteTeamConfirm('${t.id}','${t.name.replace(/'/g,"\'")}')" style="background:rgba(255,0,0,.2);border:none;color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">✕</button>
+                  </div>
+                </div>
+                <div style="padding:10px 14px;">
+                  ${t.coach ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">👤 Coach: <strong>${t.coach}</strong>${t.assistantCoach?' · Asst: <strong>'+t.assistantCoach+'</strong>':''}</div>` : ''}
+                  ${roster.length ? `
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                      ${roster.map(p=>`<span style="background:var(--green-light);color:var(--green);font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;">${plName(p)}</span>`).join('')}
+                    </div>
+                  ` : `<div style="font-size:12px;color:var(--text-dim);font-style:italic;">No players assigned yet</div>`}
+                </div>
+              </div>`;
+          }).join('')}
+        </div>
+
+        <!-- Bulk assign section -->
+        <div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;">
+          <div style="background:var(--bg);padding:10px 14px;border-bottom:1px solid var(--border);font-weight:700;font-size:13px;">
+            Bulk Assign Players
+            <span style="font-size:11px;font-weight:400;color:var(--text-dim);margin-left:8px;">${unassigned} unassigned players</span>
+          </div>
+          <div style="padding:14px;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+              <thead><tr>
+                <th style="text-align:left;padding:5px 8px;color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1.5px solid var(--border);">Player</th>
+                <th style="text-align:left;padding:5px 8px;color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1.5px solid var(--border);">Age Group</th>
+                <th style="text-align:left;padding:5px 8px;color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1.5px solid var(--border);">Team</th>
+              </tr></thead>
+              <tbody>
+                ${allSeasonRows.sort((a,b)=>{
+                  const pa=pm[a.profileId]||{}, pb=pm[b.profileId]||{};
+                  return (pa.lastName||'').localeCompare(pb.lastName||'');
+                }).map(s => {
+                  const p = pm[s.profileId]; if (!p) return '';
+                  const ag = effectiveAgeGroup(s);
+                  return `<tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:5px 8px;font-weight:600;">${plName(p)}</td>
+                    <td style="padding:5px 8px;color:var(--text-dim);">${ag||'—'}</td>
+                    <td style="padding:5px 8px;">
+                      <select onchange="bulkAssignTeam('${s.id}',this.value)" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;background:#fff;">
+                        <option value="">— unassigned —</option>
+                        ${teams.map(t=>`<option value="${t.id}" ${s.assignedTeam===t.id?'selected':''}>${t.name}</option>`).join('')}
+                      </select>
+                    </td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `}
+    </div>
+
+    <!-- Team modal -->
+    <div id="team-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;align-items:center;justify-content:center;">
+      <div style="background:#fff;border-radius:14px;padding:24px;width:420px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.18);">
+        <div style="font-weight:800;font-size:16px;font-family:'Barlow Condensed',sans-serif;margin-bottom:16px;" id="team-modal-title">Add Team</div>
+        <input type="hidden" id="tm-id">
+        <div style="display:grid;gap:10px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">TEAM NAME *</div>
+            <input id="tm-name" type="text" placeholder="e.g. U12 Boys Blue" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">AGE GROUP</div>
+              <select id="tm-age" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+                <option value="">—</option>
+                ${['U9','U10','U11','U12','U13','U14','U15','U16','U17'].map(g=>`<option>${g}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">GENDER</div>
+              <select id="tm-gender" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+                <option value="">—</option>
+                <option>Boys</option><option>Girls</option><option>Mixed</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">COACH</div>
+            <input id="tm-coach" type="text" placeholder="Coach name" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">ASSISTANT COACH</div>
+            <input id="tm-acoach" type="text" placeholder="Assistant coach name" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">NOTES</div>
+            <input id="tm-notes" type="text" placeholder="Any notes" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
+          <button onclick="closeTeamModal()" style="padding:8px 18px;border:1.5px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:13px;">Cancel</button>
+          <button onclick="saveTeamModal()" class="mprimary" style="padding:8px 18px;font-size:13px;">Save Team</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function openTeamModal(teamId) {
+  const overlay = document.getElementById('team-modal-overlay');
+  const t = teamId ? (plData.teams||[]).find(x=>x.id===teamId) : null;
+  document.getElementById('team-modal-title').textContent = t ? 'Edit Team' : 'Add Team';
+  document.getElementById('tm-id').value       = t?.id || '';
+  document.getElementById('tm-name').value     = t?.name || '';
+  document.getElementById('tm-age').value      = t?.ageGroup || '';
+  document.getElementById('tm-gender').value   = t?.gender || '';
+  document.getElementById('tm-coach').value    = t?.coach || '';
+  document.getElementById('tm-acoach').value   = t?.assistantCoach || '';
+  document.getElementById('tm-notes').value    = t?.notes || '';
+  overlay.style.display = 'flex';
+}
+
+function closeTeamModal() {
+  document.getElementById('team-modal-overlay').style.display = 'none';
+}
+
+async function saveTeamModal() {
+  const name = document.getElementById('tm-name').value.trim();
+  if (!name) { showToast('Team name is required', 'err'); return; }
+  const payload = {
+    id:             document.getElementById('tm-id').value || undefined,
+    season:         plSeason,
+    name,
+    ageGroup:       document.getElementById('tm-age').value,
+    gender:         document.getElementById('tm-gender').value,
+    coach:          document.getElementById('tm-coach').value.trim(),
+    assistantCoach: document.getElementById('tm-acoach').value.trim(),
+    notes:          document.getElementById('tm-notes').value.trim(),
+  };
+  const res = await api('saveTeam', payload);
+  if (res.error) { showToast('Save failed: ' + res.error, 'err'); return; }
+
+  // Update local data
+  const existing = (plData.teams||[]).findIndex(t => t.id === payload.id);
+  const newTeam  = { ...payload, id: res.id };
+  if (existing >= 0) plData.teams[existing] = newTeam;
+  else { plData.teams = plData.teams || []; plData.teams.push(newTeam); }
+
+  closeTeamModal();
+  showToast(payload.id ? 'Team updated' : 'Team added');
+  renderPlTeams();
+}
+
+async function deleteTeamConfirm(id, name) {
+  if (!confirm(`Delete team "${name}"? Players assigned to it will become unassigned.`)) return;
+  const res = await api('deleteTeam', { id });
+  if (res.error) { showToast('Delete failed: ' + res.error, 'err'); return; }
+  plData.teams = (plData.teams||[]).filter(t => t.id !== id);
+  // Clear assignedTeam for any player season that used this team
+  (plData.seasons||[]).forEach(s => { if (s.assignedTeam === id) s.assignedTeam = ''; });
+  showToast(`Team "${name}" deleted`);
+  renderPlTeams();
+}
+
+async function bulkAssignTeam(seasonId, teamId) {
+  const res = await api('updatePlayerSeason', { id: seasonId, assignedTeam: teamId });
+  if (res.error) { showToast('Assign failed: ' + res.error, 'err'); return; }
+  const s = (plData.seasons||[]).find(x => x.id === seasonId);
+  if (s) s.assignedTeam = teamId;
+  // Refresh team counts in the cards without full re-render
+  renderPlTeams();
+}
 
 function renderPlImport() {
   _importData = null;
