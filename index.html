@@ -3381,17 +3381,11 @@ Provide:
 Concise bullet points only. No preamble.`;
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await resp.json();
-    const text = data.content?.[0]?.text || 'No response received.';
+    // Route through Apps Script backend — API key is stored in Script Properties,
+    // never exposed to the browser. Frontend sends only the de-identified prompt.
+    const res  = await api('getAIInsights', { prompt });
+    if (res.error) throw new Error(res.error);
+    const text = res.text || 'No response received.';
     // Render markdown-ish formatting
     content.innerHTML = text
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
