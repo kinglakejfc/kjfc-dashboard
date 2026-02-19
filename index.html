@@ -11,6 +11,7 @@
    ROOT VARIABLES
    ════════════════════════════════════════ */
 :root{
+  --header-h: 60px;
   --green:        #013C1E;
   --green-mid:    #025a2d;
   --green-light:  #e6f0eb;
@@ -209,8 +210,9 @@ header{
   font-family:'Barlow',sans-serif;transition:background .12s;
 }
 .hmenu-item:hover{background:var(--green-light);}
-.hmenu-danger{color:var(--red);}
+.hmenu-danger{color:var(--red)!important;}
 .hmenu-divider{height:1px;background:var(--border);margin:4px 0;}
+.hmenu-section-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);padding:8px 12px 2px;}
 /* Desktop nav group */
 .hnav-desktop{display:flex;align-items:center;gap:4px;flex-shrink:0;}
 .hnav-sync{display:flex;align-items:center;gap:4px;flex-shrink:0;}
@@ -224,7 +226,7 @@ header{
   padding:7px max(16px,env(safe-area-inset-left)) 7px max(16px,env(safe-area-inset-left));
   display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--yellow-dark);
   overflow-x:auto;scrollbar-width:none;
-  position:sticky;top:60px;z-index:98;
+  position:sticky;top:var(--header-h, 60px);z-index:98;
 }
 .sbar::-webkit-scrollbar{display:none;}
 .slabel{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--green);opacity:.6;white-space:nowrap;flex-shrink:0;}
@@ -544,6 +546,11 @@ td{padding:10px 10px;vertical-align:middle;}
 .msg-ok{background:var(--green-light);border:1px solid var(--border-s);color:var(--green);padding:7px 10px;border-radius:6px;font-size:12px;font-weight:600;margin-top:7px;display:none;}
 .msg-err{background:var(--red-light);border:1px solid #f5c6c2;color:var(--red);padding:7px 10px;border-radius:6px;font-size:12px;font-weight:600;margin-top:7px;display:none;}
 
+.chart-label{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;}
+.chart-wrap{position:relative;width:100%;height:160px;}
+.chart-wrap-wide{height:130px;}
+.chart-wrap canvas{position:absolute;inset:0;width:100%!important;height:100%!important;}
+
 /* ════════════════════════════════════════
    TOAST
    ════════════════════════════════════════ */
@@ -750,8 +757,8 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 
 /* ── HEADER MOBILE ── */
 @media(max-width:640px){
-  /* ─ Header ─ */
-  header{padding:6px 12px;gap:5px;min-height:44px;position:relative;}
+  /* ─ Header ─ keeps sticky so yellow+white bars can stack below it */
+  header{padding:6px 12px;gap:5px;min-height:44px;}
   .logo-text small{display:none;}
   .logo-badge{width:30px;height:30px;font-size:11px;}
   .logo-text h1{font-size:17px;}
@@ -765,26 +772,21 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
   .hright{gap:4px;flex-wrap:nowrap;position:relative;}
   .hamburger-btn{display:flex;}
   /* ─ Yellow season bar ─ */
-  .sbar{padding:4px 10px;}
+  --header-h: 44px;
+  .sbar{padding:4px 10px;top:44px !important;}
   .stab{padding:3px 10px;font-size:11px;}
   /* ─ Dashboard nav ─ */
-  .dashboard-nav{top:88px;}
-  .dbar-row1 .dtab.dashboard-tab{min-height:36px;font-size:12px;}
-  .dbar-row2 .dtab{min-height:32px;}
+  .dashboard-nav{top:78px;}  /* 44px header + 34px sbar */
+  .dbar-row1 .dtab.dashboard-tab{min-height:38px;font-size:12px;padding:8px 16px;}
+  /* Row2 sub-tabs move into hamburger on mobile */
+  .dbar-row2{display:none !important;}
   .dtab-lbl{font-size:10px;}
-  /* ─ Recruitment sub-tabs: constrain labels ─ */
-  .dbar-row2-recruit .dtab{flex:1;padding:0 2px;min-width:0;}
-  .dbar-row2-recruit .dtab-icon{font-size:13px;}
   /* ─ Charts ─ */
   #overview-charts-grid{grid-template-columns:1fr !important;}
   #pl-body{padding:10px 0 !important;}
 }
 @media(max-width:420px){
-  /* Icon-only recruitment tabs — labels too cramped */
-  .dbar-row2-recruit .dtab-lbl{display:none;}
-  .dbar-row2-recruit .dtab-icon{font-size:16px;}
-  .dbar-row2-recruit .dtab{min-height:38px;padding:0;justify-content:center;}
-  #dashboard-nav{top:84px;}
+  #dashboard-nav{top:78px;}
 }
 @media(max-width:380px){
   .logo-badge{width:26px;height:26px;font-size:10px;}
@@ -902,17 +904,8 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button id="hamburger-btn" class="hamburger-btn" onclick="toggleHamburger()" aria-label="Menu">☰</button>
     </div>
 
-    <!-- Hamburger dropdown panel (hidden by default) -->
-    <div id="hamburger-menu" class="hamburger-menu">
-      <button class="hmenu-item" onclick="openAdminModal('packages');toggleHamburger()">📦 Packages</button>
-      <div id="hmenu-admin" style="display:none;">
-        <button class="hmenu-item" onclick="openAdminModal('log');toggleHamburger()">📋 Access Log</button>
-        <button class="hmenu-item" onclick="openAdminModal('users');toggleHamburger()">👥 Users</button>
-      </div>
-      <div class="hmenu-divider"></div>
-      <button class="hmenu-item" onclick="loadAll();toggleHamburger()">↻ Refresh</button>
-      <button class="hmenu-item hmenu-danger" onclick="doLogout()">Sign Out</button>
-    </div>
+    <!-- Hamburger dropdown panel (contextual, rebuilt on open) -->
+    <div id="hamburger-menu" class="hamburger-menu"></div>
   </header>
 
   <!-- SEASON BAR -->
@@ -3213,8 +3206,60 @@ let plDetailId   = null;  // profileId of open player detail
 
 // ── OPEN / CLOSE ─────────────────────────────────────────────────
 // ── HAMBURGER MENU ───────────────────────────────────────────────
+function buildHamburgerMenu() {
+  const menu = document.getElementById('hamburger-menu');
+  const dash  = typeof _currentDashboard !== 'undefined' ? _currentDashboard : 'sponsors';
+  const isAdmin = me && me.admin;
+  const canEdit = me && (me.edit || me.admin);
+  let html = '';
+
+  if (dash === 'sponsors') {
+    // Sponsorship context
+    html += `<div class="hmenu-section-lbl">🏆 Sponsorship</div>`;
+    if (canEdit) {
+      html += `<button class="hmenu-item" onclick="openAddOrg();toggleHamburger()">➕ Add Sponsor</button>`;
+    }
+    html += `<button class="hmenu-item" onclick="openAdminModal('packages');toggleHamburger()">📦 Packages</button>`;
+  } else {
+    // Recruitment context — sub-tab navigation
+    html += `<div class="hmenu-section-lbl">🏉 Recruitment</div>`;
+    const tabs = [
+      { tab:'overview',  icon:'📊', lbl:'Overview'  },
+      { tab:'players',   icon:'👥', lbl:'Players'   },
+      { tab:'planning',  icon:'📋', lbl:'Planning'  },
+      { tab:'teams',     icon:'🏉', lbl:'Teams'     },
+      { tab:'schools',   icon:'🏫', lbl:'Schools'   },
+      { tab:'import',    icon:'📥', lbl:'Import'    },
+      { tab:'settings',  icon:'⚙️', lbl:'Settings'  },
+    ];
+    tabs.forEach(t => {
+      html += `<button class="hmenu-item" onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'${t.tab}\']'),'${t.tab}');toggleHamburger()">${t.icon} ${t.lbl}</button>`;
+    });
+  }
+
+  if (isAdmin) {
+    html += `<div class="hmenu-divider"></div>`;
+    html += `<div class="hmenu-section-lbl">⚙️ Admin</div>`;
+    html += `<button class="hmenu-item" onclick="openAdminModal('log');toggleHamburger()">📋 Access Log</button>`;
+    html += `<button class="hmenu-item" onclick="openAdminModal('users');toggleHamburger()">👤 Users</button>`;
+    if (dash === 'sponsors') {
+      html += `<button class="hmenu-item" onclick="switchDashboard('recruitment');toggleHamburger()">🏉 Recruitment</button>`;
+    } else {
+      html += `<button class="hmenu-item" onclick="switchDashboard('sponsors');toggleHamburger()">🏆 Sponsorship</button>`;
+    }
+  }
+
+  html += `<div class="hmenu-divider"></div>`;
+  html += `<button class="hmenu-item" onclick="loadAll();toggleHamburger()">↻ Refresh</button>`;
+  html += `<button class="hmenu-item hmenu-danger" onclick="doLogout()">🚪 Sign Out</button>`;
+
+  menu.innerHTML = html;
+}
+
 function toggleHamburger() {
   const menu = document.getElementById('hamburger-menu');
+  const opening = !menu.classList.contains('open');
+  if (opening) buildHamburgerMenu();
   menu.classList.toggle('open');
 }
 // Close hamburger if clicking outside
@@ -3591,13 +3636,25 @@ function _renderOverviewHTML() {
         <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></span>
         <span>Data current as of <strong>${fmt}</strong></span>
         <span style="color:${col};font-weight:700;">(${days === 0 ? 'today' : days + ' day' + (days!==1?'s':'')+' ago'})</span>
-        <button onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'import\']'),'import')" style="margin-left:auto;font-size:10px;background:none;border:1px solid var(--border);border-radius:5px;padding:2px 8px;cursor:pointer;color:var(--text-dim);">Import new data</button>
+        <button onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'import\']'),'import');buildHamburgerMenu();" style="margin-left:auto;font-size:10px;background:none;border:1px solid var(--border);border-radius:5px;padding:2px 8px;cursor:pointer;color:var(--text-dim);">Import new data →</button>
       </div>`;
     }
   }
 
   // Schools count
   const schools = new Set(rows.map(r => (pm[r.profileId]||{}).school).filter(Boolean)).size;
+
+  // Active teams this season
+  const activeTeams = plSeasonTeams().filter(t => t.name).length;
+
+  // Retention: players in current season who were also in previous season
+  const prevSeason = +plSeason - 1;
+  const prevPids = new Set(
+    (plData.seasons||[]).filter(s => +s.year === prevSeason).map(s => s.profileId)
+  );
+  const returnedCount = rows.filter(r => prevPids.has(r.profileId)).length;
+  const prevTotal = prevPids.size;
+  const retentionPct = prevTotal > 0 ? Math.round(returnedCount / prevTotal * 100) : 0;
 
   // Year-on-year data for charts
   const allYears = [...new Set(allSea.map(s => +s.year))].sort();
@@ -3681,7 +3738,7 @@ function _renderOverviewHTML() {
         <div class="pl-kpi-sub">${total ? Math.round(boys/total*100) : 0}% male · ${total ? Math.round(girls/total*100) : 0}% female →</div>
       </div>
 
-      <!-- Schools + Avg Age row -->
+      <!-- Schools + Avg Age + Teams + Retention row -->
       <div class="pl-kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;align-items:start;">
         <div class="pl-kpi" onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'schools\']'),'schools')" style="cursor:pointer;">
           <div class="pl-kpi-label">Schools</div>
@@ -3691,35 +3748,42 @@ function _renderOverviewHTML() {
         <div class="pl-kpi" style="cursor:pointer;">
           <div class="pl-kpi-label">Avg Age</div>
           <div class="pl-kpi-val" style="color:var(--green)">${avgAge > 0 ? avgAge.toFixed(1) : '—'}</div>
-          <div class="pl-kpi-sub">years old →</div>
+          <div class="pl-kpi-sub">at 1 Jan ${plSeason} →</div>
         </div>
-      </div>      <!-- CHARTS SECTION -->
+        <div class="pl-kpi" onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'teams\']'),'teams')" style="cursor:pointer;">
+          <div class="pl-kpi-label">Teams</div>
+          <div class="pl-kpi-val" style="color:var(--green)">${activeTeams}</div>
+          <div class="pl-kpi-sub">active ${plSeason} →</div>
+        </div>
+        <div class="pl-kpi" style="cursor:pointer;" title="Players registered this season who also played last season">
+          <div class="pl-kpi-label">Retention</div>
+          <div class="pl-kpi-val" style="color:${retentionPct >= 50 ? 'var(--green-bright)' : retentionPct >= 30 ? 'var(--yellow-dark)' : 'var(--red)'}">${retentionPct}%</div>
+          <div class="pl-kpi-sub">returned from ${plSeason-1} →</div>
+        </div>
+      </div>
+      <!-- CHARTS SECTION — canvas wrapped in sized div for responsive scaling -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;" id="overview-charts-grid">
-        <!-- Total registrations YOY -->
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">Registrations by Year</div>
-          <canvas id="chart-yoy" height="130"></canvas>
+          <div class="chart-label">Registrations by Year</div>
+          <div class="chart-wrap"><canvas id="chart-yoy"></canvas></div>
         </div>
-        <!-- Gender YOY -->
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">Gender by Year</div>
-          <canvas id="chart-gender" height="130"></canvas>
+          <div class="chart-label">Gender by Year</div>
+          <div class="chart-wrap"><canvas id="chart-gender"></canvas></div>
         </div>
-        <!-- Age group breakdown YOY -->
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">Age Groups by Year <span style="font-weight:400;text-transform:none;font-size:10px;">· click to view</span></div>
-          <canvas id="chart-age-yoy" height="130"></canvas>
+          <div class="chart-label">Age Groups by Year</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;">Age at 1 Jan \${plSeason} · click to view players</div>
+          <div class="chart-wrap"><canvas id="chart-age-yoy"></canvas></div>
         </div>
-        <!-- Age group breakdown current season -->
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:2px;">${plSeason} Age Breakdown</div>
-          <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px;">Age at 1 Jan ${plSeason} · click bar to view players</div>
-          <canvas id="chart-age" height="130"></canvas>
+          <div class="chart-label">\${plSeason} Age Breakdown</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;">Age at 1 Jan \${plSeason} · click to view</div>
+          <div class="chart-wrap"><canvas id="chart-age"></canvas></div>
         </div>
-        <!-- Top schools -->
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;grid-column:1/-1;">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">Top Schools by Year <span style="font-weight:400;text-transform:none;font-size:10px;">· click to view</span></div>
-          <canvas id="chart-schools" height="110"></canvas>
+          <div class="chart-label">Top Schools by Year <span style="font-weight:400;text-transform:none;font-size:10px;">· click to view</span></div>
+          <div class="chart-wrap chart-wrap-wide"><canvas id="chart-schools"></canvas></div>
         </div>
       </div>
     </div>
@@ -3739,10 +3803,11 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
   const AGE_PALETTE = ['#013C1E','#025a2d','#2e7d4f','#4ead72','#a8d5b5','#c9b400','#fef083','#e6f0eb'];
   const labels = yoyData.map(d => d.year);
 
-  // Shared compact options
+  // Shared compact options — responsive:true + maintainAspectRatio:false
+  // allows charts to fill their .chart-wrap container at any window size
   const compact = {
     responsive: true,
-    maintainAspectRatio: true,
+    maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: {
       x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#9ca3af' } },
