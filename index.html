@@ -149,6 +149,32 @@ header{
 .lobtn:hover{background:rgba(255,255,255,.22);}
 
 /* ════════════════════════════════════════
+   DASHBOARD NAV BAR
+   ════════════════════════════════════════ */
+.dbar{
+  background:#fff;
+  border-bottom:2px solid var(--border);
+  display:flex;align-items:stretch;
+  padding:0 max(16px,env(safe-area-inset-left));
+  gap:0;overflow-x:auto;scrollbar-width:none;
+  position:sticky;top:104px;z-index:99;
+  box-shadow:0 2px 6px rgba(0,0,0,.06);
+}
+.dbar::-webkit-scrollbar{display:none;}
+.dbar-section{display:flex;align-items:stretch;gap:0;flex-shrink:0;}
+.dbar-divider{width:1px;background:var(--border);margin:8px 4px;flex-shrink:0;}
+.dtab{
+  padding:0 16px;min-height:42px;border:none;border-bottom:3px solid transparent;
+  background:transparent;font-size:12px;font-weight:700;cursor:pointer;
+  font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--text-dim);white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px;
+}
+.dtab:hover{color:var(--text);background:var(--green-light);}
+.dtab.act{color:var(--green);border-bottom-color:var(--green);background:#fff;}
+.dtab.dashboard-tab{font-size:13px;font-weight:900;}
+.dtab.dashboard-tab.act{color:var(--green);border-bottom-color:var(--green);}
+
+/* ════════════════════════════════════════
    SEASON BAR
    ════════════════════════════════════════ */
 .sbar{
@@ -199,6 +225,11 @@ main{
   padding:16px max(16px,env(safe-area-inset-right)) calc(16px + var(--safe-bottom)) max(16px,env(safe-area-inset-left));
   max-width:1440px;
   margin:0 auto;
+}
+main.recruitment-active{
+  max-width:100%;
+  padding-left:max(20px,env(safe-area-inset-left));
+  padding-right:max(20px,env(safe-area-inset-right));
 }
 .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;}
 .stitle{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;text-transform:uppercase;letter-spacing:1px;color:var(--text);}
@@ -774,7 +805,6 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div id="admin-nav-btns" style="display:none;align-items:center;gap:4px;">
         <button class="hnav-btn" onclick="openAdminModal('log')">Access Log</button>
         <button class="hnav-btn" onclick="openAdminModal('users')">Users</button>
-        <button class="hnav-btn" id="players-nav-btn" onclick="openPlayersModal()" style="opacity:0.5;" title="Players — Admin only (beta)">🏉 Players</button>
       </div>
       <!-- Sync + Refresh + Sign Out -->
       <div style="display:flex;align-items:center;gap:4px;margin-left:auto;">
@@ -791,8 +821,35 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     <button class="sadd" onclick="openSeasonModal()">+ Season</button>
   </div>
 
+  <!-- DASHBOARD NAV BAR (3rd row: dashboard selector + contextual sub-tabs) -->
+  <div class="dbar" id="dashboard-nav">
+    <!-- Dashboard selector -->
+    <div class="dbar-section">
+      <button class="dtab dashboard-tab act" id="dash-tab-sponsors" onclick="switchDashboard('sponsors')">🏆 Sponsorship</button>
+      <button class="dtab dashboard-tab" id="dash-tab-recruitment" onclick="switchDashboard('recruitment')" style="display:none;">🏉 Recruitment</button>
+    </div>
+    <div class="dbar-divider"></div>
+    <!-- Sponsor sub-tabs (shown when sponsors active) -->
+    <div class="dbar-section" id="dash-sub-sponsors">
+      <button class="dtab act" id="dsub-add-sponsor" onclick="openAddOrg()">+ Add Sponsor</button>
+      <button class="dtab" onclick="openAdminModal('packages')">Packages</button>
+    </div>
+    <!-- Recruitment sub-tabs (shown when recruitment active, hidden initially) -->
+    <div class="dbar-section" id="dash-sub-recruitment" style="display:none;">
+      <button class="dtab act" data-tab="overview"  onclick="switchPlTab(this,'overview')">📊 Overview</button>
+      <button class="dtab"     data-tab="players"   onclick="switchPlTab(this,'players')">👥 Players</button>
+      <button class="dtab"     data-tab="planning"  onclick="switchPlTab(this,'planning')">📋 Planning</button>
+      <button class="dtab"     data-tab="teams"     onclick="switchPlTab(this,'teams')">🏉 Teams</button>
+      <button class="dtab"     data-tab="schools"   onclick="switchPlTab(this,'schools')">🏫 Schools</button>
+      <button class="dtab"     data-tab="import"    onclick="switchPlTab(this,'import')">📥 Import</button>
+      <button class="dtab"     data-tab="settings"  onclick="switchPlTab(this,'settings')">⚙️ Settings</button>
+    </div>
+  </div>
+
   <!-- MAIN -->
-  <main>
+  <main id="main-wrap">
+    <!-- SPONSORSHIP CONTENT -->
+    <div id="sponsor-content">
     <!-- ROW 1: Season title + Add button -->
     <div class="season-head">
       <h2 class="section-title" id="season-span">SPONSORSHIP</h2>
@@ -885,6 +942,12 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     <div class="panel" id="prospect-panel" style="display:none;">
       <div class="panel-title">🎯 Prospect Pipeline</div>
       <div id="prospect-list" style="margin-top:10px;"></div>
+    </div>
+    </div><!-- /sponsor-content -->
+
+    <!-- RECRUITMENT CONTENT (inline, replaces the old full-screen modal) -->
+    <div id="recruitment-content" style="display:none;">
+      <div id="pl-body" style="min-height:400px;padding:4px 0;"></div>
     </div>
   </main>
 
@@ -1250,33 +1313,6 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
   </div>
 </div>
 
-<!-- PLAYERS MODAL -->
-<div class="moverlay" id="players-modal" style="align-items:stretch;padding:0;">
-  <div style="background:var(--card);width:100%;max-width:100%;height:100vh;display:flex;flex-direction:column;overflow:hidden;">
-    <div style="background:var(--green);padding:14px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
-      <span style="font-size:22px;">🏉</span>
-      <div style="flex:1;">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;color:#fff;text-transform:uppercase;letter-spacing:.5px;">Player & Recruitment Dashboard</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:1px;">Admin only — Beta</div>
-      </div>
-      <select id="pl-season-sel" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;" onchange="loadPlayerView()"></select>
-      <button onclick="closePlayersModal()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
-    </div>
-    <!-- Tab bar -->
-    <div style="display:flex;gap:0;background:var(--bg);border-bottom:2px solid var(--border);flex-shrink:0;overflow-x:auto;">
-      <button class="pl-tab act" data-tab="overview"  onclick="switchPlTab(this,'overview')">📊 Overview</button>
-      <button class="pl-tab"     data-tab="players"   onclick="switchPlTab(this,'players')">👥 Players</button>
-      <button class="pl-tab"     data-tab="planning"  onclick="switchPlTab(this,'planning')">📋 Planning</button>
-      <button class="pl-tab"     data-tab="teams"     onclick="switchPlTab(this,'teams')">🏉 Teams</button>
-      <button class="pl-tab"     data-tab="schools"   onclick="switchPlTab(this,'schools')">🏫 Schools</button>
-      <button class="pl-tab"     data-tab="import"    onclick="switchPlTab(this,'import')">📥 Import</button>
-      <button class="pl-tab"     data-tab="settings"  onclick="switchPlTab(this,'settings')">⚙️ Settings</button>
-    </div>
-    <!-- Body -->
-    <div id="pl-body" style="flex:1;overflow-y:auto;padding:20px;"></div>
-  </div>
-</div>
-
 <!-- PLAYER DETAIL MODAL -->
 <div class="moverlay" id="player-detail-modal" style="align-items:center;justify-content:center;padding:20px;">
   <div style="background:var(--card);border-radius:14px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;">
@@ -1583,7 +1619,7 @@ async function loadAll() {
     render();
     setSyncState('ok', 'Synced · ' + fmtTime(new Date()));
     // If player modal was opened before sponsor data loaded, refresh its season selector now
-    const plModal = document.getElementById('players-modal');
+    // players-modal removed — now inline via switchDashboard
     if (plModal && plModal.classList.contains('open')) {
       initPlayerSeasonSel();
       // If player data loaded against an incomplete year list, reload it
@@ -1617,7 +1653,7 @@ function renderUserUI() {
     pic.src = me.picture; pic.style.display = 'block';
     if (initEl) initEl.style.display = 'none';
   }
-  if (me.admin) { const el = document.getElementById('admin-nav-btns'); if(el) el.style.display='flex'; }  if (!me.edit) { const b = document.getElementById('add-sponsor-btn'); if(b) b.style.display='none'; }
+  if (me.admin) { const el = document.getElementById('admin-nav-btns'); if(el) el.style.display='flex'; const rt = document.getElementById('dash-tab-recruitment'); if(rt) rt.style.display='flex'; }  if (!me.edit) { const b = document.getElementById('add-sponsor-btn'); if(b) b.style.display='none'; }
 }
 
 // ════════════════════════════════════════════════════════
@@ -1625,7 +1661,7 @@ function renderUserUI() {
 // ════════════════════════════════════════════════════════
 function renderSeasonTabs() {
   document.getElementById('season-tabs').innerHTML = years.map(y =>
-    `<button class="stab${+y===+activeSeason?' act':''}" onclick="switchSeason(${y})">${y}</button>`
+    `<button class="stab${+y===+activeSeason?' act':''}" data-year="${y}" onclick="switchSeason(${y})">${y}</button>`
   ).join('');
   // Only rebuild the year select if the SS modal is NOT open (avoid resetting user's choice)
   const sel = document.getElementById('sf-year');
@@ -1639,7 +1675,17 @@ function renderSeasonTabs() {
   }
 }
 
-function switchSeason(y) { activeSeason = +y; renderSeasonTabs(); render(); }
+function switchSeason(y) {
+  activeSeason = +y;
+  renderSeasonTabs();
+  render();
+  // If recruitment dashboard is active, reload player data for new season
+  if (typeof _currentDashboard !== 'undefined' && _currentDashboard === 'recruitment') {
+    plSeason = +y;
+    plData = null; _seasonCfg = null; _planningLoaded = false;
+    loadPlayerData();
+  }
+}
 
 // ════════════════════════════════════════════════════════
 //  STATS
@@ -3051,15 +3097,43 @@ let plDetailId   = null;  // profileId of open player detail
 
 // ── OPEN / CLOSE ─────────────────────────────────────────────────
 function openPlayersModal() {
-  const modal = document.getElementById('players-modal');
-  bringToFront(modal);
-  modal.classList.add('open');
-  initPlayerSeasonSel();
-  if (!plData) loadPlayerData();
+  // Legacy shim — just switch to recruitment dashboard
+  switchDashboard('recruitment');
 }
 
 function closePlayersModal() {
-  document.getElementById('players-modal').classList.remove('open');
+  switchDashboard('sponsors');
+}
+
+let _currentDashboard = 'sponsors';
+
+function switchDashboard(which) {
+  _currentDashboard = which;
+
+  // Dashboard selector tabs
+  document.getElementById('dash-tab-sponsors').classList.toggle('act', which === 'sponsors');
+  document.getElementById('dash-tab-recruitment').classList.toggle('act', which === 'recruitment');
+
+  // Sub-nav sections
+  document.getElementById('dash-sub-sponsors').style.display    = which === 'sponsors'    ? 'flex' : 'none';
+  document.getElementById('dash-sub-recruitment').style.display = which === 'recruitment' ? 'flex' : 'none';
+
+  // Content panels
+  document.getElementById('sponsor-content').style.display     = which === 'sponsors'    ? 'block' : 'none';
+  document.getElementById('recruitment-content').style.display = which === 'recruitment' ? 'block' : 'none';
+
+  // Toggle main full-width class
+  const mainEl = document.getElementById('main-wrap');
+  if (mainEl) mainEl.classList.toggle('recruitment-active', which === 'recruitment');
+
+  if (which === 'recruitment') {
+    // Sync plSeason with current yellow bar season
+    const activeTab = document.querySelector('.stab.act');
+    if (activeTab && activeTab.dataset.year) plSeason = +activeTab.dataset.year;
+    initPlayerSeasonSel();
+    if (!plData) loadPlayerData();
+    else renderPlTab();
+  }
 }
 
 // ── PLAYER SLIDEOVER ──────────────────────────────────────────────
@@ -3134,19 +3208,12 @@ function closePlayerDetail() {
 
 // ── SEASON SELECTOR ───────────────────────────────────────────────
 function initPlayerSeasonSel() {
-  const sel = document.getElementById('pl-season-sel');
-  const cur  = new Date().getFullYear();
-  // Use sponsorship years as baseline; if loadAll() hasn't completed yet,
-  // fall back to a range of recent years so the modal is still usable.
-  const baseYears = (years && years.length > 0)
-    ? [...years]
-    : [cur, cur-1, cur-2, cur-3, cur-4]; // fallback: last 5 years
-  const opts = baseYears.sort((a,b)=>b-a);
-  const selected = plSeason || cur;
-  sel.innerHTML = opts.map(y =>
-    `<option value="${y}" ${y==selected?'selected':''}>${y}</option>`
-  ).join('');
-  if (!plSeason) plSeason = selected;
+  // Sync plSeason with the main yellow season bar (shared season selector)
+  if (!plSeason) {
+    const cur = new Date().getFullYear();
+    const activeTab = document.querySelector('.stab.act');
+    plSeason = activeTab ? +activeTab.dataset.year : (years && years.length ? +years[0] : cur);
+  }
 }
 
 // ── LOAD PLAYER DATA ──────────────────────────────────────────────
@@ -3160,23 +3227,12 @@ async function loadPlayerData() {
     return;
   }
   plData = res;
-  // Merge player season years into season selector
-  if (res.seasonYears && res.seasonYears.length) {
-    const sel = document.getElementById('pl-season-sel');
-    const existing = [...sel.options].map(o=>+o.value);
-    res.seasonYears.forEach(y => {
-      if (!existing.includes(+y)) {
-        const o = document.createElement('option');
-        o.value = y; o.textContent = y;
-        sel.appendChild(o);
-      }
-    });
-  }
+  // Season years are shown in main yellow season bar (managed by loadAll/renderSeasonTabs)
   renderPlTab();
 }
 
 async function loadPlayerView() {
-  plSeason = +document.getElementById('pl-season-sel').value;
+  // plSeason is set by the main yellow season tab bar (switchSeason)
   plData          = null;
   _seasonCfg      = null;  // force reload from Sheets for new season
   _planningLoaded = false; // force reload planning data for new season
@@ -3185,6 +3241,8 @@ async function loadPlayerView() {
 
 // ── TAB SWITCHING ─────────────────────────────────────────────────
 function switchPlTab(btn, tab) {
+  // Update both the dtab buttons (new unified nav) and any legacy pl-tab buttons
+  document.querySelectorAll('#dash-sub-recruitment .dtab').forEach(b => b.classList.toggle('act', b===btn));
   document.querySelectorAll('.pl-tab').forEach(b => b.classList.toggle('act', b===btn));
   plTab = tab;
   renderPlTab();
@@ -3436,22 +3494,22 @@ function _renderOverviewHTML() {
       ${freshnessHTML}
 
       <!-- KPI CARDS -->
-      <div class="pl-kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-bottom:20px;">
+      <div class="pl-kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-bottom:20px;align-items:start;">
         <div class="pl-kpi" onclick="switchPlTab(document.querySelector('.pl-tab[data-tab=\\'players\\']'),'players')" style="cursor:pointer;">
           <div class="pl-kpi-label">Registered ${plSeason}</div>
           <div class="pl-kpi-val">${total}</div>
           <div class="pl-kpi-sub">all players →</div>
         </div>
-        <div class="pl-kpi" style="cursor:pointer;" onclick="openGenderSlideover()">
+        <div class="pl-kpi" style="cursor:pointer;grid-column:span 2;" onclick="openGenderSlideover()">
           <div class="pl-kpi-label">Gender Split</div>
-          <div style="display:flex;align-items:baseline;gap:10px;margin:6px 0 4px;">
-            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;color:var(--green);line-height:1;">${boys}</span>
+          <div style="display:flex;align-items:baseline;gap:10px;margin:6px 0 4px;flex-wrap:wrap;">
+            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;color:var(--green);line-height:1;">${boys}</span>
             <span style="font-size:11px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:.5px;">Male</span>
-            <span style="font-size:16px;color:var(--border);font-weight:300;">|</span>
-            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;color:#7c3aed;line-height:1;">${girls}</span>
+            <span style="font-size:20px;color:var(--border);font-weight:300;line-height:1;">|</span>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;color:#7c3aed;line-height:1;">${girls}</span>
             <span style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;">Female</span>
           </div>
-          <div class="pl-kpi-sub">${total ? Math.round(boys/total*100) : 0}% male →</div>
+          <div class="pl-kpi-sub">${total ? Math.round(boys/total*100) : 0}% male · ${total ? Math.round(girls/total*100) : 0}% female →</div>
         </div>
         <div class="pl-kpi" onclick="openNewPlayersSlideover()" style="cursor:pointer;">
           <div class="pl-kpi-label">New to Club</div>
@@ -5671,7 +5729,7 @@ async function runImport() {
   _importData = null;
   plData      = null;
   plSeason    = season;
-  document.getElementById('pl-season-sel').value = season;
+  // season-sel removed — plSeason set directly below
   await loadPlayerData();
   switchPlTab(document.querySelector('.pl-tab[data-tab="overview"]'), 'overview');
 }
