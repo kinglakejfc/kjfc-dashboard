@@ -3224,9 +3224,19 @@ function plPlayerMap() {
 // Effective age group for a player in a season row:
 // dispensation overrides to assignedTeam, else calcAge → U-group
 function effectiveAgeGroup(ps) {
+  // Returns UXX string — used for logic/filtering (team matching etc.)
   if (ps.dispensation && ps.assignedTeam) return ps.assignedTeam;
   if (ps.calcAge) return 'U' + ps.calcAge;
   if (ps.ageGroupRaw) return ps.ageGroupRaw;
+  return '?';
+}
+
+function ageLabel(ps) {
+  // Human-readable age label for player display (not team names)
+  // "Age 9 on Jan 1" instead of "U9"
+  const nat = playerNaturalAge(ps);
+  if (nat !== null) return 'Age ' + nat + ' on Jan 1';
+  if (ps.calcAge) return 'Age ' + (ps.calcAge - 1) + ' on Jan 1';
   return '?';
 }
 
@@ -4232,13 +4242,14 @@ function renderFilteredPlayers() {
       <tbody>
         ${filtered.map(({ps,p}) => {
           const ag   = effectiveAgeGroup(ps);
+          const agDisplay = ageLabel(ps);
           const init = plInitials(p);
           const photo = p.photoUrl ? `<img src="${p.photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : init;
           const dispTag = (ps.dispensation===true||ps.dispensation==='true') ? '<span class="disp-tag">disp.</span>' : '';
           return `<tr onclick="openPlayerDetail('${p.profileId}')">
             <td><div class="pl-avatar">${photo}</div></td>
             <td><strong>${plName(p)}</strong></td>
-            <td>${ag} ${dispTag}</td>
+            <td>${agDisplay} ${dispTag}</td>
             <td>${p.gender||'—'}</td>
             <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.school||'—'}</td>
             <td style="font-size:11px;">${p.suburb||'—'}</td>
@@ -4265,13 +4276,13 @@ function openPlayerDetail(profileId) {
 
   document.getElementById('pdm-avatar').innerHTML = init;
   document.getElementById('pdm-name').textContent  = plName(p);
-  document.getElementById('pdm-meta').textContent  = `${ag} · ${p.gender||''} · DOB ${normaliseDob(p.dob)||''} · ${p.suburb||''}`;
+  document.getElementById('pdm-meta').textContent  = `${ageLabel(ps)} · ${p.gender||''} · DOB ${normaliseDob(p.dob)||''} · ${p.suburb||''}`;
 
   // photoUrl is stored as a data URL — use directly, no async fetch needed
 
   // Compute age + eligibility for nearby groups
   const calcAgeVal = ps.calcAge ? +ps.calcAge : null;
-  const eligible = calcAgeVal ? [calcAgeVal-1, calcAgeVal, calcAgeVal+1].filter(a=>a>=9&&a<=17).map(a=>'U'+a) : [];
+  const eligible = calcAgeVal ? [calcAgeVal-1, calcAgeVal, calcAgeVal+1].filter(a=>a>=9&&a<=17).map(a=>'U'+a) : []; // U-labels here are team groups, appropriate
 
   // Build seasons history for this player
   const allPlayerSeasons = (plData.seasons||[])
@@ -4759,12 +4770,17 @@ function _renderTeamSlide() {
     ${team.coach ? `<span style="color:var(--text-dim);">|</span><span>👤 ${team.coach}</span>` : ''}
   `;
 
-  // Filter tabs: All | Assigned | Unassigned | each age group
+  // Filter tabs: All | Assigned | Unassigned | each age group (label as "Age X on Jan 1")
   document.getElementById('tsl-filters').innerHTML = [
     { key: 'all',        label: `All (${players.length})` },
     { key: 'assigned',   label: `On team (${assignedCount})` },
     { key: 'unassigned', label: `Unassigned (${players.filter(e=>!e.assigned).length})` },
-    ...agGroups.map(ag => ({ key: 'ag:' + ag, label: ag + ' (' + players.filter(e=>e.ag===ag).length + ')' }))
+    ...agGroups.map(ag => {
+      // Convert UXX → "Age X on Jan 1" for display
+      const agNum = parseInt(ag.slice(1));
+      const displayLabel = isNaN(agNum) ? ag : 'Age ' + (agNum - 1) + ' on Jan 1';
+      return { key: 'ag:' + ag, label: displayLabel + ' (' + players.filter(e=>e.ag===ag).length + ')' };
+    })
   ].map(f => `<button class="pl-tab${_teamSlideFilter===f.key?' act':''}"
     onclick="tslSetFilter('${f.key}')"
     style="flex-shrink:0;padding:8px 12px;font-size:11px;">${f.label}</button>`).join('');
@@ -4804,7 +4820,7 @@ function _renderTeamSlide() {
       <div style="flex:1;min-width:0;">
         <div style="font-weight:700;font-size:13px;">${plName(p)} <span style="color:var(--text-dim);font-weight:400;font-size:12px;">${gender}</span></div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">
-          ${ag ? `<span style="background:var(--green-light);color:var(--green);font-size:10px;font-weight:700;padding:1px 5px;border-radius:6px;margin-right:4px;">${ag}</span>` : ''}
+          ${nat !== null ? `<span style="background:var(--green-light);color:var(--green);font-size:10px;font-weight:700;padding:1px 5px;border-radius:6px;margin-right:4px;">Age ${nat} on Jan 1</span>` : ''}
           DOB: ${dob}
         </div>
         ${otherTeam ? `<div style="font-size:10px;font-weight:700;color:#ca8a04;margin-top:2px;">⚠ On ${otherTeam}</div>` : ''}
@@ -4852,6 +4868,63 @@ function closeTeamSlide() {
   if (panel)   panel.style.transform = 'translateX(100%)';
   _teamSlideId = null;
   // Refresh cards with latest counts
+  renderPlTeams();
+}
+
+
+function openTeamModal(teamId) {
+  const overlay = document.getElementById('team-modal-overlay');
+  if (!overlay) { renderPlTeams(); setTimeout(()=>openTeamModal(teamId),50); return; }
+  const t = teamId ? (plData.teams||[]).find(t=>t.id===teamId) : null;
+  document.getElementById('team-modal-title').textContent = t ? 'Edit Team' : 'Add Team';
+  document.getElementById('tm-id').value       = t?.id || '';
+  document.getElementById('tm-name').value     = t?.name || '';
+  document.getElementById('tm-age').value      = t?.ageGroup || '';
+  document.getElementById('tm-gender').value   = t?.gender || '';
+  document.getElementById('tm-coach').value    = t?.coach || '';
+  document.getElementById('tm-acoach').value   = t?.assistantCoach || '';
+  document.getElementById('tm-notes').value    = t?.notes || '';
+  overlay.style.display = 'flex';
+}
+
+function closeTeamModal() {
+  const overlay = document.getElementById('team-modal-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+async function saveTeamModal() {
+  const name = document.getElementById('tm-name').value.trim();
+  if (!name) { showToast('Team name is required', 'err'); return; }
+  const payload = {
+    id:             document.getElementById('tm-id').value || undefined,
+    season:         plSeason,
+    name,
+    ageGroup:       document.getElementById('tm-age').value,
+    gender:         document.getElementById('tm-gender').value,
+    coach:          document.getElementById('tm-coach').value.trim(),
+    assistantCoach: document.getElementById('tm-acoach').value.trim(),
+    notes:          document.getElementById('tm-notes').value.trim(),
+  };
+  const res = await api('saveTeam', payload);
+  if (res.error) { showToast('Save failed: ' + res.error, 'err'); return; }
+
+  const newTeam  = { ...payload, id: res.id };
+  const existing = (plData.teams||[]).findIndex(t => t.id === payload.id);
+  if (existing >= 0) plData.teams[existing] = newTeam;
+  else { plData.teams = plData.teams || []; plData.teams.push(newTeam); }
+
+  closeTeamModal();
+  showToast(payload.id ? 'Team updated ✓' : 'Team added ✓');
+  renderPlTeams();
+}
+
+async function deleteTeamConfirm(id, name) {
+  if (!confirm(`Delete team "${name}"? Players assigned to it will become unassigned.`)) return;
+  const res = await api('deleteTeam', { id });
+  if (res.error) { showToast('Delete failed: ' + res.error, 'err'); return; }
+  plData.teams = (plData.teams||[]).filter(t => t.id !== id);
+  (plData.seasons||[]).forEach(s => { if (s.assignedTeam === id) s.assignedTeam = ''; });
+  showToast(`Team "${name}" deleted`);
   renderPlTeams();
 }
 
