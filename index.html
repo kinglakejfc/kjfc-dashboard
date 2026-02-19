@@ -3363,15 +3363,34 @@ function _renderOverviewHTML() {
     };
   });
 
-  // Untargeted: players whose natural group is not in activeGroups
+  // Untargeted: players whose natural group is not targeted AND who have no eligible active group
+  // AND who are not already planned into any active group
+  const plannedPids = new Set(
+    activeGroups.flatMap(ag => _planningData[ag] || [])
+  );
   const untargeted = playerElig.filter(e => {
     if (e.nat === null) return false;
-    return !activeGroups.includes('U' + e.nat);
+    if (plannedPids.has(e.r.profileId)) return false;           // already planned — hide
+    if (!activeGroups.includes('U' + e.nat)) return true;      // natural group not targeted
+    return false;
+  }).filter(e => !e.eligible.some(ag => activeGroups.includes(ag)) || true);
+  // Only show if they have NO eligible active group (truly stranded)
+  const trulyStranded = playerElig.filter(e => {
+    if (e.nat === null) return false;
+    if (plannedPids.has(e.r.profileId)) return false;           // already planned
+    return !e.eligible.some(ag => activeGroups.includes(ag));  // no eligible active group
   });
+  const partiallyStranded = playerElig.filter(e => {
+    if (e.nat === null) return false;
+    if (plannedPids.has(e.r.profileId)) return false;           // already planned
+    if (activeGroups.includes('U' + e.nat)) return false;       // natural group is targeted
+    return e.eligible.some(ag => activeGroups.includes(ag));   // has an eligible active group but not placed yet
+  });
+  const allUntargeted = [...partiallyStranded, ...trulyStranded];
 
-  // Map untargeted players to which active groups they can slot into
+  // Map unplanned+untargeted players to which active groups they can slot into
   const slottable = {}; // ag → [playerElig entries]
-  untargeted.forEach(e => {
+  allUntargeted.forEach(e => {
     e.eligible.forEach(ag => {
       if (activeGroups.includes(ag)) {
         if (!slottable[ag]) slottable[ag] = [];
@@ -3380,12 +3399,11 @@ function _renderOverviewHTML() {
     });
   });
 
-  // Untargeted natural group summary (for warning panel)
-  // Only show players who are actually eligible to play (have at least one eligible group)
-  // Use plain age label — "U6" etc are not real competition groups
+  // Untargeted/unplanned panel — only truly stranded players (no eligible active group)
+  // Use plain age label, exclude too-young players
   const untargetedByNat = {};
-  untargeted.forEach(e => {
-    if (e.eligible.length === 0) return; // too young — skip entirely
+  trulyStranded.forEach(e => {
+    if (e.eligible.length === 0) return; // too young — skip
     const label = e.nat !== null ? 'Age ' + e.nat + ' on Jan 1' : 'Unknown age';
     untargetedByNat[label] = untargetedByNat[label] || [];
     untargetedByNat[label].push(e);
@@ -4055,7 +4073,7 @@ function _renderPlanningSlide() {
         <div style="margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;">
           ${isNat
             ? `<span style="font-size:10px;font-weight:700;background:var(--green);color:#fff;padding:1px 6px;border-radius:8px;">Natural ${ag}</span>`
-            : `<span style="font-size:10px;font-weight:700;background:#e0e7ff;color:#4338ca;padding:1px 6px;border-radius:8px;">Slots up from U${nat}</span>`}
+            : `<span style="font-size:10px;font-weight:700;background:#e0e7ff;color:#4338ca;padding:1px 6px;border-radius:8px;">Age ${nat} on Jan 1</span>`}
           ${elsewhere ? `<span style="font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px;">Also planned: ${elsewhere}</span>` : ''}
         </div>
       </div>
