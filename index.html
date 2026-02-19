@@ -118,9 +118,9 @@ main{animation:dash-fadein .5s ease .15s both;}
 header{
   background:var(--green);
   display:flex;align-items:center;justify-content:space-between;
-  min-height:60px;position:sticky;top:0;z-index:100;
-  box-shadow:0 2px 8px rgba(0,0,0,.18);
-  padding:8px 20px;
+  height:60px;min-height:60px;position:sticky;top:0;z-index:100;
+  box-shadow:none;
+  padding:0 20px;
   padding-left:max(20px, env(safe-area-inset-left));
   padding-right:max(20px, env(safe-area-inset-right));
   gap:16px;
@@ -198,9 +198,10 @@ header{
   flex-shrink:0;align-items:center;justify-content:center;
 }
 .hamburger-menu{
-  display:none;position:absolute;top:100%;right:0;min-width:200px;
+  display:none;position:fixed;top:44px;right:8px;min-width:220px;max-width:280px;
+  max-height:calc(100vh - 52px);overflow-y:auto;
   background:var(--card);border:1.5px solid var(--border);border-radius:10px;
-  box-shadow:0 8px 24px rgba(0,0,0,.14);z-index:500;padding:6px;
+  box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:500;padding:6px;
   flex-direction:column;gap:2px;
 }
 .hamburger-menu.open{display:flex;}
@@ -227,7 +228,7 @@ header{
   padding:7px max(16px,env(safe-area-inset-left)) 7px max(16px,env(safe-area-inset-left));
   display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--yellow-dark);
   overflow-x:auto;scrollbar-width:none;
-  position:sticky;top:var(--header-h, 60px);z-index:98;
+  position:sticky;top:60px;z-index:98;
 }
 .sbar::-webkit-scrollbar{display:none;}
 .slabel{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--green);opacity:.6;white-space:nowrap;flex-shrink:0;}
@@ -759,22 +760,21 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 /* ── HEADER MOBILE ── */
 @media(max-width:640px){
   /* ─ Header ─ keeps sticky so yellow+white bars can stack below it */
-  header{padding:6px 12px;gap:5px;min-height:44px;}
+  header{padding:0 12px;gap:5px;height:44px !important;min-height:44px !important;max-height:44px !important;box-sizing:border-box;overflow:hidden;}
   .logo-text small{display:none;}
   .logo-badge{width:30px;height:30px;font-size:11px;}
   .logo-text h1{font-size:17px;}
   #user-name{display:none!important;}
   .user-pill{padding:2px 5px 2px 3px;}
   #sync-state{display:none;}
-  .sync-refresh{padding:4px 8px;font-size:10px;}
+  .desktop-only{display:none !important;}
   .hnav-sync{gap:3px;}
   .lobtn,.hnav-signout{display:none!important;} /* in hamburger */
   .hnav-desktop{display:none!important;} /* in hamburger */
   .hright{gap:4px;flex-wrap:nowrap;position:relative;}
   .hamburger-btn{display:flex;}
   /* ─ Yellow season bar ─ */
-  --header-h: 44px;
-  .sbar{padding:4px 10px;top:44px !important;}
+  .sbar{padding:4px 10px;top:44px !important;margin-top:0 !important;}
   .stab{padding:3px 10px;font-size:11px;}
   /* ─ Dashboard nav — hidden entirely on mobile, both rows in hamburger ─ */
   .dashboard-nav{display:none !important;}
@@ -893,7 +893,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <!-- Sync + Refresh always visible -->
       <div class="hnav-sync">
         <div id="sync-state" class="sync-ok">●&nbsp;Synced</div>
-        <button class="sync-refresh" onclick="loadAll()"><span class="refresh-icon">↻</span> Refresh</button>
+        <button class="sync-refresh desktop-only" onclick="loadAll()"><span class="refresh-icon">↻</span> Refresh</button>
         <button class="lobtn hnav-signout" onclick="doLogout()" id="signout-btn">Sign Out</button>
       </div>
       <!-- Hamburger (mobile only) -->
@@ -3376,6 +3376,7 @@ function closePlayerSlideover() {
   document.getElementById('player-slideover').style.transform       = 'translateX(100%)';
   _slideoverProfileIds = [];
 }
+function closePso() { closePlayerSlideover(); }
 
 let _psoSinglePid = null;
 function openPlayerDetailFromSlideover(profileId) {
@@ -3698,7 +3699,7 @@ function _renderOverviewHTML() {
            Order: Registered, Not Returned, New to Club, Dispensations,
                   Gender Split (full row), Schools, Avg Age -->
       <div class="pl-kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;align-items:start;">
-        <div class="pl-kpi" onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'players\']'),'players')" style="cursor:pointer;">
+        <div class="pl-kpi" onclick="openRegisteredSlideover()" style="cursor:pointer;">
           <div class="pl-kpi-label">Registered ${plSeason}</div>
           <div class="pl-kpi-val">${total}</div>
           <div class="pl-kpi-sub">all players →</div>
@@ -3740,7 +3741,7 @@ function _renderOverviewHTML() {
           <div class="pl-kpi-val">${schools}</div>
           <div class="pl-kpi-sub">represented →</div>
         </div>
-        <div class="pl-kpi" style="cursor:pointer;">
+        <div class="pl-kpi" onclick="openAvgAgeSlideover()" style="cursor:pointer;">
           <div class="pl-kpi-label">Avg Age</div>
           <div class="pl-kpi-val" style="color:var(--green)">${avgAge > 0 ? avgAge.toFixed(1) : '—'}</div>
           <div class="pl-kpi-sub">at 1 Jan ${plSeason} →</div>
@@ -3750,7 +3751,7 @@ function _renderOverviewHTML() {
           <div class="pl-kpi-val" style="color:var(--green)">${activeTeams}</div>
           <div class="pl-kpi-sub">active ${plSeason} →</div>
         </div>
-        <div class="pl-kpi" style="cursor:pointer;" title="Players registered this season who also played last season">
+        <div class="pl-kpi" onclick="openRetentionSlideover()" style="cursor:pointer;">
           <div class="pl-kpi-label">Retention</div>
           <div class="pl-kpi-val" style="color:${retentionPct >= 50 ? 'var(--green-bright)' : retentionPct >= 30 ? 'var(--yellow-dark)' : 'var(--red)'}">${retentionPct}%</div>
           <div class="pl-kpi-sub">returned from ${plSeason-1} →</div>
@@ -3759,15 +3760,15 @@ function _renderOverviewHTML() {
       <!-- CHARTS SECTION — canvas wrapped in sized div for responsive scaling -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;" id="overview-charts-grid">
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
-          <div class="chart-label">Registrations by Year</div>
+          <div class="chart-label">Registrations by Season</div>
           <div class="chart-wrap"><canvas id="chart-yoy"></canvas></div>
         </div>
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
-          <div class="chart-label">Gender by Year</div>
+          <div class="chart-label">Gender by Season</div>
           <div class="chart-wrap"><canvas id="chart-gender"></canvas></div>
         </div>
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
-          <div class="chart-label">Age Groups by Year</div>
+          <div class="chart-label">Age Groups by Season</div>
           <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;">Age at 1 Jan \${plSeason} · click to view players</div>
           <div class="chart-wrap"><canvas id="chart-age-yoy"></canvas></div>
         </div>
@@ -3777,7 +3778,7 @@ function _renderOverviewHTML() {
           <div class="chart-wrap"><canvas id="chart-age"></canvas></div>
         </div>
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;grid-column:1/-1;">
-          <div class="chart-label">Top Schools by Year <span style="font-weight:400;text-transform:none;font-size:10px;">· click to view</span></div>
+          <div class="chart-label">Top Schools by Season <span style="font-weight:400;text-transform:none;font-size:10px;">· click to view</span></div>
           <div class="chart-wrap chart-wrap-wide"><canvas id="chart-schools"></canvas></div>
         </div>
       </div>
@@ -3856,33 +3857,27 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
 
 function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
   if (typeof Chart === 'undefined') return;
-  // Use KJFC brand palette — greens + yellow as primary, gradient shades for age groups
   const GREEN = '#2e7d4f', GREEN_DARK = '#013C1E', GREEN_MID = '#025a2d';
-  const YELLOW = '#c9b400', YELLOW_LIGHT = '#fef083';
-  const GREEN_LIGHT = '#e6f0eb';
-  // Age group palette: alternating green shades + yellow accent
+  const YELLOW = '#c9b400', GREEN_LIGHT = '#e6f0eb';
   const AGE_PALETTE = ['#013C1E','#025a2d','#2e7d4f','#4ead72','#a8d5b5','#c9b400','#fef083','#e6f0eb'];
-  const labels = yoyData.map(d => d.year);
+  const labels = yoyData.map(d => String(d.year));
 
-  // Shared compact options — responsive:true + maintainAspectRatio:false
-  // allows charts to fill their .chart-wrap container at any window size
   const compact = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false },
+      tooltip: { callbacks: { title: items => items[0].label, label: ctx => ctx.parsed.y + ' players' } } },
     scales: {
-      x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#9ca3af' } },
-      y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, color: '#9ca3af', maxTicksLimit: 5 } }
+      x: { grid:{display:false}, ticks:{font:{size:10},color:'#9ca3af'} },
+      y: { beginAtZero:true, grid:{color:'#f3f4f6'}, ticks:{font:{size:10},color:'#9ca3af',maxTicksLimit:5} }
     }
   };
 
-  // Destroy any existing charts
   ['chart-yoy','chart-gender','chart-age-yoy','chart-age','chart-schools'].forEach(id => {
     const el = document.getElementById(id);
-    if (el && el._chart) { el._chart.destroy(); }
+    if (el && el._chart) el._chart.destroy();
   });
 
-  // ── Total YOY bar + trend line ──
+  // ── Registrations by Season — bar+line; click drills into monthly view ──
   const yoyEl = document.getElementById('chart-yoy');
   if (yoyEl) {
     yoyEl._chart = new Chart(yoyEl, {
@@ -3890,15 +3885,24 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
       data: {
         labels,
         datasets: [
-          { type:'bar',  label:'Total', data: yoyData.map(d=>d.total), backgroundColor: GREEN_LIGHT, borderColor: GREEN, borderWidth:1.5, borderRadius:3 },
-          { type:'line', label:'Trend', data: yoyData.map(d=>d.total), borderColor: GREEN_DARK, backgroundColor:'transparent', borderWidth:2, pointRadius:3, pointBackgroundColor: GREEN_DARK, tension:0.3 }
+          { type:'bar',  label:'Total', data:yoyData.map(d=>d.total), backgroundColor:GREEN_LIGHT, borderColor:GREEN, borderWidth:1.5, borderRadius:3 },
+          { type:'line', label:'Trend', data:yoyData.map(d=>d.total), borderColor:GREEN_DARK, backgroundColor:'transparent', borderWidth:2, pointRadius:3, pointBackgroundColor:GREEN_DARK, tension:0.3 }
         ]
       },
-      options: { ...compact, onClick:(e,els) => { if(els.length) showYearPlayersSlideover(yoyData[els[0].index].year); } }
+      options: { ...compact,
+        plugins: { ...compact.plugins,
+          tooltip: { callbacks: { title: items => 'Season ' + items[0].label, label: ctx => ctx.parsed.y + ' registered · click to see monthly' } }
+        },
+        onClick:(e,els) => {
+          if (!els.length) return;
+          const yr = yoyData[els[0].index].year;
+          _showMonthlyDrillDown(yr);
+        }
+      }
     });
   }
 
-  // ── Gender split stacked bar ──
+  // ── Gender by Season ──
   const genderEl = document.getElementById('chart-gender');
   if (genderEl) {
     genderEl._chart = new Chart(genderEl, {
@@ -3906,131 +3910,227 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
       data: {
         labels,
         datasets: [
-          { label:'Male',   data: yoyData.map(d=>d.boys),  backgroundColor: GREEN+'cc',  borderColor:GREEN,  borderWidth:1, borderRadius:3 },
-          { label:'Female', data: yoyData.map(d=>d.girls), backgroundColor: YELLOW+'99', borderColor:YELLOW, borderWidth:1, borderRadius:3 }
+          { label:'Male',   data:yoyData.map(d=>d.boys),  backgroundColor:GREEN+'cc',  borderColor:GREEN,  borderWidth:1, borderRadius:3 },
+          { label:'Female', data:yoyData.map(d=>d.girls), backgroundColor:YELLOW+'99', borderColor:YELLOW, borderWidth:1, borderRadius:3 }
         ]
       },
       options: { ...compact,
-        plugins: { legend: { position:'bottom', labels:{ boxWidth:9, font:{ size:9 }, color:'#6b7280' } } },
-        scales: { ...compact.scales, x: { ...compact.scales.x, stacked:true }, y: { ...compact.scales.y, stacked:true } },
+        plugins: { legend:{ position:'bottom', labels:{ boxWidth:9, font:{size:9}, color:'#6b7280' } },
+          tooltip:{ callbacks:{ title: items => 'Season ' + items[0].label, label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y } }
+        },
+        scales: { ...compact.scales, x:{...compact.scales.x,stacked:true}, y:{...compact.scales.y,stacked:true} },
         onClick:(e,els) => { if(els.length) showYearPlayersSlideover(yoyData[els[0].index].year); }
       }
     });
   }
 
-  // ── Age groups by year (stacked bars) ──
+  // ── Age Groups by Season — actual UXX team labels ──
   const ageYoyEl = document.getElementById('chart-age-yoy');
   if (ageYoyEl && allYears.length) {
+    // Get UXX groups that have appeared across all seasons
     const ageKeys = [...new Set((plData.seasons||[]).map(r=>effectiveAgeGroup(r)).filter(Boolean))]
       .sort((a,b)=>(parseInt(a.replace(/\D/g,''))||0)-(parseInt(b.replace(/\D/g,''))||0));
     const ageColors = ['#013C1E','#2e7d4f','#c9b400','#6aa84f','#ca8a04','#4a7c59','#8db87a','#025a2d','#a8d5b5'];
     ageYoyEl._chart = new Chart(ageYoyEl, {
       type: 'bar',
       data: {
-        labels: allYears,
+        labels: allYears.map(String),
         datasets: ageKeys.map((ag,i) => ({
           label: ag,
-          data: allYears.map(y => {
-            const yRows = (plData.seasons||[]).filter(s=>+s.year===+y);
-            return yRows.filter(r=>effectiveAgeGroup(r)===ag).length;
-          }),
-          backgroundColor: ageColors[i%ageColors.length]+'99',
-          borderRadius: 2
+          data: allYears.map(y => (plData.seasons||[]).filter(s=>+s.year===+y&&effectiveAgeGroup(s)===ag).length),
+          backgroundColor: ageColors[i%ageColors.length]+'99', borderRadius:2
         }))
       },
       options: { ...compact,
-        plugins: { legend: { position:'bottom', labels:{ boxWidth:8, font:{ size:9 }, color:'#6b7280', padding:6 } } },
-        scales: { ...compact.scales, x: { ...compact.scales.x, stacked:true }, y: { ...compact.scales.y, stacked:true } },
-        onClick:(e,els) => { if(els.length) { const ag=ageKeys[els[0].datasetIndex]; const yr=allYears[els[0].index]; openSchoolYearSlideover && openAgeGroupSlideover(ag); } }
-      }
-    });
-  }
-
-  // ── Age breakdown current season — grouped into 2-year bands ──
-  const ageEl = document.getElementById('chart-age');
-  if (ageEl) {
-    const ageRows = (plData.seasons||[]).filter(s=>+s.year===+plSeason);
-    // Compute natural age on Jan 1 of season year for each player
-    const bandCounts = {};   // "9-10" => count
-    const bandRawAgs = {};   // "9-10" => [ageGroup strings] for click drill
-    ageRows.forEach(r => {
-      const p = (plData.players||[]).find(pp=>pp.profileId===r.profileId);
-      if (!p || !p.dob) return;
-      // Natural age = years between dob and Jan 1 of season
-      const jan1 = new Date(+plSeason, 0, 1);
-      const d = new Date(p.dob.split('/').reverse().join('-'));
-      if (isNaN(d)) return;
-      let age = jan1.getFullYear() - d.getFullYear();
-      const m = jan1.getMonth() - d.getMonth();
-      if (m < 0 || (m === 0 && jan1.getDate() < d.getDate())) age--;
-      if (age < 5 || age > 20) return;
-      // 2-year band: round down to nearest odd — 9→"9-10", 10→"9-10", 11→"11-12" etc
-      const lo = age % 2 === 0 ? age - 1 : age;
-      const band = lo + '-' + (lo+1);
-      bandCounts[band] = (bandCounts[band]||0)+1;
-      if (!bandRawAgs[band]) bandRawAgs[band] = new Set();
-      // Track which UXX age groups fall in this band for click drill
-      const ag = effectiveAgeGroup(r);
-      if (ag) bandRawAgs[band].add(ag);
-    });
-    // Sort bands numerically
-    const bands = Object.keys(bandCounts).sort((a,b)=>parseInt(a)-parseInt(b));
-    ageEl._chart = new Chart(ageEl, {
-      type: 'bar',
-      data: {
-        labels: bands,
-        datasets: [{ label:'Players', data: bands.map(b=>bandCounts[b]), backgroundColor: GREEN_LIGHT, borderColor: GREEN, borderWidth:1.5, borderRadius:3 }]
-      },
-      options: { ...compact,
+        plugins: { legend:{ position:'bottom', labels:{ boxWidth:8, font:{size:9}, color:'#6b7280', padding:6 } },
+          tooltip:{ callbacks:{ title:items=>'Season '+items[0].label+' · '+items[0].dataset.label, label:ctx=>ctx.parsed.y+' players · click for team' } }
+        },
+        scales: { ...compact.scales, x:{...compact.scales.x,stacked:true}, y:{...compact.scales.y,stacked:true} },
         onClick:(e,els) => {
-          if (els.length) {
-            const band = bands[els[0].index];
-            const ags  = [...(bandRawAgs[band]||[])];
-            // Open the first matching age group slideover (or combine if needed)
-            if (ags.length === 1) openAgeGroupSlideover(ags[0]);
-            else if (ags.length > 1) {
-              // collect all pids from all matching groups
-              const allPids = [];
-              ags.forEach(ag => {
-                const r2 = (plData.seasons||[]).filter(s=>+s.year===+plSeason && effectiveAgeGroup(s)===ag);
-                r2.forEach(r=>allPids.push(r.profileId));
-              });
-              _openSimpleSlideover('Ages ' + band, allPids.length + ' players', allPids.map(pid=>{
-                const p2=(plData.players||[]).find(pp=>pp.profileId===pid)||{};
-                const s2=(plData.seasons||[]).find(s=>s.profileId===pid&&+s.year===+plSeason)||{};
-                return {p:p2,ps:s2,pid};
-              }));
-            }
+          if (!els.length) return;
+          const ag = ageKeys[els[0].datasetIndex];
+          const yr = allYears[els[0].index];
+          // If clicking current season, try to open teams tab filtered to this group
+          if (+yr === +plSeason) {
+            openAgeGroupSlideover(ag);
+          } else {
+            // Show players for that age group in that year
+            const rows = (plData.seasons||[]).filter(s=>+s.year===+yr&&effectiveAgeGroup(s)===ag);
+            const pm   = plPlayerMap();
+            _openSimpleSlideover(ag + ' — ' + yr, rows.length + ' players',
+              rows.map(r=>({pid:r.profileId,label:ageLabel(r),sub:(pm[r.profileId]||{}).school||'—'})));
           }
         }
       }
     });
   }
 
-  // ── Top schools line chart ──
+  // ── Age Breakdown current season — UXX labels with bar per team group ──
+  const ageEl = document.getElementById('chart-age');
+  if (ageEl) {
+    const ageRows = (plData.seasons||[]).filter(s=>+s.year===+plSeason);
+    const agCounts = {};
+    ageRows.forEach(r => { const ag=effectiveAgeGroup(r); if(ag) agCounts[ag]=(agCounts[ag]||0)+1; });
+    const ags = Object.keys(agCounts).sort((a,b)=>(parseInt(a.replace(/\D/g,''))||0)-(parseInt(b.replace(/\D/g,''))||0));
+    const ageColors2 = ['#013C1E','#2e7d4f','#c9b400','#6aa84f','#ca8a04','#4a7c59','#8db87a','#025a2d','#a8d5b5'];
+    ageEl._chart = new Chart(ageEl, {
+      type: 'bar',
+      data: {
+        labels: ags,
+        datasets: [{ label:'Players', data:ags.map(ag=>agCounts[ag]),
+          backgroundColor:ags.map((_,i)=>ageColors2[i%ageColors2.length]+'bb'),
+          borderColor:ags.map((_,i)=>ageColors2[i%ageColors2.length]),
+          borderWidth:1.5, borderRadius:3 }]
+      },
+      options: { ...compact,
+        plugins: { ...compact.plugins,
+          tooltip:{ callbacks:{ title:items=>items[0].label+' ('+plSeason+')', label:ctx=>ctx.parsed.y+' players · click for detail' } }
+        },
+        onClick:(e,els) => { if(els.length) openAgeGroupSlideover(ags[els[0].index]); }
+      }
+    });
+  }
+
+  // ── Top Schools by Season ──
   const schoolEl = document.getElementById('chart-schools');
   if (schoolEl && topSchools.length) {
     const colors = [GREEN_DARK, GREEN, YELLOW, '#6aa84f', '#4a7c59', '#8db87a'];
     schoolEl._chart = new Chart(schoolEl, {
       type: 'line',
       data: {
-        labels: allYears,
+        labels: allYears.map(String),
         datasets: topSchools.map((s,i) => ({
-          label: s.school.length > 20 ? s.school.slice(0,20)+'…' : s.school,
-          data:  allYears.map(y => s.data[y] || 0),
-          borderColor: colors[i%colors.length],
-          backgroundColor: 'transparent',
-          borderWidth: 1.5, pointRadius: 2, tension: 0.3,
+          label: s.school.length>20 ? s.school.slice(0,20)+'…' : s.school,
+          data:  allYears.map(y=>s.data[y]||0),
+          borderColor:colors[i%colors.length], backgroundColor:'transparent',
+          borderWidth:1.5, pointRadius:3, pointHoverRadius:5, tension:0.3
         }))
       },
       options: { ...compact,
-        plugins: { legend: { position:'bottom', labels:{ boxWidth:9, font:{ size:9 }, color:'#6b7280', padding:6 } } },
+        plugins: { legend:{ position:'bottom', labels:{ boxWidth:9, font:{size:9}, color:'#6b7280', padding:6 } },
+          tooltip:{ callbacks:{ title:items=>items[0].dataset.label+' · '+items[0].label, label:ctx=>ctx.parsed.y+' players · click for list' } }
+        },
         onClick:(e,els) => {
           if(els.length) { const ds=topSchools[els[0].datasetIndex]; openSchoolYearSlideover(ds.school, allYears[els[0].index]); }
         }
       }
     });
   }
+}
+
+// ── Monthly drill-down for registrations-by-season chart ──────────
+// Season runs Oct (prevYear) → Sep (season year)
+function _showMonthlyDrillDown(year) {
+  // Season window: Oct 1 of (year-1) to Sep 30 of year
+  const seasonStart = new Date(year-1, 9, 1);   // Oct 1 prev year
+  const seasonEnd   = new Date(year, 8, 30);    // Sep 30 season year
+
+  // All players registered in this season
+  const rows = (plData.seasons||[]).filter(s=>+s.year===+year);
+  const pm   = plPlayerMap();
+
+  // Use importedAt dates if available, otherwise show season total only
+  const monthNames = ['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'];
+  // months array: index 0 = Oct(year-1) ... index 11 = Sep(year)
+  const monthCounts = new Array(12).fill(0);
+  const monthPlayers = Array.from({length:12},()=>[]);
+
+  let hasDateData = false;
+  rows.forEach(r => {
+    const dateStr = r.importedAt || r.registeredAt || null;
+    if (!dateStr) return;
+    const d = new Date(dateStr.split('/').length === 3 ? dateStr.split('/').reverse().join('-') : dateStr);
+    if (isNaN(d)) return;
+    // Determine which month bucket (0=Oct prev year, 11=Sep season year)
+    let bucket = -1;
+    const yr = d.getFullYear(), mo = d.getMonth(); // 0=Jan
+    if (yr === year-1 && mo >= 9) bucket = mo - 9;        // Oct=0,Nov=1,Dec=2
+    else if (yr === year && mo <= 8) bucket = mo + 3;     // Jan=3..Sep=11
+    if (bucket >= 0 && bucket < 12) {
+      monthCounts[bucket]++;
+      monthPlayers[bucket].push(r.profileId);
+      hasDateData = true;
+    }
+  });
+
+  // If no date data, just show flat total
+  if (!hasDateData) {
+    monthPlayers[5].push(...rows.map(r=>r.profileId)); // put all in Mar slot
+    monthCounts[5] = rows.length;
+  }
+
+  // Trim leading/trailing zero months
+  let first = 0, last = 11;
+  while (first < 11 && monthCounts[first] === 0) first++;
+  while (last > 0  && monthCounts[last]  === 0) last--;
+  const trimLabels  = monthNames.slice(first, last+1);
+  const trimCounts  = monthCounts.slice(first, last+1);
+  const trimPlayers = monthPlayers.slice(first, last+1);
+
+  // Build modal content
+  const GREEN = '#2e7d4f', GREEN_LIGHT = '#e6f0eb', GREEN_DARK = '#013C1E';
+
+  const overlay2 = document.getElementById('player-slideover-overlay');
+  const panel   = document.getElementById('player-slideover');
+  if (!overlay2 || !panel) return;
+  overlay2.style.display = 'block';
+  panel.style.transform = 'translateX(0)';
+
+  const noDateWarn = hasDateData ? '' : '<div style="font-size:11px;color:var(--yellow-dark);background:#fffbeb;border-radius:6px;padding:8px 10px;margin-bottom:10px;">Registration dates not in import data \u2014 showing season total only.</div>';
+  panel.innerHTML = [
+    '<div class="sp-title">Season ' + year + ' \u00b7 Monthly Registrations</div>',
+    '<div style="font-size:11px;color:var(--text-dim);padding:4px 16px 12px;">Oct ' + (year-1) + ' \u2013 Sep ' + year + ' \u00b7 click a bar to see players</div>',
+    '<button class="spclose" onclick="closePso()">&times;</button>',
+    '<div style="padding:0 16px 16px;">',
+    '<div style="position:relative;height:200px;margin-bottom:16px;"><canvas id="chart-monthly-drill"></canvas></div>',
+    noDateWarn,
+    '<div id="monthly-drill-list" style="max-height:300px;overflow-y:auto;"></div>',
+    '</div>'
+  ].join('');
+
+  // overlay already opened above
+
+  requestAnimationFrame(() => {
+    const canvas = document.getElementById('chart-monthly-drill');
+    if (!canvas || typeof Chart === 'undefined') return;
+    canvas._chart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: trimLabels,
+        datasets: [{ label:'Registrations', data:trimCounts,
+          backgroundColor: GREEN_LIGHT, borderColor:GREEN, borderWidth:1.5, borderRadius:4 }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          tooltip:{callbacks:{label:ctx=>ctx.parsed.y+' registered'}}
+        },
+        scales:{
+          x:{grid:{display:false},ticks:{font:{size:11},color:'#9ca3af'}},
+          y:{beginAtZero:true,grid:{color:'#f3f4f6'},ticks:{font:{size:11},color:'#9ca3af',maxTicksLimit:5}}
+        },
+        onClick:(e,els) => {
+          if (!els.length) return;
+          const bucket = first + els[0].index;
+          const pids   = trimPlayers[els[0].index];
+          const listEl = document.getElementById('monthly-drill-list');
+          if (!listEl || !pids.length) return;
+          const pmMap = plPlayerMap();
+          const hdr = '<div style="font-family:Barlow Condensed,sans-serif;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">'
+            + trimLabels[els[0].index] + ' \u00b7 ' + pids.length + ' players</div>';
+          const rows2 = pids.map(function(pid) {
+            var p = pmMap[pid]||{};
+            var s2 = (plData.seasons||[]).find(function(ss){return ss.profileId===pid&&+ss.year===+year;})||{};
+            var name = [p.firstName,p.lastName].filter(Boolean).join(' ')||'Unknown';
+            var ag = effectiveAgeGroup(s2)||'—';
+            return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer;" onclick="openPlayerDetailFromSlideover(&quot;' + pid + '&quot;)">'
+              + '<span>' + name + '</span><span style="color:var(--text-dim);font-size:11px;">' + ag + '</span></div>';
+          });
+          listEl.innerHTML = hdr + rows2.join('');
+        }
+      }
+    });
+  });
 }
 
 // ── OVERVIEW SLIDEVERS ────────────────────────────────────────────
@@ -4147,6 +4247,49 @@ function openSchoolYearSlideover(school, year) {
   });
   _openSimpleSlideover(`${school} — ${year}`, `${matching.length} players`,
     matching.map(r=>({ pid:r.profileId, label:ageLabel(r), sub:(pm[r.profileId]||{}).gender||'—' })));
+}
+
+function openRegisteredSlideover() {
+  const rows = plSeasonRows();
+  const pm   = plPlayerMap();
+  _openSimpleSlideover(
+    'Registered ' + plSeason,
+    rows.length + ' players',
+    rows.map(r => ({ pid:r.profileId, label:ageLabel(r), sub:(pm[r.profileId]||{}).school||'—' }))
+  );
+}
+
+function openAvgAgeSlideover() {
+  const rows = plSeasonRows();
+  const pm   = plPlayerMap();
+  const jan1 = new Date(+plSeason, 0, 1);
+  const withAge = rows.map(r => {
+    const p = pm[r.profileId]||{};
+    let age = null;
+    if (p.dob) {
+      const d = new Date(p.dob.split('/').reverse().join('-'));
+      if (!isNaN(d)) {
+        age = jan1.getFullYear() - d.getFullYear();
+        const mo = jan1.getMonth() - d.getMonth();
+        if (mo < 0 || (mo===0 && jan1.getDate() < d.getDate())) age--;
+      }
+    }
+    return { pid:r.profileId, label: age !== null ? 'Age ' + age : '—', sub:(p.school||'—'), _age: age||999 };
+  }).sort((a,b) => a._age - b._age);
+  _openSimpleSlideover('Ages — ' + plSeason, 'Age at 1 Jan ' + plSeason, withAge);
+}
+
+function openRetentionSlideover() {
+  const rows    = plSeasonRows();
+  const pm      = plPlayerMap();
+  const prevYr  = +plSeason - 1;
+  const prevPids = new Set((plData.seasons||[]).filter(s=>+s.year===prevYr).map(s=>s.profileId));
+  const returned = rows.filter(r => prevPids.has(r.profileId));
+  _openSimpleSlideover(
+    'Returned — ' + plSeason,
+    returned.length + ' players returned from ' + prevYr,
+    returned.map(r => ({ pid:r.profileId, label:ageLabel(r), sub:(pm[r.profileId]||{}).school||'—' }))
+  );
 }
 
 // ── PLANNING TAB ──────────────────────────────────────────────────
