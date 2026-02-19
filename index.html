@@ -5377,7 +5377,7 @@ function handleImportFile(file) {
 
       // Exclusion reasons
       let excludeReason = null;
-      if (status && status !== 'Active')                          excludeReason = `Status: ${status}`;
+      if (status && status !== 'Active' && status !== 'Pending') excludeReason = `Status: ${status}`;
       else if (role && role !== 'Player')                         excludeReason = `Role: ${role}`;
       else if (club && !club.toLowerCase().includes('kinglake'))  excludeReason = `Club: ${club}`;
       else if (ageGroup === 'SENIOR')                             excludeReason = 'Senior (age group tag)';
