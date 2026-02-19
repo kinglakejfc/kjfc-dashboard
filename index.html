@@ -3484,6 +3484,7 @@ function _renderOverviewHTML() {
         </div>
         <div style="display:flex;gap:8px;">
           <button class="msecondary" onclick="getAIInsights()" style="font-size:12px;padding:6px 12px;">🤖 AI Insights</button>
+          <button class="msecondary" onclick="triggerManualAutoPlan()" style="font-size:12px;padding:6px 12px;">⚡ Auto-Plan</button>
           <button class="mprimary" onclick="saveSeasonCfg()" id="cfg-save-btn" style="font-size:12px;padding:6px 14px;">Save Configuration</button>
         </div>
       </div>
@@ -3587,13 +3588,180 @@ async function saveSeasonCfg() {
       phase:  (document.getElementById('cfg-phase-' + ag)  || {}).value || 'Competition',
     };
   });
+
+  // Detect if targeted groups have changed — if so, show auto-plan preview
+  const prevActive = ALL_AGE_GROUPS.filter(ag => _seasonCfg && _seasonCfg[ag] && _seasonCfg[ag].active);
+  const newActive  = ALL_AGE_GROUPS.filter(ag => config[ag] && config[ag].active);
+  const groupsChanged = prevActive.join(',') !== newActive.join(',');
+
   const btn = document.getElementById('cfg-save-btn');
   if (btn) btnLoading(btn, true);
   const res = await api('saveSeasonConfigSheet', { year: plSeason, config });
   if (btn) btnLoading(btn, false);
   if (res.error) { showToast('Save failed: ' + res.error, 'err'); return; }
+
   _seasonCfg = { ...config, _year: plSeason };
   showToast('Season configuration saved ✓');
+
+  if (groupsChanged && newActive.length > 0) {
+    // Show auto-plan preview — groups changed, recalculate player assignments
+    showAutoPlanPreview(newActive);
+  } else {
+    _renderOverviewHTML();
+  }
+}
+
+// ── AUTO-PLAN ─────────────────────────────────────────────────────
+// Assigns every registered player to the most appropriate targeted group.
+// Rule: natural group if targeted → else lowest targeted group eligible for → else unplanned.
+
+function computeAutoPlan(activeGroups) {
+  const rows   = plSeasonRows();
+  const pm     = plPlayerMap();
+  const plan   = {}; // ageGroup → [profileId]
+  const unplanned = [];
+
+  activeGroups.forEach(ag => plan[ag] = []);
+
+  rows.forEach(r => {
+    const p        = pm[r.profileId] || {};
+    const nat      = playerNaturalAge(r);
+    const eligible = playerEligibleGroups(r, p);
+    const natGroup = nat !== null ? 'U' + nat : null;
+
+    // Rule 1: natural group targeted
+    if (natGroup && activeGroups.includes(natGroup)) {
+      plan[natGroup].push(r.profileId);
+      return;
+    }
+    // Rule 2: lowest targeted group eligible for
+    const lowestMatch = activeGroups.find(ag => eligible.includes(ag));
+    if (lowestMatch) {
+      plan[lowestMatch].push(r.profileId);
+      return;
+    }
+    // Rule 3: leave unplanned
+    unplanned.push({ r, p, nat, eligible });
+  });
+
+  return { plan, unplanned };
+}
+
+function showAutoPlanPreview(activeGroups) {
+  const { plan, unplanned } = computeAutoPlan(activeGroups);
+  const pm   = plPlayerMap();
+  const prev = _planningData;
+
+  // Build diff: what's changing vs current plan
+  const changes = [];
+  activeGroups.forEach(ag => {
+    const newPids  = plan[ag] || [];
+    const prevPids = prev[ag] || [];
+    const added    = newPids.filter(p => !prevPids.includes(p));
+    const removed  = prevPids.filter(p => !newPids.includes(p));
+    if (added.length || removed.length) {
+      changes.push({ ag, newPids, prevPids, added, removed });
+    }
+  });
+
+  // Build preview HTML
+  const previewRows = activeGroups.map(ag => {
+    const pids  = plan[ag] || [];
+    const names = pids.map(pid => {
+      const p = pm[pid] || {};
+      return plName(p);
+    });
+    const prev  = (_planningData[ag] || []).length;
+    return `<div style="margin-bottom:10px;">
+      <div style="font-weight:800;font-size:13px;font-family:'Barlow Condensed',sans-serif;
+                  text-transform:uppercase;color:var(--green);margin-bottom:4px;">
+        ${ag} — ${pids.length} player${pids.length!==1?'s':''}
+        ${prev !== pids.length ? `<span style="font-size:11px;font-weight:400;color:var(--text-dim);text-transform:none;margin-left:6px;">(was ${prev})</span>` : ''}
+      </div>
+      ${pids.length
+        ? `<div style="font-size:12px;color:var(--text);line-height:1.7;">${names.join(', ')}</div>`
+        : `<div style="font-size:12px;color:var(--text-dim);font-style:italic;">No players</div>`}
+    </div>`;
+  }).join('');
+
+  const unplannedNames = unplanned.map(e => plName(e.p)).join(', ');
+
+  // Show in a modal overlay
+  let overlay = document.getElementById('autoplan-preview-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'autoplan-preview-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:4000;display:flex;align-items:center;justify-content:center;';
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:14px;width:520px;max-width:96vw;max-height:85vh;
+                display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.2);">
+      <div style="padding:18px 20px;border-bottom:1px solid var(--border);">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;
+                    text-transform:uppercase;letter-spacing:.5px;">Auto-Plan Preview</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:3px;">
+          Based on your selected age groups, here's how players would be distributed.
+          Natural group takes priority; otherwise assigned to lowest eligible targeted group.
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 20px;">
+        ${previewRows}
+        ${unplanned.length ? `
+          <div style="margin-top:12px;padding:10px 14px;background:#fef3c7;border-radius:8px;border-left:3px solid #f59e0b;">
+            <div style="font-weight:700;font-size:12px;color:#92400e;margin-bottom:4px;">
+              ⚠️ ${unplanned.length} player${unplanned.length!==1?'s':''} not placed (no eligible targeted group)
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);">${unplannedNames}</div>
+          </div>` : ''}
+      </div>
+      <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;">
+        <button class="msecondary" style="flex:1;" onclick="closeAutoPlanPreview()">Cancel</button>
+        <button class="mprimary" style="flex:2;" onclick="applyAutoPlan()">Apply This Plan</button>
+      </div>
+    </div>`;
+
+  // Store pending plan for apply
+  window._pendingAutoPlan = plan;
+}
+
+function triggerManualAutoPlan() {
+  const activeGroups = ALL_AGE_GROUPS.filter(ag => _seasonCfg && _seasonCfg[ag] && _seasonCfg[ag].active);
+  if (!activeGroups.length) { showToast('Select at least one age group first', 'err'); return; }
+  // Read current UI state in case not yet saved
+  const uiActive = ALL_AGE_GROUPS.filter(ag => {
+    const cb = document.getElementById('cfg-on-' + ag);
+    return cb ? cb.checked : (_seasonCfg && _seasonCfg[ag] && _seasonCfg[ag].active);
+  });
+  showAutoPlanPreview(uiActive.length ? uiActive : activeGroups);
+}
+
+function closeAutoPlanPreview() {
+  const el = document.getElementById('autoplan-preview-overlay');
+  if (el) el.style.display = 'none';
+  _renderOverviewHTML();
+}
+
+async function applyAutoPlan() {
+  const plan = window._pendingAutoPlan;
+  if (!plan) return;
+
+  const overlay = document.getElementById('autoplan-preview-overlay');
+  if (overlay) overlay.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;"><div class="ls-spinner"></div></div>';
+
+  // Save each age group's plan
+  const activeGroups = Object.keys(plan);
+  for (const ag of activeGroups) {
+    await api('savePlanningTeam', { year: plSeason, ageGroup: ag, profileIds: plan[ag] });
+  }
+
+  // Update local cache
+  activeGroups.forEach(ag => { _planningData[ag] = plan[ag]; });
+  _planningData._year = plSeason;
+
+  if (overlay) overlay.style.display = 'none';
+  showToast('Plan applied — ' + activeGroups.length + ' age groups updated ✓');
   _renderOverviewHTML();
 }
 
