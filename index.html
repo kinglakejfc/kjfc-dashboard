@@ -211,6 +211,7 @@ header{
 }
 .hmenu-item:hover{background:var(--green-light);}
 .hmenu-danger{color:var(--red)!important;}
+.hmenu-active{background:var(--green-light)!important;color:var(--green)!important;font-weight:700;}
 .hmenu-divider{height:1px;background:var(--border);margin:4px 0;}
 .hmenu-section-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);padding:8px 12px 2px;}
 /* Desktop nav group */
@@ -775,12 +776,8 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
   --header-h: 44px;
   .sbar{padding:4px 10px;top:44px !important;}
   .stab{padding:3px 10px;font-size:11px;}
-  /* ─ Dashboard nav ─ */
-  .dashboard-nav{top:78px;}  /* 44px header + 34px sbar */
-  .dbar-row1 .dtab.dashboard-tab{min-height:38px;font-size:12px;padding:8px 16px;}
-  /* Row2 sub-tabs move into hamburger on mobile */
-  .dbar-row2{display:none !important;}
-  .dtab-lbl{font-size:10px;}
+  /* ─ Dashboard nav — hidden entirely on mobile, both rows in hamburger ─ */
+  .dashboard-nav{display:none !important;}
   /* ─ Charts ─ */
   #overview-charts-grid{grid-template-columns:1fr !important;}
   #pl-body{padding:10px 0 !important;}
@@ -888,7 +885,6 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       </div>
       <!-- Desktop nav items (hidden on mobile via CSS) -->
       <div id="header-nav-desktop" class="hnav-desktop">
-        <button class="hnav-btn" onclick="openAdminModal('packages')">Packages</button>
         <div id="admin-nav-btns" style="display:none;align-items:center;gap:4px;">
           <button class="hnav-btn" onclick="openAdminModal('log')">Access Log</button>
           <button class="hnav-btn" onclick="openAdminModal('users')">Users</button>
@@ -3213,45 +3209,44 @@ function buildHamburgerMenu() {
   const canEdit = me && (me.edit || me.admin);
   let html = '';
 
-  if (dash === 'sponsors') {
-    // Sponsorship context
-    html += `<div class="hmenu-section-lbl">🏆 Sponsorship</div>`;
-    if (canEdit) {
-      html += `<button class="hmenu-item" onclick="openAddOrg();toggleHamburger()">➕ Add Sponsor</button>`;
-    }
-    html += `<button class="hmenu-item" onclick="openAdminModal('packages');toggleHamburger()">📦 Packages</button>`;
-  } else {
-    // Recruitment context — sub-tab navigation
+  // ── Sponsorship — always visible ──────────────────────────
+  html += `<div class="hmenu-section-lbl">🏆 Sponsorship</div>`;
+  html += `<button class="hmenu-item${dash==='sponsors'?' hmenu-active':''}" onclick="switchDashboard('sponsors');toggleHamburger()">📋 Overview</button>`;
+  if (canEdit) {
+    html += `<button class="hmenu-item" onclick="switchDashboard('sponsors');openAddOrg();toggleHamburger()">➕ Add Sponsor</button>`;
+  }
+  html += `<button class="hmenu-item" onclick="switchDashboard('sponsors');openAdminModal('packages');toggleHamburger()">📦 Packages</button>`;
+
+  // ── Recruitment — always visible for admins ───────────────
+  if (isAdmin) {
+    html += `<div class="hmenu-divider"></div>`;
     html += `<div class="hmenu-section-lbl">🏉 Recruitment</div>`;
-    const tabs = [
-      { tab:'overview',  icon:'📊', lbl:'Overview'  },
-      { tab:'players',   icon:'👥', lbl:'Players'   },
-      { tab:'planning',  icon:'📋', lbl:'Planning'  },
-      { tab:'teams',     icon:'🏉', lbl:'Teams'     },
-      { tab:'schools',   icon:'🏫', lbl:'Schools'   },
-      { tab:'import',    icon:'📥', lbl:'Import'    },
-      { tab:'settings',  icon:'⚙️', lbl:'Settings'  },
+    const plTabs = [
+      { tab:'overview', icon:'📊', lbl:'Overview'  },
+      { tab:'players',  icon:'👥', lbl:'Players'   },
+      { tab:'planning', icon:'📋', lbl:'Planning'  },
+      { tab:'teams',    icon:'🏉', lbl:'Teams'     },
+      { tab:'schools',  icon:'🏫', lbl:'Schools'   },
+      { tab:'import',   icon:'📥', lbl:'Import'    },
+      { tab:'settings', icon:'⚙', lbl:'Settings'  },
     ];
-    tabs.forEach(t => {
-      html += `<button class="hmenu-item" onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'${t.tab}\']'),'${t.tab}');toggleHamburger()">${t.icon} ${t.lbl}</button>`;
+    plTabs.forEach(t => {
+      const isAct = dash==='recruitment' && document.querySelector(`#dash-sub-recruitment .dtab[data-tab="${t.tab}"]`)?.classList.contains('act');
+      html += `<button class="hmenu-item${isAct?' hmenu-active':''}" onclick="switchDashboard('recruitment');switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\\'${t.tab}\\']'),'${t.tab}');toggleHamburger()">${t.icon} ${t.lbl}</button>`;
     });
   }
 
+  // ── Admin tools ───────────────────────────────────────────
   if (isAdmin) {
     html += `<div class="hmenu-divider"></div>`;
     html += `<div class="hmenu-section-lbl">⚙️ Admin</div>`;
     html += `<button class="hmenu-item" onclick="openAdminModal('log');toggleHamburger()">📋 Access Log</button>`;
     html += `<button class="hmenu-item" onclick="openAdminModal('users');toggleHamburger()">👤 Users</button>`;
-    if (dash === 'sponsors') {
-      html += `<button class="hmenu-item" onclick="switchDashboard('recruitment');toggleHamburger()">🏉 Recruitment</button>`;
-    } else {
-      html += `<button class="hmenu-item" onclick="switchDashboard('sponsors');toggleHamburger()">🏆 Sponsorship</button>`;
-    }
   }
 
   html += `<div class="hmenu-divider"></div>`;
   html += `<button class="hmenu-item" onclick="loadAll();toggleHamburger()">↻ Refresh</button>`;
-  html += `<button class="hmenu-item hmenu-danger" onclick="doLogout()">🚪 Sign Out</button>`;
+  html += `<button class="hmenu-item hmenu-danger" onclick="doLogout()">Sign Out</button>`;
 
   menu.innerHTML = html;
 }
@@ -3786,11 +3781,77 @@ function _renderOverviewHTML() {
           <div class="chart-wrap chart-wrap-wide"><canvas id="chart-schools"></canvas></div>
         </div>
       </div>
+
+      <!-- AI OVERVIEW CARD — auto-loads a 3-4 line summary -->
+      <div id="ai-overview-card" style="background:var(--green);color:#fff;border-radius:12px;padding:18px 22px;margin-bottom:20px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:0;right:0;width:200px;height:100%;background:linear-gradient(135deg,transparent 55%,rgba(251,226,1,.07));pointer-events:none;"></div>
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;flex-shrink:0;margin-top:2px;">AI Summary</div>
+          <div id="ai-overview-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.92;"><span style="opacity:.4;font-size:12px;">Generating insight…</span></div>
+        </div>
+      </div>
     </div>
-  `;
+  \`;
 
   // Render charts after DOM update
   requestAnimationFrame(() => _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears));
+  // Auto-load AI overview
+  _loadOverviewAI(rows, pm, yoyData, allYears);
+}
+
+async function _loadOverviewAI(rows, pm, yoyData, allYears) {
+  const el = document.getElementById('ai-overview-text');
+  if (!el) return;
+
+  const total  = rows.length;
+  const boys   = rows.filter(r => (pm[r.profileId]||{}).gender === 'Male').length;
+  const girls  = total - boys;
+  const prevYr = +plSeason - 1;
+  const prevTotal = (plData.seasons||[]).filter(s=>+s.year===prevYr).length;
+  const changeStr = prevTotal > 0
+    ? (total > prevTotal ? ('up '+(total-prevTotal)+' from '+prevYr) : total < prevTotal ? ('down '+(prevTotal-total)+' from '+prevYr) : ('same as '+prevYr))
+    : 'no prior year data';
+
+  // Age band distribution
+  const bandCounts = {};
+  rows.forEach(r => {
+    const p = (plData.players||[]).find(pp=>pp.profileId===r.profileId);
+    if (!p || !p.dob) return;
+    const d = new Date(p.dob.split('/').reverse().join('-'));
+    if (isNaN(d)) return;
+    const jan1 = new Date(+plSeason, 0, 1);
+    let age = jan1.getFullYear() - d.getFullYear();
+    const mo = jan1.getMonth() - d.getMonth();
+    if (mo < 0 || (mo===0 && jan1.getDate()<d.getDate())) age--;
+    if (age < 5 || age > 20) return;
+    const lo = age%2===0 ? age-1 : age;
+    const band = lo+'-'+(lo+1);
+    bandCounts[band] = (bandCounts[band]||0)+1;
+  });
+  const ageStr = Object.entries(bandCounts).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([b,c])=>(b+'yrs:'+c)).join(', ');
+
+  const lapsed = (_lapsedCache||[]).length;
+  const retPct = prevTotal > 0 ? Math.round((total-rows.filter(r=>{
+    const pids = new Set((plData.seasons||[]).filter(s=>+s.year===prevYr).map(s=>s.profileId));
+    return !pids.has(r.profileId);
+  }).length)/prevTotal*100) : null;
+  const schoolCount = new Set(rows.map(r=>(pm[r.profileId]||{}).school).filter(Boolean)).size;
+
+  const prompt = 'You are analysing AFL junior football registration data for a club dashboard. Write a single plain-text paragraph of exactly 3-4 sentences summarising the key insights an administrator would want to know. Be direct, specific with numbers, and highlight anything requiring action. Do not use bullet points, headers, markdown, or bold text.\n\n'
+    + 'Season: ' + plSeason + '\n'
+    + 'Total registered: ' + total + ' (' + boys + ' male, ' + girls + ' female) - ' + changeStr + '\n'
+    + 'Age distribution: ' + (ageStr || 'insufficient DOB data') + '\n'
+    + 'Not returned from last season: ' + lapsed + (retPct !== null ? ', retention rate: '+retPct+'%' : '') + '\n'
+    + 'Schools represented: ' + schoolCount;
+
+  try {
+    const res = await api('getAIInsights', { prompt });
+    if (res.error) throw new Error(res.error);
+    const text = (res.text||'').trim().replace(/\*\*(.+?)\*\*/g,'$1');
+    el.textContent = text || 'No summary available.';
+  } catch(e) {
+    el.innerHTML = '<span style="opacity:.5;font-size:12px;">AI summary unavailable</span>';
+  }
 }
 
 function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
