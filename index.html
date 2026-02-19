@@ -3462,9 +3462,9 @@ function openPlayerDetail(profileId) {
 }
 
 // ── PLAYER PHOTO UPLOAD ──────────────────────────────────────────────────────
-// Flow: user picks file → resize in canvas → chunked upload to backend →
-//       backend stores in private Drive folder → fileId saved on player record.
-// Photos are NEVER publicly accessible — Drive folder is private.
+// Flow: pick file → resize to 300px in canvas → single POST (JSON body) to
+// Apps Script → backend creates Drive file → fileId saved on player.
+// Single round-trip, no chunking, ~1-2 seconds total.
 
 async function handlePhotoUpload(input) {
   const file = input.files[0];
@@ -3472,77 +3472,60 @@ async function handlePhotoUpload(input) {
 
   const statusEl = document.getElementById('pdm-photo-status');
   const avatarEl = document.getElementById('pdm-avatar-large');
-  if (statusEl) statusEl.textContent = '⏳ Resizing…';
+  if (statusEl) statusEl.textContent = '⏳ Processing…';
 
-  // Resize to max 400×400px using canvas
+  // Resize to max 300×300px — keeps base64 under ~20KB, well within POST limits
   let dataUrl;
   try {
-    dataUrl = await resizeImage(file, 400);
+    dataUrl = await resizeImage(file, 300);
   } catch(e) {
-    if (statusEl) statusEl.textContent = '❌ Resize failed: ' + e.message;
-    showToast('Image resize failed', 'err');
+    if (statusEl) statusEl.textContent = '❌ ' + e.message;
+    showToast('Image error: ' + e.message, 'err');
     return;
   }
 
   if (statusEl) statusEl.textContent = '⏳ Uploading…';
 
-  // Strip the data URI prefix to get raw base64
+  // POST the base64 directly — single request, no chunking needed
+  // Apps Script doPost handles JSON body with no URL length limits
   const b64 = dataUrl.split(',')[1];
-
-  // Chunk into 2000-char pieces and upload via ScriptProperties
-  const CHUNK = 2000;
-  const chunks = [];
-  for (let i = 0; i < b64.length; i += CHUNK) chunks.push(b64.slice(i, i + CHUNK));
-
-  const startRes = await api('startUpload', { totalChunks: chunks.length });
-  if (startRes.error) {
-    if (statusEl) statusEl.textContent = '❌ ' + startRes.error;
-    showToast('Upload failed: ' + startRes.error, 'err');
-    return;
-  }
-  const uploadId = startRes.uploadId;
-
-  // Send in parallel batches of 8
-  for (let i = 0; i < chunks.length; i += 8) {
-    const batch = chunks.slice(i, i + 8);
-    const results = await Promise.all(batch.map((data, j) => api('appendChunk', { uploadId, index: i+j, data })));
-    for (const r of results) {
-      if (r.error) {
-        if (statusEl) statusEl.textContent = '❌ Chunk failed: ' + r.error;
-        return;
-      }
-    }
-    if (statusEl) statusEl.textContent = `⏳ ${Math.min(i+8,chunks.length)}/${chunks.length} chunks…`;
-  }
-
-  // Finalise: backend assembles chunks, creates Drive file with real bytes, saves fileId
-  if (statusEl) statusEl.textContent = '⏳ Saving to Drive…';
-  const finalRes = await api('finalisePhotoToPlayer', { uploadId, profileId: plDetailId });
-
-  if (finalRes.error) {
-    if (statusEl) statusEl.textContent = '❌ ' + finalRes.error;
-    showToast('Photo save failed: ' + finalRes.error, 'err');
+  let res;
+  try {
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action:    'uploadPhoto',
+        token:     token,
+        payload:   { profileId: plDetailId, imageB64: b64 }
+      }),
+      redirect: 'follow'
+    });
+    res = await resp.json();
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '❌ Upload failed: ' + e.message;
+    showToast('Upload failed: ' + e.message, 'err');
     return;
   }
 
-  const newFileId = finalRes.fileId;
+  if (res.error) {
+    if (statusEl) statusEl.textContent = '❌ ' + res.error;
+    showToast('Upload failed: ' + res.error, 'err');
+    return;
+  }
 
-  // Show photo immediately using the already-resized dataUrl (no round-trip needed)
-  const imgEl  = document.getElementById('pdm-photo-img');
+  const newFileId = res.fileId;
+
+  // Show photo immediately from the local dataUrl — no second round-trip
+  if (avatarEl) avatarEl.innerHTML = `<img id="pdm-photo-img" src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;">`;
   const initEl = document.getElementById('pdm-avatar-initials');
-  if (imgEl) { imgEl.src = dataUrl; imgEl.style.display = ''; }
-  else if (avatarEl) {
-    avatarEl.innerHTML = `<img id="pdm-photo-img" src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;">`;
-  }
   if (initEl) initEl.style.display = 'none';
   document.getElementById('pdm-photo').value = newFileId;
-  if (statusEl) statusEl.innerHTML = '✓ Photo stored in Drive (private) <button onclick="removePlayerPhoto()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;color:var(--text-dim);margin-left:8px;">Remove</button>';
+  if (statusEl) statusEl.innerHTML = '✓ Photo stored in Drive (private)&nbsp;&nbsp;<button onclick="removePlayerPhoto()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;color:var(--text-dim);">Remove</button>';
 
-  // Update local plData so avatar bar also refreshes
   const p = (plData.players||[]).find(x=>x.profileId===plDetailId);
   if (p) { p.photoUrl = newFileId; p._photoDataUrl = dataUrl; }
 
-  // Also update the small avatar in the modal header
   const hdAvatar = document.getElementById('pdm-avatar');
   if (hdAvatar) hdAvatar.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
 
