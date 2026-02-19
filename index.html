@@ -3286,16 +3286,34 @@ function openPlayerDetail(profileId) {
   const ps  = plSeasonRows().find(r=>r.profileId===profileId) || {};
   plDetailId = profileId;
 
-  const init  = plInitials(p);
-  const photo = p.photoUrl;
+  const init        = plInitials(p);
+  const photoFileId = p.photoUrl;                  // Drive file ID (or empty)
+  const cachedPhoto = p._photoDataUrl || null;     // in-memory cache from this session
   const ag    = effectiveAgeGroup(ps);
   const disp  = ps.dispensation===true||ps.dispensation==='true';
 
-  document.getElementById('pdm-avatar').innerHTML = photo
-    ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display='none'">${init}`
+  // Show initials immediately; photo loads async below if we have a fileId
+  document.getElementById('pdm-avatar').innerHTML = cachedPhoto
+    ? `<img src="${cachedPhoto}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
     : init;
   document.getElementById('pdm-name').textContent  = plName(p);
   document.getElementById('pdm-meta').textContent  = `${ag} · ${p.gender||''} · DOB ${normaliseDob(p.dob)||''} · ${p.suburb||''}`;
+
+  // Async: load photo from Drive via backend proxy (doesn't block modal open)
+  if (photoFileId && !cachedPhoto) {
+    api('servePhotoB64', { fileId: photoFileId }).then(r => {
+      if (!r.dataUrl) return;
+      p._photoDataUrl = r.dataUrl;
+      const hd = document.getElementById('pdm-avatar');
+      if (hd) hd.innerHTML = `<img src="${r.dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      const lg = document.getElementById('pdm-avatar-large');
+      if (lg) lg.innerHTML = `<img id="pdm-photo-img" src="${r.dataUrl}" style="width:100%;height:100%;object-fit:cover;">`;
+      const st = document.getElementById('pdm-photo-status');
+      if (st && !st.textContent.includes('⏳')) {
+        st.innerHTML = '✓ Photo stored in Drive (private) <button onclick="removePlayerPhoto()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;color:var(--text-dim);margin-left:8px;">Remove</button>';
+      }
+    });
+  }
 
   // Compute age + eligibility for nearby groups
   const calcAgeVal = ps.calcAge ? +ps.calcAge : null;
@@ -3306,10 +3324,8 @@ function openPlayerDetail(profileId) {
     .filter(s => s.profileId === profileId)
     .sort((a,b) => b.year - a.year);
 
-  // Determine photo src: fileId stored → use Drive thumbnail URL pattern
-  const photoSrc = photo
-    ? (photo.startsWith('http') ? photo : `https://lh3.googleusercontent.com/d/${photo}=s200`)
-    : null;
+  // photoSrc for body: use cached dataUrl if already loaded, else null (will load async)
+  const photoSrc = cachedPhoto;
 
   document.getElementById('pdm-body').innerHTML = `
     <!-- Photo + consent -->
@@ -3468,21 +3484,12 @@ async function handlePhotoUpload(input) {
     return;
   }
 
-  if (statusEl) statusEl.textContent = '⏳ Uploading to Drive…';
+  if (statusEl) statusEl.textContent = '⏳ Uploading…';
 
-  // Convert dataUrl to base64 string (strip the data:image/jpeg;base64, prefix)
+  // Strip the data URI prefix to get raw base64
   const b64 = dataUrl.split(',')[1];
-  const mimeType = 'image/jpeg';
 
-  // Get upload URL from backend (creates placeholder in private Drive folder)
-  const urlRes = await api('getPhotoUploadUrl', { profileId: plDetailId, mimeType });
-  if (urlRes.error) {
-    if (statusEl) statusEl.textContent = '❌ ' + urlRes.error;
-    showToast('Upload failed: ' + urlRes.error, 'err');
-    return;
-  }
-
-  // Upload image bytes using chunked JSONP (same approach as CSV import)
+  // Chunk into 2000-char pieces and upload via ScriptProperties
   const CHUNK = 2000;
   const chunks = [];
   for (let i = 0; i < b64.length; i += CHUNK) chunks.push(b64.slice(i, i + CHUNK));
@@ -3490,29 +3497,27 @@ async function handlePhotoUpload(input) {
   const startRes = await api('startUpload', { totalChunks: chunks.length });
   if (startRes.error) {
     if (statusEl) statusEl.textContent = '❌ ' + startRes.error;
+    showToast('Upload failed: ' + startRes.error, 'err');
     return;
   }
   const uploadId = startRes.uploadId;
 
-  // Send chunks in parallel batches
+  // Send in parallel batches of 8
   for (let i = 0; i < chunks.length; i += 8) {
     const batch = chunks.slice(i, i + 8);
     const results = await Promise.all(batch.map((data, j) => api('appendChunk', { uploadId, index: i+j, data })));
     for (const r of results) {
       if (r.error) {
-        if (statusEl) statusEl.textContent = '❌ Chunk upload failed: ' + r.error;
+        if (statusEl) statusEl.textContent = '❌ Chunk failed: ' + r.error;
         return;
       }
     }
-    if (statusEl) statusEl.textContent = `⏳ Uploading… ${Math.min(i+8, chunks.length)}/${chunks.length}`;
+    if (statusEl) statusEl.textContent = `⏳ ${Math.min(i+8,chunks.length)}/${chunks.length} chunks…`;
   }
 
-  // Finalise: backend reassembles, writes to Drive file, saves fileId on player
-  const finalRes = await api('finalisePhotoToPlayer', {
-    uploadId,
-    profileId: plDetailId,
-    fileId: urlRes.fileId
-  });
+  // Finalise: backend assembles chunks, creates Drive file with real bytes, saves fileId
+  if (statusEl) statusEl.textContent = '⏳ Saving to Drive…';
+  const finalRes = await api('finalisePhotoToPlayer', { uploadId, profileId: plDetailId });
 
   if (finalRes.error) {
     if (statusEl) statusEl.textContent = '❌ ' + finalRes.error;
@@ -3520,24 +3525,29 @@ async function handlePhotoUpload(input) {
     return;
   }
 
-  // Update UI: show photo in avatar and update hidden input
-  const thumbUrl = `https://lh3.googleusercontent.com/d/${urlRes.fileId}=s200`;
-  const imgEl = document.getElementById('pdm-photo-img');
+  const newFileId = finalRes.fileId;
+
+  // Show photo immediately using the already-resized dataUrl (no round-trip needed)
+  const imgEl  = document.getElementById('pdm-photo-img');
   const initEl = document.getElementById('pdm-avatar-initials');
-  if (imgEl) { imgEl.src = thumbUrl; imgEl.style.display = ''; }
+  if (imgEl) { imgEl.src = dataUrl; imgEl.style.display = ''; }
   else if (avatarEl) {
-    avatarEl.innerHTML = `<img id="pdm-photo-img" src="${thumbUrl}" style="width:100%;height:100%;object-fit:cover;">`;
+    avatarEl.innerHTML = `<img id="pdm-photo-img" src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;">`;
   }
   if (initEl) initEl.style.display = 'none';
-  document.getElementById('pdm-photo').value = urlRes.fileId;
+  document.getElementById('pdm-photo').value = newFileId;
   if (statusEl) statusEl.innerHTML = '✓ Photo stored in Drive (private) <button onclick="removePlayerPhoto()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;color:var(--text-dim);margin-left:8px;">Remove</button>';
 
-  // Update local plData
+  // Update local plData so avatar bar also refreshes
   const p = (plData.players||[]).find(x=>x.profileId===plDetailId);
-  if (p) p.photoUrl = urlRes.fileId;
+  if (p) { p.photoUrl = newFileId; p._photoDataUrl = dataUrl; }
 
-  showToast('Photo uploaded successfully');
-  input.value = ''; // reset file input
+  // Also update the small avatar in the modal header
+  const hdAvatar = document.getElementById('pdm-avatar');
+  if (hdAvatar) hdAvatar.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+
+  showToast('Photo uploaded ✓');
+  input.value = '';
 }
 
 function resizeImage(file, maxSize) {
