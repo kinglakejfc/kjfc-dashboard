@@ -3612,37 +3612,93 @@ async function saveSeasonCfg() {
 }
 
 // ── AUTO-PLAN ─────────────────────────────────────────────────────
-// Assigns every registered player to the most appropriate targeted group.
-// Rule: natural group if targeted → else lowest targeted group eligible for → else unplanned.
+// Balanced assignment algorithm:
+// Pass 1 — assign natural-group players first (natural age group = targeted group)
+// Pass 2 — for groups under minimum, pull up eligible players from lower groups,
+//           closest in age first, skipping already-placed players
+// Pass 3 — remaining unplaced players go to lowest eligible targeted group not yet at max
+//           if preferred group is at max, try next eligible targeted group
+// Players cannot appear in more than one group.
 
 function computeAutoPlan(activeGroups) {
   const rows   = plSeasonRows();
   const pm     = plPlayerMap();
-  const plan   = {}; // ageGroup → [profileId]
-  const unplanned = [];
+  const cfg    = _seasonCfg || {};
 
-  activeGroups.forEach(ag => plan[ag] = []);
+  // Sort active groups numerically (U9 before U10 etc.)
+  const sortedGroups = [...activeGroups].sort((a,b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
 
-  rows.forEach(r => {
-    const p        = pm[r.profileId] || {};
-    const nat      = playerNaturalAge(r);
-    const eligible = playerEligibleGroups(r, p);
-    const natGroup = nat !== null ? 'U' + nat : null;
+  const plan    = {};  // ag → [profileId]
+  const placed  = new Set();  // profileIds already assigned
+  sortedGroups.forEach(ag => plan[ag] = []);
 
-    // Rule 1: natural group targeted
-    if (natGroup && activeGroups.includes(natGroup)) {
-      plan[natGroup].push(r.profileId);
-      return;
-    }
-    // Rule 2: lowest targeted group eligible for
-    const lowestMatch = activeGroups.find(ag => eligible.includes(ag));
-    if (lowestMatch) {
-      plan[lowestMatch].push(r.profileId);
-      return;
-    }
-    // Rule 3: leave unplanned
-    unplanned.push({ r, p, nat, eligible });
+  // Helper: max for group
+  const groupMax = ag => +(cfg[ag] || {}).max || 24;
+  const groupMin = ag => +(cfg[ag] || {}).min || 14;
+
+  // Build player info array
+  const players = rows.map(r => {
+    const p   = pm[r.profileId] || {};
+    const nat = playerNaturalAge(r);
+    return { pid: r.profileId, p, r, nat, eligible: playerEligibleGroups(r, p) };
   });
+
+  // ── PASS 1: Assign natural-group players ──────────────────────
+  players.forEach(({ pid, nat, eligible }) => {
+    const natGroup = nat !== null ? 'U' + nat : null;
+    if (natGroup && sortedGroups.includes(natGroup)) {
+      if (plan[natGroup].length < groupMax(natGroup)) {
+        plan[natGroup].push(pid);
+        placed.add(pid);
+      }
+      // If natural group is full, don't place yet — handled in pass 3
+    }
+  });
+
+  // ── PASS 2: Fill under-minimum groups by pulling up eligible players ──
+  sortedGroups.forEach(ag => {
+    if (plan[ag].length >= groupMin(ag)) return; // already at/above minimum
+
+    const agNum = parseInt(ag.slice(1));
+
+    // Find unplaced players eligible for this group, sorted by closest age (ascending age diff)
+    const candidates = players
+      .filter(e => !placed.has(e.pid) && e.eligible.includes(ag))
+      .sort((a, b) => {
+        // Prefer closest natural age (those just below this group first)
+        const diffA = agNum - (a.nat !== null ? a.nat : 0);
+        const diffB = agNum - (b.nat !== null ? b.nat : 0);
+        return diffA - diffB;
+      });
+
+    for (const { pid } of candidates) {
+      if (plan[ag].length >= groupMax(ag)) break;
+      if (plan[ag].length >= groupMin(ag)) break; // reached minimum — stop pulling
+      plan[ag].push(pid);
+      placed.add(pid);
+    }
+  });
+
+  // ── PASS 3: Place remaining unplaced players ──────────────────
+  players.forEach(({ pid, nat, eligible }) => {
+    if (placed.has(pid)) return;
+
+    // Try each eligible targeted group in order (lowest first = natural age priority)
+    // eligible is already ordered lowest→highest
+    for (const ag of eligible) {
+      if (!sortedGroups.includes(ag)) continue;
+      if (plan[ag].length < groupMax(ag)) {
+        plan[ag].push(pid);
+        placed.add(pid);
+        return;
+      }
+      // This group is at max — try next eligible targeted group (overflow)
+    }
+    // No eligible targeted group has space — leave unplanned
+  });
+
+  // Collect unplanned
+  const unplanned = players.filter(e => !placed.has(e.pid));
 
   return { plan, unplanned };
 }
@@ -3664,23 +3720,33 @@ function showAutoPlanPreview(activeGroups) {
     }
   });
 
-  // Build preview HTML
+  // Build preview HTML with natural vs pulled-up breakdown
   const previewRows = activeGroups.map(ag => {
-    const pids  = plan[ag] || [];
-    const names = pids.map(pid => {
-      const p = pm[pid] || {};
-      return plName(p);
+    const pids     = plan[ag] || [];
+    const prev     = (_planningData[ag] || []).length;
+    const cfg      = _seasonCfg || {};
+    const min      = +(cfg[ag]||{}).min || 14;
+    const max      = +(cfg[ag]||{}).max || 24;
+    const naturalPids  = pids.filter(pid => {
+      const row = plSeasonRows().find(r => r.profileId === pid);
+      return row && ('U' + playerNaturalAge(row)) === ag;
     });
-    const prev  = (_planningData[ag] || []).length;
-    return `<div style="margin-bottom:10px;">
-      <div style="font-weight:800;font-size:13px;font-family:'Barlow Condensed',sans-serif;
-                  text-transform:uppercase;color:var(--green);margin-bottom:4px;">
-        ${ag} — ${pids.length} player${pids.length!==1?'s':''}
-        ${prev !== pids.length ? `<span style="font-size:11px;font-weight:400;color:var(--text-dim);text-transform:none;margin-left:6px;">(was ${prev})</span>` : ''}
+    const slottedPids = pids.filter(pid => !naturalPids.includes(pid));
+    const statusColor = pids.length >= min ? '#16a34a' : pids.length >= Math.ceil(min*.7) ? '#ca8a04' : '#dc2626';
+
+    return `<div style="margin-bottom:12px;padding:12px;border-radius:8px;border:1.5px solid var(--border);background:#fafafa;">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:15px;text-transform:uppercase;">${ag}</span>
+        <span style="font-size:13px;font-weight:700;color:${statusColor};">${pids.length} players</span>
+        <span style="font-size:11px;color:var(--text-dim);">min ${min} · max ${max}</span>
+        ${prev !== pids.length ? `<span style="font-size:11px;color:var(--text-dim);">(was ${prev})</span>` : ''}
+        ${pids.length >= min
+          ? `<span style="font-size:10px;font-weight:700;background:rgba(22,163,74,.1);color:#16a34a;padding:1px 7px;border-radius:8px;">✓ Viable</span>`
+          : `<span style="font-size:10px;font-weight:700;background:rgba(220,38,38,.1);color:#dc2626;padding:1px 7px;border-radius:8px;">Need ${min-pids.length} more</span>`}
       </div>
-      ${pids.length
-        ? `<div style="font-size:12px;color:var(--text);line-height:1.7;">${names.join(', ')}</div>`
-        : `<div style="font-size:12px;color:var(--text-dim);font-style:italic;">No players</div>`}
+      ${naturalPids.length ? `<div style="font-size:11px;margin-bottom:3px;"><span style="font-weight:700;color:var(--green);">🎯 Natural (${naturalPids.length}):</span> ${naturalPids.map(pid=>plName(pm[pid]||{})).join(', ')}</div>` : ''}
+      ${slottedPids.length ? `<div style="font-size:11px;"><span style="font-weight:700;color:#4338ca;">⬆ Slotted up (${slottedPids.length}):</span> ${slottedPids.map(pid=>plName(pm[pid]||{})).join(', ')}</div>` : ''}
+      ${!pids.length ? `<div style="font-size:12px;color:var(--text-dim);font-style:italic;">No players assigned</div>` : ''}
     </div>`;
   }).join('');
 
@@ -4006,15 +4072,31 @@ async function togglePlanPlayer(pid) {
   const ag  = _plsAgeGroup;
   const cur = _planningData[ag] || [];
   const idx = cur.indexOf(pid);
+
   if (idx === -1) {
+    // Adding — remove from any other group first (can't be in two groups)
+    const removedFrom = [];
+    Object.keys(_planningData).forEach(otherAG => {
+      if (otherAG === ag || otherAG === '_year') return;
+      const otherList = _planningData[otherAG] || [];
+      if (otherList.includes(pid)) {
+        _planningData[otherAG] = otherList.filter(p => p !== pid);
+        removedFrom.push(otherAG);
+        // Save the other group async
+        api('savePlanningTeam', { year: plSeason, ageGroup: otherAG, profileIds: _planningData[otherAG] });
+      }
+    });
     _planningData[ag] = [...cur, pid];
+    if (removedFrom.length) showToast(`Moved to ${ag} (removed from ${removedFrom.join(', ')})`);
   } else {
+    // Removing
     _planningData[ag] = cur.filter(p => p !== pid);
   }
+
   _renderPlanningSlide();
-  // Save async — don't await so UI stays snappy
+  // Save this group async
   api('savePlanningTeam', { year: plSeason, ageGroup: ag, profileIds: _planningData[ag] });
-  // Refresh overview cards to update planned count badge
+  // Refresh overview cards
   if (document.querySelector('.ag-card')) _renderOverviewHTML();
 }
 
