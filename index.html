@@ -714,6 +714,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 .adm-tab:hover:not(.act){border-color:var(--green);color:var(--green);}
 
 </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -1265,9 +1266,9 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     <div style="display:flex;gap:0;background:var(--bg);border-bottom:2px solid var(--border);flex-shrink:0;overflow-x:auto;">
       <button class="pl-tab act" data-tab="overview"  onclick="switchPlTab(this,'overview')">📊 Overview</button>
       <button class="pl-tab"     data-tab="players"   onclick="switchPlTab(this,'players')">👥 Players</button>
-      <button class="pl-tab"     data-tab="lapsed"    onclick="switchPlTab(this,'lapsed')">⚠️ Not Returned</button>
-      <button class="pl-tab"     data-tab="schools"   onclick="switchPlTab(this,'schools')">🏫 Schools</button>
+      <button class="pl-tab"     data-tab="planning"  onclick="switchPlTab(this,'planning')">📋 Planning</button>
       <button class="pl-tab"     data-tab="teams"     onclick="switchPlTab(this,'teams')">🏉 Teams</button>
+      <button class="pl-tab"     data-tab="schools"   onclick="switchPlTab(this,'schools')">🏫 Schools</button>
       <button class="pl-tab"     data-tab="import"    onclick="switchPlTab(this,'import')">📥 Import</button>
       <button class="pl-tab"     data-tab="settings"  onclick="switchPlTab(this,'settings')">⚙️ Settings</button>
     </div>
@@ -3193,7 +3194,7 @@ function renderPlTab() {
   const fns = {
     overview: renderPlOverview,
     players:  renderPlPlayers,
-    lapsed:   renderPlLapsed,
+    planning: renderPlPlanning,
     schools:  renderPlSchools,
     teams:    renderPlTeams,
     import:   renderPlImport,
@@ -3326,31 +3327,387 @@ function normaliseDobFE(raw) {
   return '';
 }
 
+// ── OVERVIEW TAB ──────────────────────────────────────────────────
+let _lastImportDate = null;
+let _lapsedCache    = null;
+
 async function renderPlOverview() {
   document.getElementById('pl-body').innerHTML =
     '<div style="text-align:center;padding:40px;color:var(--text-dim)"><div class="ls-spinner" style="margin:0 auto 12px"></div>Loading…</div>';
 
-  // Load season config from Sheets (persists for all users)
-  if (!_seasonCfg || _seasonCfg._year !== plSeason) {
-    const res = await api('getSeasonConfigSheet', { year: plSeason });
-    if (res.error) { document.getElementById('pl-body').innerHTML = `<div style="color:var(--red);padding:20px">${res.error}</div>`; return; }
-    _seasonCfg = { ...res.config, _year: plSeason };
-  }
-  // Load planning data (tentative team selections)
-  await loadPlanningData();
+  // Parallel loads: last import date + lapsed players
+  const [impRes, lapRes] = await Promise.all([
+    api('getLastImportDate', { season: plSeason }),
+    api('getLapsedPlayers',  { year: plSeason })
+  ]);
+  _lastImportDate = impRes.lastImport || null;
+  _lapsedCache    = lapRes.lapsed     || [];
+
   _renderOverviewHTML();
 }
 
 function _renderOverviewHTML() {
+  const rows   = plSeasonRows();
+  const pm     = plPlayerMap();
+  const allSea = plData.seasons || [];
+  const total  = rows.length;
+  const boys   = rows.filter(r => (pm[r.profileId]||{}).gender === 'Male').length;
+  const girls  = rows.filter(r => (pm[r.profileId]||{}).gender === 'Female').length;
+  const newP   = rows.filter(r => r.newToClub === 'Yes').length;
+  const disp   = rows.filter(r => r.dispensation === true || r.dispensation === 'true').length;
+  const lapsed = _lapsedCache || [];
+
+  // Data freshness
+  let freshnessHTML = '';
+  if (_lastImportDate) {
+    const imp  = new Date(_lastImportDate);
+    const now  = new Date();
+    const days = Math.floor((now - imp) / 86400000);
+    const fmt  = imp.toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
+    const col  = days > 30 ? '#dc2626' : days > 7 ? '#ca8a04' : '#16a34a';
+    freshnessHTML = `<div style="display:flex;align-items:center;gap:8px;background:#f8faf8;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:11px;margin-bottom:16px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></span>
+      <span>Data current as of <strong>${fmt}</strong></span>
+      <span style="color:${col};font-weight:700;">(${days === 0 ? 'today' : days + ' day' + (days!==1?'s':'')+' ago'})</span>
+      <button onclick="switchPlTab(document.querySelector('.pl-tab[data-tab=\"import\"]'),'import')" style="margin-left:auto;font-size:10px;background:none;border:1px solid var(--border);border-radius:5px;padding:2px 8px;cursor:pointer;color:var(--text-dim);">Import new data</button>
+    </div>`;
+  }
+
+  // Schools count
+  const schools = new Set(rows.map(r => (pm[r.profileId]||{}).school).filter(Boolean)).size;
+
+  // Year-on-year data for charts
+  const allYears = [...new Set(allSea.map(s => +s.year))].sort();
+  const yoyData  = allYears.map(y => {
+    const yRows = allSea.filter(s => +s.year === y);
+    const yPm   = {};
+    (plData.players||[]).forEach(p => yPm[p.profileId] = p);
+    const yBoys  = yRows.filter(r => (yPm[r.profileId]||{}).gender === 'Male').length;
+    const yGirls = yRows.filter(r => (yPm[r.profileId]||{}).gender === 'Female').length;
+    return { year: y, total: yRows.length, boys: yBoys, girls: yGirls };
+  });
+
+  // Per-age-group year-on-year
+  const ageYOY = {};
+  allYears.forEach(y => {
+    const yRows = allSea.filter(s => +s.year === y);
+    yRows.forEach(r => {
+      const ag = effectiveAgeGroup(r);
+      if (!ageYOY[ag]) ageYOY[ag] = {};
+      ageYOY[ag][y] = (ageYOY[ag][y] || 0) + 1;
+    });
+  });
+
+  // Per-school year-on-year (top 5)
+  const schoolYOY = {};
+  allSea.forEach(r => {
+    const sch = ((plData.players||[]).find(p=>p.profileId===r.profileId)||{}).school;
+    if (!sch) return;
+    const short = sch.replace(/,.*$/,'').trim();
+    if (!schoolYOY[short]) schoolYOY[short] = {};
+    schoolYOY[short][+r.year] = (schoolYOY[short][+r.year]||0)+1;
+  });
+  const topSchools = Object.entries(schoolYOY)
+    .map(([s,d]) => ({ school:s, total: Object.values(d).reduce((a,b)=>a+b,0), data:d }))
+    .sort((a,b)=>b.total-a.total).slice(0,6);
+
+  document.getElementById('pl-body').innerHTML = `
+    <div style="padding:0 0 24px;">
+      ${freshnessHTML}
+
+      <!-- KPI CARDS -->
+      <div class="pl-kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-bottom:20px;">
+        <div class="pl-kpi" onclick="switchPlTab(document.querySelector('.pl-tab[data-tab=\\'players\\']'),'players')" style="cursor:pointer;">
+          <div class="pl-kpi-label">Registered ${plSeason}</div>
+          <div class="pl-kpi-val">${total}</div>
+          <div class="pl-kpi-sub">all players →</div>
+        </div>
+        <div class="pl-kpi" style="cursor:pointer;" onclick="openGenderSlideover()">
+          <div class="pl-kpi-label">Gender Split</div>
+          <div class="pl-kpi-val" style="font-size:20px;">${boys}<span style="font-size:13px;font-weight:400;color:var(--text-dim);">M</span> · ${girls}<span style="font-size:13px;font-weight:400;color:var(--text-dim);">F</span></div>
+          <div class="pl-kpi-sub">${total ? Math.round(boys/total*100) : 0}% male →</div>
+        </div>
+        <div class="pl-kpi" onclick="openNewPlayersSlideover()" style="cursor:pointer;">
+          <div class="pl-kpi-label">New to Club</div>
+          <div class="pl-kpi-val" style="color:var(--green-bright)">${newP}</div>
+          <div class="pl-kpi-sub">first season →</div>
+        </div>
+        <div class="pl-kpi" onclick="openLapsedSlideover()" style="cursor:pointer;">
+          <div class="pl-kpi-label">Not Returned</div>
+          <div class="pl-kpi-val" style="color:${lapsed.length>0?'#ca8a04':'var(--green-bright)'}">${lapsed.length}</div>
+          <div class="pl-kpi-sub">from last season →</div>
+        </div>
+        <div class="pl-kpi" onclick="switchPlTab(document.querySelector('.pl-tab[data-tab=\\'schools\\']'),'schools')" style="cursor:pointer;">
+          <div class="pl-kpi-label">Schools</div>
+          <div class="pl-kpi-val">${schools}</div>
+          <div class="pl-kpi-sub">represented →</div>
+        </div>
+        <div class="pl-kpi" onclick="openDispSlideover()" style="cursor:pointer;">
+          <div class="pl-kpi-label">Dispensations</div>
+          <div class="pl-kpi-val" style="color:#7c3aed">${disp}</div>
+          <div class="pl-kpi-sub">age override →</div>
+        </div>
+      </div>
+
+      <!-- CHARTS SECTION -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;" id="overview-charts-grid">
+        <!-- Total registrations YOY -->
+        <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Year on Year Registrations</div>
+          <canvas id="chart-yoy" height="180"></canvas>
+        </div>
+        <!-- Gender YOY -->
+        <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Gender Split by Year</div>
+          <canvas id="chart-gender" height="180"></canvas>
+        </div>
+        <!-- Age group breakdown current season -->
+        <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">${plSeason} Age Breakdown <span style="font-size:10px;font-weight:400;text-transform:none;color:var(--text-dim);">click bar to view players</span></div>
+          <canvas id="chart-age" height="180"></canvas>
+        </div>
+        <!-- Top schools -->
+        <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Top Schools by Year <span style="font-size:10px;font-weight:400;text-transform:none;color:var(--text-dim);">click bar to view players</span></div>
+          <canvas id="chart-schools" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Render charts after DOM update
+  requestAnimationFrame(() => _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears));
+}
+
+function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
+  if (typeof Chart === 'undefined') return;
+  const GREEN = '#16a34a', BLUE = '#3b82f6', AMBER = '#f59e0b', PURPLE = '#7c3aed';
+  const labels = yoyData.map(d => d.year);
+
+  // Destroy any existing charts
+  ['chart-yoy','chart-gender','chart-age','chart-schools'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el._chart) { el._chart.destroy(); }
+  });
+
+  // ── Total YOY bar + trend line ──
+  const yoyEl = document.getElementById('chart-yoy');
+  if (yoyEl) {
+    yoyEl._chart = new Chart(yoyEl, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { type:'bar',  label:'Total', data: yoyData.map(d=>d.total), backgroundColor: GREEN+'cc', borderColor: GREEN, borderWidth:1.5, borderRadius:4 },
+          { type:'line', label:'Trend', data: yoyData.map(d=>d.total), borderColor: AMBER, backgroundColor:'transparent', borderWidth:2.5, pointRadius:4, pointBackgroundColor: AMBER, tension:0.3 }
+        ]
+      },
+      options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:10 } } },
+        onClick:(e,els) => { if(els.length) { const yr = yoyData[els[0].index].year; showYearPlayersSlideover(yr); } }
+      }
+    });
+  }
+
+  // ── Gender split stacked bar ──
+  const genderEl = document.getElementById('chart-gender');
+  if (genderEl) {
+    genderEl._chart = new Chart(genderEl, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label:'Male',   data: yoyData.map(d=>d.boys),  backgroundColor: BLUE+'cc',   borderRadius:4 },
+          { label:'Female', data: yoyData.map(d=>d.girls), backgroundColor: PURPLE+'cc', borderRadius:4 }
+        ]
+      },
+      options: { responsive:true, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12, font:{ size:10 } } } },
+        scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true } },
+        onClick:(e,els) => { if(els.length) { const yr = yoyData[els[0].index].year; showYearPlayersSlideover(yr); } }
+      }
+    });
+  }
+
+  // ── Age breakdown current season ──
+  const ageEl = document.getElementById('chart-age');
+  if (ageEl) {
+    const ageRows = (plData.seasons||[]).filter(s=>+s.year===+plSeason);
+    const ageCounts = {};
+    ageRows.forEach(r => { const ag=effectiveAgeGroup(r); ageCounts[ag]=(ageCounts[ag]||0)+1; });
+    const ageKeys = Object.keys(ageCounts).sort((a,b)=>{
+      const na=parseInt(a.replace(/\D/g,'')), nb=parseInt(b.replace(/\D/g,''));
+      return (isNaN(na)?999:na)-(isNaN(nb)?999:nb);
+    });
+    ageEl._chart = new Chart(ageEl, {
+      type: 'bar',
+      data: {
+        labels: ageKeys.map(ag => { const n=parseInt(ag.replace(/\D/g,'')); return isNaN(n)?ag:'Age '+(n-1); }),
+        datasets: [{ label:'Players', data: ageKeys.map(k=>ageCounts[k]), backgroundColor: GREEN+'cc', borderColor: GREEN, borderWidth:1.5, borderRadius:4 }]
+      },
+      options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:5 } } },
+        onClick:(e,els) => {
+          if(els.length) { const ag=ageKeys[els[0].index]; openAgeGroupSlideover(ag); }
+        }
+      }
+    });
+  }
+
+  // ── Top schools line chart ──
+  const schoolEl = document.getElementById('chart-schools');
+  if (schoolEl && topSchools.length) {
+    const colors = [GREEN, BLUE, AMBER, PURPLE, '#f43f5e', '#06b6d4'];
+    schoolEl._chart = new Chart(schoolEl, {
+      type: 'line',
+      data: {
+        labels: allYears,
+        datasets: topSchools.map((s,i) => ({
+          label: s.school.length > 18 ? s.school.slice(0,18)+'…' : s.school,
+          data:  allYears.map(y => s.data[y] || 0),
+          borderColor: colors[i%colors.length],
+          backgroundColor: colors[i%colors.length]+'33',
+          borderWidth: 2, pointRadius: 3, tension: 0.3,
+          fill: false
+        }))
+      },
+      options: { responsive:true, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, font:{ size:9 } } } },
+        scales:{ y:{ beginAtZero:true, ticks:{ stepSize:2 } } },
+        onClick:(e,els) => {
+          if(els.length) {
+            const ds = topSchools[els[0].datasetIndex];
+            const yr = allYears[els[0].index];
+            openSchoolYearSlideover(ds.school, yr);
+          }
+        }
+      }
+    });
+  }
+}
+
+// ── OVERVIEW SLIDEVERS ────────────────────────────────────────────
+function _openSimpleSlideover(title, sub, players) {
+  const pm = plPlayerMap();
+  const overlay = document.getElementById('player-slideover-overlay');
+  const panel   = document.getElementById('player-slideover');
+  document.getElementById('pso-name').textContent  = title;
+  document.getElementById('pso-meta').textContent  = sub;
+  document.getElementById('pso-avatar').innerHTML  = '<span style="font-size:20px;">👥</span>';
+
+  document.getElementById('pso-body').innerHTML = players.length
+    ? players.map(({ pid, label, sub: rowSub }) => `
+      <div onclick="openPlayerDetailFromSlideover('${pid}')"
+        style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;cursor:pointer;margin-bottom:5px;border:1.5px solid var(--border);background:#fff;"
+        onmouseenter="this.style.background='var(--green-light)'" onmouseleave="this.style.background='#fff'">
+        <div style="width:34px;height:34px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--green);font-family:'Barlow Condensed',sans-serif;flex-shrink:0;">${plInitials(pm[pid]||{})}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:13px;">${plName(pm[pid]||{pid})}</div>
+          ${label  ? `<div style="font-size:11px;color:var(--text-dim);">${label}</div>` : ''}
+          ${rowSub ? `<div style="font-size:11px;color:var(--text-dim);">${rowSub}</div>` : ''}
+        </div>
+        <div style="color:var(--text-dim);font-size:16px;">›</div>
+      </div>`).join('')
+    : '<div style="color:var(--text-dim);padding:20px;text-align:center;">No players.</div>';
+
+  overlay.style.display = 'block';
+  panel.style.transform = 'translateX(0)';
+}
+
+function openGenderSlideover() {
+  const rows = plSeasonRows();
+  const pm   = plPlayerMap();
+  const list = rows.map(r => {
+    const p = pm[r.profileId]||{};
+    return { pid:r.profileId, label: p.gender||'Unknown', sub: ageLabel(r) + ' · ' + (p.school||'—') };
+  }).sort((a,b)=>a.label.localeCompare(b.label)||(plName(pm[a.pid]||{})).localeCompare(plName(pm[b.pid]||{})));
+  _openSimpleSlideover(`Gender Split — ${plSeason}`, `${list.filter(l=>l.label==='Male').length} male · ${list.filter(l=>l.label==='Female').length} female`, list);
+}
+
+function openNewPlayersSlideover() {
+  const rows = plSeasonRows().filter(r=>r.newToClub==='Yes');
+  const pm   = plPlayerMap();
+  _openSimpleSlideover(`New to Club — ${plSeason}`, `${rows.length} first-season players`,
+    rows.map(r=>({ pid:r.profileId, label: ageLabel(r), sub: (pm[r.profileId]||{}).school||'—' })));
+}
+
+function openLapsedSlideover() {
+  const lapsed = _lapsedCache || [];
+  const pm     = plPlayerMap();
+  // Lapsed players may not be in current season — build from lapsed array directly
+  const body = document.getElementById('pso-body');
+  const overlay = document.getElementById('player-slideover-overlay');
+  const panel   = document.getElementById('player-slideover');
+  document.getElementById('pso-name').textContent = `Not Returned — ${plSeason}`;
+  document.getElementById('pso-meta').textContent = `${lapsed.length} players from last season not yet re-registered`;
+  document.getElementById('pso-avatar').innerHTML = '<span style="font-size:20px;">⚠️</span>';
+
+  body.innerHTML = lapsed.length ? lapsed.map(p => `
+    <div onclick="openPlayerDetailFromSlideover('${p.profileId}')"
+      style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;cursor:pointer;margin-bottom:5px;border:1.5px solid var(--border);background:#fff;"
+      onmouseenter="this.style.background='var(--green-light)'" onmouseleave="this.style.background='#fff'">
+      <div style="width:34px;height:34px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#92400e;font-family:'Barlow Condensed',sans-serif;flex-shrink:0;">${plInitials(p)}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:13px;">${plName(p)}</div>
+        <div style="font-size:11px;color:var(--text-dim);">${p.lastAgeGroup||''} · ${p.school||'—'}</div>
+        ${p.parent1Name ? `<div style="font-size:11px;color:var(--text-dim);">${p.parent1Name}${p.parent1Phone?' · '+fmtPhone(p.parent1Phone):''}</div>` : ''}
+      </div>
+      <div style="color:var(--text-dim);font-size:16px;">›</div>
+    </div>`).join('')
+  : '<div style="color:var(--text-dim);padding:20px;text-align:center;">No lapsed players — great retention! 🎉</div>';
+
+  overlay.style.display = 'block';
+  panel.style.transform = 'translateX(0)';
+}
+
+function openDispSlideover() {
+  const rows = plSeasonRows().filter(r=>r.dispensation===true||r.dispensation==='true');
+  const pm   = plPlayerMap();
+  _openSimpleSlideover(`Dispensations — ${plSeason}`, `${rows.length} players with age override`,
+    rows.map(r=>({ pid:r.profileId, label:'Dispensation active', sub: ageLabel(r)+' · '+(pm[r.profileId]||{}).school||'—' })));
+}
+
+function showYearPlayersSlideover(year) {
+  const yearRows = (plData.seasons||[]).filter(s=>+s.year===+year);
+  const pm = plPlayerMap();
+  _openSimpleSlideover(`${year} Registrations`, `${yearRows.length} players`,
+    yearRows.map(r=>({ pid:r.profileId, label:ageLabel(r), sub:(pm[r.profileId]||{}).school||'—' })));
+}
+
+function openAgeGroupSlideover(ag) {
+  const rows = plSeasonRows().filter(r=>effectiveAgeGroup(r)===ag);
+  const pm   = plPlayerMap();
+  const agNum= parseInt(ag.replace(/\D/g,''));
+  const lbl  = isNaN(agNum)?ag:'Age '+(agNum-1);
+  _openSimpleSlideover(`${lbl} — ${plSeason}`, `${rows.length} players`,
+    rows.map(r=>({ pid:r.profileId, label:(pm[r.profileId]||{}).gender||'—', sub:(pm[r.profileId]||{}).school||'—' })));
+}
+
+function openSchoolYearSlideover(school, year) {
+  const yearRows = (plData.seasons||[]).filter(s=>+s.year===+year);
+  const pm = plPlayerMap();
+  const matching = yearRows.filter(r => {
+    const p = pm[r.profileId]||{};
+    return (p.school||'').replace(/,.*$/,'').trim() === school;
+  });
+  _openSimpleSlideover(`${school} — ${year}`, `${matching.length} players`,
+    matching.map(r=>({ pid:r.profileId, label:ageLabel(r), sub:(pm[r.profileId]||{}).gender||'—' })));
+}
+
+// ── PLANNING TAB ──────────────────────────────────────────────────
+async function renderPlPlanning() {
+  document.getElementById('pl-body').innerHTML =
+    '<div style="text-align:center;padding:40px;color:var(--text-dim)"><div class="ls-spinner" style="margin:0 auto 12px"></div>Loading…</div>';
+
+  if (!_seasonCfg || _seasonCfg._year !== plSeason) {
+    const res = await api('getSeasonConfigSheet', { year: plSeason });
+    if (res.error) { document.getElementById('pl-body').innerHTML=`<div style="color:var(--red);padding:20px">${res.error}</div>`; return; }
+    _seasonCfg = { ...res.config, _year: plSeason };
+  }
+  await loadPlanningData();
+  _renderPlanningHTML();
+}
+
+function _renderPlanningHTML() {
   const rows  = plSeasonRows();
   const pm    = plPlayerMap();
   const cfg   = _seasonCfg || {};
-  const total = rows.length;
-  const boys  = rows.filter(r => (pm[r.profileId]||{}).gender === 'Male').length;
-  const girls = rows.filter(r => (pm[r.profileId]||{}).gender === 'Female').length;
-  const newP  = rows.filter(r => r.newToClub === 'Yes').length;
-  const disp  = rows.filter(r => r.dispensation === true || r.dispensation === 'true').length;
-
   const activeGroups = ALL_AGE_GROUPS.filter(ag => cfg[ag] && cfg[ag].active);
 
   // Compute eligibility for every registered player
@@ -3366,55 +3723,33 @@ function _renderOverviewHTML() {
     const natural  = playerElig.filter(e => e.nat !== null && ('U' + e.nat) === ag);
     const eligible = playerElig.filter(e => e.eligible.includes(ag));
     groupStats[ag] = {
-      natural,
-      eligible,
+      natural, eligible,
       boys:  eligible.filter(e => e.p.gender === 'Male').length,
       girls: eligible.filter(e => e.p.gender === 'Female').length,
     };
   });
 
-  // Untargeted: players whose natural group is not targeted AND who have no eligible active group
-  // AND who are not already planned into any active group
-  const plannedPids = new Set(
-    activeGroups.flatMap(ag => _planningData[ag] || [])
-  );
-  const untargeted = playerElig.filter(e => {
-    if (e.nat === null) return false;
-    if (plannedPids.has(e.r.profileId)) return false;           // already planned — hide
-    if (!activeGroups.includes('U' + e.nat)) return true;      // natural group not targeted
-    return false;
-  }).filter(e => !e.eligible.some(ag => activeGroups.includes(ag)) || true);
-  // Only show if they have NO eligible active group (truly stranded)
+  // Unplanned/untargeted
+  const plannedPids = new Set(activeGroups.flatMap(ag => _planningData[ag] || []));
   const trulyStranded = playerElig.filter(e => {
-    if (e.nat === null) return false;
-    if (plannedPids.has(e.r.profileId)) return false;           // already planned
-    return !e.eligible.some(ag => activeGroups.includes(ag));  // no eligible active group
+    if (e.nat === null || plannedPids.has(e.r.profileId)) return false;
+    return !e.eligible.some(ag => activeGroups.includes(ag));
   });
   const partiallyStranded = playerElig.filter(e => {
-    if (e.nat === null) return false;
-    if (plannedPids.has(e.r.profileId)) return false;           // already planned
-    if (activeGroups.includes('U' + e.nat)) return false;       // natural group is targeted
-    return e.eligible.some(ag => activeGroups.includes(ag));   // has an eligible active group but not placed yet
+    if (e.nat === null || plannedPids.has(e.r.profileId)) return false;
+    if (activeGroups.includes('U' + e.nat)) return false;
+    return e.eligible.some(ag => activeGroups.includes(ag));
   });
   const allUntargeted = [...partiallyStranded, ...trulyStranded];
-
-  // Map unplanned+untargeted players to which active groups they can slot into
-  const slottable = {}; // ag → [playerElig entries]
+  const slottable = {};
   allUntargeted.forEach(e => {
     e.eligible.forEach(ag => {
-      if (activeGroups.includes(ag)) {
-        if (!slottable[ag]) slottable[ag] = [];
-        slottable[ag].push(e);
-      }
+      if (activeGroups.includes(ag)) { if (!slottable[ag]) slottable[ag]=[]; slottable[ag].push(e); }
     });
   });
-
-  // Untargeted/unplanned panel — show both:
-  // 1. Truly stranded: no eligible active group
-  // 2. Partially stranded: eligible but not yet planned (auto-plan may have missed them due to caps)
   const untargetedByNat = {};
   [...trulyStranded, ...partiallyStranded].forEach(e => {
-    if (e.eligible.length === 0) return; // too young — skip entirely
+    if (e.eligible.length === 0) return;
     const label = e.nat !== null ? 'Age ' + e.nat : 'Unknown age';
     untargetedByNat[label] = untargetedByNat[label] || [];
     untargetedByNat[label].push(e);
@@ -3425,20 +3760,19 @@ function _renderOverviewHTML() {
     return (groupStats[ag] || {eligible:[]}).eligible.length >= min;
   }).length;
 
-  // ── AGE GROUP CARDS ──────────────────────────────────────────────
+  // AG cards
+  function agColourFn(n, min, max) { return n >= min ? 'green' : n >= Math.ceil(min*.7) ? 'amber' : 'red'; }
   const agCards = activeGroups.map(ag => {
     const s      = groupStats[ag] || { natural:[], eligible:[], boys:0, girls:0 };
     const cfgAG  = cfg[ag] || { min:14, max:24 };
     const min    = +cfgAG.min || 14, max = +cfgAG.max || 24;
-    const natCnt = s.natural.length;
-    const eligCnt= s.eligible.length;
+    const natCnt = s.natural.length, eligCnt = s.eligible.length;
     const slots  = slottable[ag] || [];
-    const slotGroups = [...new Set(slots.map(e => 'U' + e.nat))].sort((a,b) => parseInt(a.slice(1))-parseInt(b.slice(1)));
+    const slotGroups = [...new Set(slots.map(e => 'Age '+e.nat))].sort();
     const shortfall  = Math.max(0, min - eligCnt);
-    const colour     = agColour(eligCnt, min, max);
+    const colour     = agColourFn(eligCnt, min, max);
     const hex        = colour==='green'?'#16a34a':colour==='amber'?'#ca8a04':'#dc2626';
     const pct        = Math.min(100, Math.round(eligCnt / max * 100));
-
     return `<div class="ag-card ${colour}" onclick="openPlanningSlide('${ag}')" style="cursor:pointer;min-width:160px;">
       <div class="ag-label">${ag}</div>
       <div class="ag-count" style="color:${hex}">${eligCnt}</div>
@@ -3450,28 +3784,27 @@ function _renderOverviewHTML() {
         <div class="ag-meta">${s.boys}M · ${s.girls}F</div>
         <div class="ag-meta">Min ${min} · Max ${max}</div>
         ${shortfall > 0
-          ? `<div style="margin-top:4px;font-size:10px;font-weight:700;color:${hex};background:${colour==='red'?'rgba(220,38,38,.1)':'rgba(202,138,4,.1)'};padding:3px 7px;border-radius:6px;display:inline-block;">Need ${shortfall} more to field a team</div>`
+          ? `<div style="margin-top:4px;font-size:10px;font-weight:700;color:${hex};background:${colour==='red'?'rgba(220,38,38,.1)':'rgba(202,138,4,.1)'};padding:3px 7px;border-radius:6px;display:inline-block;">Need ${shortfall} more</div>`
           : `<div style="margin-top:4px;font-size:10px;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);padding:3px 7px;border-radius:6px;display:inline-block;">✓ Viable</div>`}
         ${(_planningData[ag]||[]).length > 0 ? `<div style="margin-top:5px;font-size:10px;font-weight:700;color:#7c3aed;background:rgba(124,58,237,.1);padding:2px 7px;border-radius:6px;display:inline-block;">${(_planningData[ag]||[]).length} planned</div>` : ''}
       </div>
     </div>`;
   }).join('');
 
-  // ── UNTARGETED PLAYERS PANEL ─────────────────────────────────────
-  const untargetedNatGroups = Object.keys(untargetedByNat).sort((a,b)=>{
-    const na = parseInt(a.replace(/\D/g,'')), nb = parseInt(b.replace(/\D/g,''));
-    return na - nb;
-  });
+  const untargetedNatGroups = Object.keys(untargetedByNat).sort((a,b)=>parseInt(a.replace(/\D/g,''))-parseInt(b.replace(/\D/g,'')));
   const untargetedHTML = untargetedNatGroups.length ? `
     <div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:12px;padding:14px 16px;margin-top:16px;">
       <div style="font-weight:800;font-size:13px;margin-bottom:10px;color:#92400e;">⚠️ Players not in a targeted age group</div>
       <div style="display:flex;flex-direction:column;gap:8px;">
         ${untargetedNatGroups.map(label => {
           const players = untargetedByNat[label];
-          const canSlotInto = activeGroups.filter(ag => players.some(e => e.eligible.includes(ag)));
-          const profileIds = players.map(e => e.r.profileId).join(',');
-          const isPartial = players.some(e => e.eligible.some(ag => activeGroups.includes(ag)));
-          return `<div style="background:#fff;border-radius:8px;padding:10px 12px;border-left:3px solid ${isPartial?'#f59e0b':'#dc2626'};cursor:pointer;transition:background .1s;" onclick="openUntargetedGroup(event,'${label}',this)" onmouseenter="this.style.background='#fef9c3'" onmouseleave="this.style.background='#fff'" data-pids="${profileIds}">
+          const profileIds = players.map(e=>e.r.profileId).join(',');
+          const canSlotInto = activeGroups.filter(ag=>players.some(e=>e.eligible.includes(ag)));
+          const isPartial = players.some(e=>e.eligible.some(ag=>activeGroups.includes(ag)));
+          return `<div style="background:#fff;border-radius:8px;padding:10px 12px;border-left:3px solid ${isPartial?'#f59e0b':'#dc2626'};cursor:pointer;transition:background .1s;"
+            onclick="openUntargetedGroup(event,'${label}',this)"
+            onmouseenter="this.style.background='#fef9c3'" onmouseleave="this.style.background='#fff'"
+            data-pids="${profileIds}">
             <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
               <span style="font-weight:800;font-size:13px;">${label}</span>
               <span style="font-size:12px;color:var(--text-dim);">${players.length} player${players.length!==1?'s':''}</span>
@@ -3485,32 +3818,30 @@ function _renderOverviewHTML() {
       </div>
     </div>` : '';
 
-  // ── RECRUITMENT ALERTS ───────────────────────────────────────────
   const alerts = activeGroups.filter(ag => {
     const min = +(cfg[ag]||{}).min || 14;
     return (groupStats[ag]||{eligible:[]}).eligible.length < min;
   }).map(ag => {
-    const s    = groupStats[ag] || { eligible:[], natural:[], boys:0, girls:0 };
-    const min  = +(cfg[ag]||{}).min || 14;
-    const n    = s.eligible.length;
-    const need = min - n;
-    const hex  = n < Math.ceil(min * 0.5) ? '#dc2626' : '#ca8a04';
+    const s   = groupStats[ag] || { eligible:[], natural:[], boys:0, girls:0 };
+    const min = +(cfg[ag]||{}).min || 14;
+    const n   = s.eligible.length, need = min - n;
+    const hex = n < Math.ceil(min*0.5) ? '#dc2626' : '#ca8a04';
     return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:#fff;border-radius:8px;margin-bottom:6px;border-left:3px solid ${hex}">
-      <span style="font-size:18px;">${n < Math.ceil(min * 0.5) ? '🔴' : '🟡'}</span>
+      <span style="font-size:18px;">${n < Math.ceil(min*0.5)?'🔴':'🟡'}</span>
       <div>
-        <div><strong>${ag}</strong> — need <strong>${need}</strong> more player${need!==1?'s':''} to field a team <span style="color:var(--text-dim);font-size:11px;">(${n} eligible / ${min} min)</span></div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${s.natural.length} natural ${ag} players · ${s.boys}M · ${s.girls}F eligible</div>
+        <div><strong>${ag}</strong> — need <strong>${need}</strong> more player${need!==1?'s':''} <span style="color:var(--text-dim);font-size:11px;">(${n}/${min} min)</span></div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${s.natural.length} natural · ${s.boys}M · ${s.girls}F eligible</div>
       </div>
     </div>`;
   });
 
-  // ── CONFIGURATION PANEL ──────────────────────────────────────────
-  const cfgPanel = `
+  document.getElementById('pl-body').innerHTML = `
+    <!-- Season config -->
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
         <div>
           <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:15px;text-transform:uppercase;letter-spacing:.5px;">${plSeason} Season Configuration</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Select age groups you plan to field. Eligibility shown includes players who can slot up from lower groups.</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Select age groups to field. Eligibility includes players who can slot up.</div>
         </div>
         <div style="display:flex;gap:8px;">
           <button class="msecondary" onclick="getAIInsights()" style="font-size:12px;padding:6px 12px;">🤖 AI Insights</button>
@@ -3520,31 +3851,24 @@ function _renderOverviewHTML() {
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:10px;">
         ${ALL_AGE_GROUPS.map(ag => {
-          const s       = cfg[ag] || { active:false, min: ag==='U9'?9:14, max:24, gender:'Mixed', phase: parseInt(ag.slice(1))<=10?'Development':'Competition' };
-          const isOn    = !!s.active;
-          const actual  = (groupStats[ag] || {eligible:[]}).eligible.length;
-          const natCnt  = (groupStats[ag] || {natural:[]}).natural.length;
-          const cfgMin  = +s.min || 14, cfgMax = +s.max || 24;
-          const colHex  = isOn ? (actual >= cfgMin ? '#16a34a' : actual >= Math.ceil(cfgMin*.5) ? '#ca8a04' : '#dc2626') : '#9ca3af';
+          const s      = cfg[ag] || { active:false, min:ag==='U9'?9:14, max:24, gender:'Mixed', phase:parseInt(ag.slice(1))<=10?'Development':'Competition' };
+          const isOn   = !!s.active;
+          const actual = (groupStats[ag]||{eligible:[]}).eligible.length;
+          const natCnt = (groupStats[ag]||{natural:[]}).natural.length;
+          const cfgMin = +s.min||14, cfgMax = +s.max||24;
+          const colHex = isOn?(actual>=cfgMin?'#16a34a':actual>=Math.ceil(cfgMin*.5)?'#ca8a04':'#dc2626'):'#9ca3af';
           return `<div id="cfg-card-${ag}" style="border:2px solid ${isOn?'var(--green)':'var(--border)'};border-radius:10px;padding:10px 12px;background:${isOn?'var(--green-light)':'#f9fafb'};transition:all .15s;">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px;">
-              <input type="checkbox" id="cfg-on-${ag}" ${isOn?'checked':''} onchange="toggleAGCard('${ag}',this.checked)"
-                style="width:15px;height:15px;accent-color:var(--green);cursor:pointer;">
+              <input type="checkbox" id="cfg-on-${ag}" ${isOn?'checked':''} onchange="toggleAGCard('${ag}',this.checked)" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer;">
               <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;">${ag}</span>
               <span style="margin-left:auto;font-size:11px;font-weight:700;color:${colHex};">${actual} elig.</span>
             </label>
             <div id="cfg-settings-${ag}" style="display:${isOn?'block':'none'}">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
-                <div>
-                  <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px;">Min</div>
-                  <input type="number" id="cfg-min-${ag}" value="${s.min||cfgMin}" min="1" max="40"
-                    style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;">
-                </div>
-                <div>
-                  <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px;">Max</div>
-                  <input type="number" id="cfg-max-${ag}" value="${s.max||cfgMax}" min="1" max="40"
-                    style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;">
-                </div>
+                <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px;">Min</div>
+                  <input type="number" id="cfg-min-${ag}" value="${s.min||cfgMin}" min="1" max="40" style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;"></div>
+                <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px;">Max</div>
+                  <input type="number" id="cfg-max-${ag}" value="${s.max||cfgMax}" min="1" max="40" style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;"></div>
               </div>
               <select id="cfg-gender-${ag}" style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;margin-bottom:4px;">
                 <option ${(s.gender||'Mixed')==='Mixed'?'selected':''}>Mixed</option>
@@ -3556,26 +3880,16 @@ function _renderOverviewHTML() {
                 <option ${(s.phase||'')==='Competition'?'selected':''}>Competition</option>
               </select>
             </div>
-            ${!isOn ? `<div style="font-size:10px;color:var(--text-dim);">${natCnt} natural · ${actual} eligible</div>` : ''}
+            ${!isOn?`<div style="font-size:10px;color:var(--text-dim);">${natCnt} natural · ${actual} eligible</div>`:''}
           </div>`;
         }).join('')}
       </div>
-    </div>`;
-
-  document.getElementById('pl-body').innerHTML = `
-    <div class="pl-kpi-grid">
-      <div class="pl-kpi"><div class="pl-kpi-label">Registered ${plSeason}</div><div class="pl-kpi-val">${total}</div><div class="pl-kpi-sub">${boys} boys · ${girls} girls</div></div>
-      <div class="pl-kpi"><div class="pl-kpi-label">Target Age Groups</div><div class="pl-kpi-val">${activeGroups.length}</div><div class="pl-kpi-sub">${viableCount} currently viable</div></div>
-      <div class="pl-kpi"><div class="pl-kpi-label">New to Club</div><div class="pl-kpi-val" style="color:var(--green-bright)">${newP}</div><div class="pl-kpi-sub">first season at KJFC</div></div>
-      <div class="pl-kpi"><div class="pl-kpi-label">Dispensations</div><div class="pl-kpi-val" style="color:#7c3aed">${disp}</div><div class="pl-kpi-sub">age override active</div></div>
     </div>
-
-    ${cfgPanel}
 
     ${activeGroups.length ? `
       <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">
         Target Age Groups — ${plSeason}
-        <span style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-dim);margin-left:8px;">counts include all eligible players (can slot up/down)</span>
+        <span style="font-size:11px;font-weight:400;text-transform:none;color:var(--text-dim);margin-left:8px;">click a group to plan players</span>
       </h3>
       <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px;">${agCards}</div>
     ` : ''}
@@ -3600,12 +3914,11 @@ function _renderOverviewHTML() {
 function toggleAGCard(ag, on) {
   const card     = document.getElementById('cfg-card-' + ag);
   const settings = document.getElementById('cfg-settings-' + ag);
-  if (card) {
-    card.style.border     = '2px solid ' + (on ? 'var(--green)' : 'var(--border)');
-    card.style.background = on ? 'var(--green-light)' : '#f9fafb';
-  }
+  if (card) { card.style.border='2px solid '+(on?'var(--green)':'var(--border)'); card.style.background=on?'var(--green-light)':'#f9fafb'; }
   if (settings) settings.style.display = on ? 'block' : 'none';
 }
+
+
 
 async function saveSeasonCfg() {
   const config = {};
@@ -4182,6 +4495,7 @@ function showAgeGroup(ag) {
   switchPlTab(document.querySelector('.pl-tab[data-tab="players"]'), 'players');
   setTimeout(()=>{ document.getElementById('pl-filter-ag').value = ag; renderFilteredPlayers(); }, 50);
 }
+
 
 
 // ── PLAYERS TAB ───────────────────────────────────────────────────
