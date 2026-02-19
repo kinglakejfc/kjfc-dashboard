@@ -3125,17 +3125,33 @@ function plName(p) {
 }
 
 // ── OVERVIEW TAB ─────────────────────────────────────────────────
-function renderPlOverview() {
-  const rows   = plSeasonRows();
-  const pm     = plPlayerMap();
-  const sm     = settingsMap();
-  const total  = rows.length;
-  const boys   = rows.filter(r => (pm[r.profileId]||{}).gender === 'Male').length;
-  const girls  = rows.filter(r => (pm[r.profileId]||{}).gender === 'Female').length;
-  const newP   = rows.filter(r => r.newToClub === 'Yes').length;
-  const disp   = rows.filter(r => r.dispensation === true || r.dispensation === 'true').length;
+let _seasonCfg = null;   // { U9:{min,max,gender,phase,active}, ... }
+const ALL_AGE_GROUPS = ['U9','U10','U11','U12','U13','U14','U15','U16','U17'];
 
-  // Group by effective age group
+async function renderPlOverview() {
+  document.getElementById('pl-body').innerHTML =
+    '<div style="text-align:center;padding:40px;color:var(--text-dim)"><div class="ls-spinner" style="margin:0 auto 12px"></div>Loading…</div>';
+
+  // Load season config if not cached for this season
+  if (!_seasonCfg || _seasonCfg._year !== plSeason) {
+    const res = await api('getSeasonConfig', { year: plSeason });
+    if (res.error) { document.getElementById('pl-body').innerHTML = `<div style="color:var(--red);padding:20px">${res.error}</div>`; return; }
+    _seasonCfg = { ...res.config, _year: plSeason };
+  }
+
+  _renderOverviewHTML();
+}
+
+function _renderOverviewHTML() {
+  const rows  = plSeasonRows();
+  const pm    = plPlayerMap();
+  const total = rows.length;
+  const boys  = rows.filter(r => (pm[r.profileId]||{}).gender === 'Male').length;
+  const girls = rows.filter(r => (pm[r.profileId]||{}).gender === 'Female').length;
+  const newP  = rows.filter(r => r.newToClub === 'Yes').length;
+  const disp  = rows.filter(r => r.dispensation === true || r.dispensation === 'true').length;
+
+  // Group registered players by age group
   const byAG = {};
   rows.forEach(r => {
     const ag = effectiveAgeGroup(r);
@@ -3143,32 +3159,36 @@ function renderPlOverview() {
     byAG[ag].push(r);
   });
 
-  const agOrder = ['U9','U10','U11','U12','U13','U14','U15','U16','U17','?'];
-  const agCards = agOrder.filter(ag => byAG[ag]).map(ag => {
-    const group   = byAG[ag];
-    const setting = sm[ag] || { minPlayers: 14, maxPlayers: 24 };
-    const count   = group.length;
-    const min     = +setting.minPlayers || 14;
-    const max     = +setting.maxPlayers || 24;
-    const colour  = agColour(count, min, max);
-    const pct     = Math.min(100, Math.round(count/max*100));
-    const dispCount = group.filter(r=>r.dispensation===true||r.dispensation==='true').length;
-    const boyCount = group.filter(r=>(pm[r.profileId]||{}).gender==='Male').length;
-    const girlCount = group.filter(r=>(pm[r.profileId]||{}).gender==='Female').length;
+  // Active groups from config
+  const cfg = _seasonCfg || {};
+  const activeGroups = ALL_AGE_GROUPS.filter(ag => cfg[ag] && cfg[ag].active !== false || (!cfg[ag] && byAG[ag]));
+
+  // Build age group cards (only active groups)
+  const agCards = ALL_AGE_GROUPS.filter(ag => cfg[ag]?.active).map(ag => {
+    const group  = byAG[ag] || [];
+    const s      = cfg[ag] || { min:14, max:24 };
+    const min    = +s.min || 14, max = +s.max || 24;
+    const count  = group.length;
+    const colour = agColour(count, min, max);
+    const pct    = Math.min(100, Math.round(count/max*100));
+    const dc     = group.filter(r=>r.dispensation===true||r.dispensation==='true').length;
+    const bc     = group.filter(r=>(pm[r.profileId]||{}).gender==='Male').length;
+    const gc     = group.filter(r=>(pm[r.profileId]||{}).gender==='Female').length;
+    const colHex = colour==='green'?'#16a34a':colour==='amber'?'#ca8a04':'#dc2626';
     return `<div class="ag-card ${colour}" onclick="showAgeGroup('${ag}')">
-      ${dispCount>0?`<div class="ag-disp">⚡ ${dispCount} disp.</div>`:''}
+      ${dc>0?`<div class="ag-disp">⚡ ${dc} disp.</div>`:''}
       <div class="ag-label">${ag}</div>
-      <div class="ag-count" style="color:${colour==='green'?'#16a34a':colour==='amber'?'#ca8a04':'#dc2626'}">${count}</div>
-      <div class="ag-bar-wrap"><div class="ag-bar-fill" style="width:${pct}%;background:${colour==='green'?'#16a34a':colour==='amber'?'#ca8a04':'#dc2626'}"></div></div>
+      <div class="ag-count" style="color:${colHex}">${count}</div>
+      <div class="ag-bar-wrap"><div class="ag-bar-fill" style="width:${pct}%;background:${colHex}"></div></div>
       <div class="ag-meta">Min ${min} · Max ${max}</div>
-      <div class="ag-meta">${boyCount}M · ${girlCount}F</div>
+      <div class="ag-meta">${bc}M · ${gc}F</div>
     </div>`;
   }).join('');
 
-  // Recruit needed: age groups with enough players to plausibly need just a few more
-  const alerts = agOrder.filter(ag => byAG[ag]).map(ag => {
+  // Recruitment alerts — only for active groups
+  const alerts = ALL_AGE_GROUPS.filter(ag => cfg[ag]?.active && byAG[ag]).map(ag => {
     const count = (byAG[ag]||[]).length;
-    const min   = +(sm[ag]||{minPlayers:14}).minPlayers || 14;
+    const min   = +(cfg[ag]||{}).min || 14;
     if (count < min) {
       const need = min - count;
       return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;border-radius:8px;margin-bottom:6px;border-left:3px solid ${count<Math.ceil(min*.5)?'#dc2626':'#ca8a04'}">
@@ -3179,25 +3199,217 @@ function renderPlOverview() {
     return null;
   }).filter(Boolean);
 
+  // Players in inactive groups (not being targeted this season)
+  const unplannedAGs = ALL_AGE_GROUPS.filter(ag => !cfg[ag]?.active && byAG[ag]?.length);
+
+  const activeCount = ALL_AGE_GROUPS.filter(ag => cfg[ag]?.active).length;
+  const viableCount = ALL_AGE_GROUPS.filter(ag => cfg[ag]?.active && (byAG[ag]||[]).length >= (+(cfg[ag]||{}).min||14)).length;
+
   document.getElementById('pl-body').innerHTML = `
     <div class="pl-kpi-grid">
       <div class="pl-kpi"><div class="pl-kpi-label">Registered ${plSeason}</div><div class="pl-kpi-val">${total}</div><div class="pl-kpi-sub">${boys} boys · ${girls} girls</div></div>
-      <div class="pl-kpi"><div class="pl-kpi-label">Age Groups</div><div class="pl-kpi-val">${Object.keys(byAG).filter(k=>k!=='?').length}</div><div class="pl-kpi-sub">${agOrder.filter(ag=>byAG[ag]&&(byAG[ag].length>=(+(sm[ag]||{}).minPlayers||14))).length} viable teams</div></div>
+      <div class="pl-kpi"><div class="pl-kpi-label">Target Age Groups</div><div class="pl-kpi-val">${activeCount}</div><div class="pl-kpi-sub">${viableCount} currently viable</div></div>
       <div class="pl-kpi"><div class="pl-kpi-label">New to Club</div><div class="pl-kpi-val" style="color:var(--green-bright)">${newP}</div><div class="pl-kpi-sub">first season at KJFC</div></div>
       <div class="pl-kpi"><div class="pl-kpi-label">Dispensations</div><div class="pl-kpi-val" style="color:#7c3aed">${disp}</div><div class="pl-kpi-sub">age override active</div></div>
     </div>
 
-    <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;color:var(--text);">Age Group Breakdown — ${plSeason}</h3>
-    ${total===0?'<div style="color:var(--text-dim);padding:20px;text-align:center">No player data for this season. Use the Import tab to load players.</div>':agCards||'<div style="color:var(--text-dim)">No players this season.</div>'}
+    <!-- Season Configuration Panel -->
+    <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:15px;text-transform:uppercase;letter-spacing:.5px;">${plSeason} Season Configuration</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Select age groups you plan to field this season. Set targets. Saved per season.</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="msecondary" onclick="getAIInsights()" style="font-size:12px;padding:6px 12px;">🤖 AI Insights</button>
+          <button class="mprimary"   onclick="saveSeasonCfg()" style="font-size:12px;padding:6px 14px;" id="cfg-save-btn">Save Configuration</button>
+        </div>
+      </div>
 
-    ${alerts.length?`<h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;text-transform:uppercase;letter-spacing:.5px;margin:20px 0 10px;color:var(--text);">🎯 Recruitment Focus</h3><div style="background:var(--bg);border-radius:10px;padding:12px;">${alerts.join('')}</div>`:''}
+      <!-- Age group toggles + settings -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">
+        ${ALL_AGE_GROUPS.map(ag => {
+          const s      = cfg[ag] || { active: false, min: ag==='U9'?9:14, max: 24, gender: ag>='U15'?'Male':'Mixed', phase: ag<='U10'?'Development':'Competition' };
+          const isOn   = s.active !== false;
+          const actual = (byAG[ag]||[]).length;
+          const min    = +s.min||14, max = +s.max||24;
+          const colHex = isOn ? (actual>=min?'#16a34a':actual>=Math.ceil(min*.5)?'#ca8a04':'#dc2626') : '#9ca3af';
+          return `<div id="cfg-card-${ag}" style="border:2px solid ${isOn?'var(--green)':'var(--border)'};border-radius:10px;padding:10px 12px;background:${isOn?'var(--green-light)':'#f9fafb'};transition:all .15s;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px;">
+              <input type="checkbox" id="cfg-on-${ag}" ${isOn?'checked':''} onchange="toggleAGCard('${ag}',this.checked)"
+                style="width:15px;height:15px;accent-color:var(--green);cursor:pointer;">
+              <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;">${ag}</span>
+              <span style="margin-left:auto;font-size:12px;font-weight:700;color:${colHex};">${actual} reg.</span>
+            </label>
+            <div id="cfg-settings-${ag}" style="display:${isOn?'block':'none'}">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+                <div>
+                  <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px;">Min players</div>
+                  <input type="number" id="cfg-min-${ag}" value="${s.min||min}" min="1" max="40"
+                    style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;">
+                </div>
+                <div>
+                  <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px;">Max players</div>
+                  <input type="number" id="cfg-max-${ag}" value="${s.max||max}" min="1" max="40"
+                    style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;">
+                </div>
+              </div>
+              <select id="cfg-gender-${ag}" style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;margin-bottom:4px;">
+                <option ${(s.gender||'Mixed')==='Mixed'?'selected':''}>Mixed</option>
+                <option ${(s.gender||'')==='Male'?'selected':''}>Male</option>
+                <option ${(s.gender||'')==='Female'?'selected':''}>Female</option>
+              </select>
+              <select id="cfg-phase-${ag}" style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;">
+                <option ${(s.phase||'')==='Development'?'selected':''}>Development</option>
+                <option ${(s.phase||'')==='Competition'?'selected':''}>Competition</option>
+              </select>
+            </div>
+            ${!isOn ? `<div style="font-size:10px;color:var(--text-dim);">${actual} player${actual!==1?'s':''} in this age group</div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Active groups breakdown -->
+    ${!cfg || ALL_AGE_GROUPS.every(ag => !cfg[ag]?.active) ? '' : `
+    <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Target Age Groups — ${plSeason}</h3>
+    ${agCards || '<div style="color:var(--text-dim);padding:12px;">No registrations yet in targeted age groups.</div>'}
+    `}
+
+    ${unplannedAGs.length ? `
+    <div style="background:#fef9c3;border:1px solid #ca8a04;border-radius:10px;padding:12px 16px;margin-top:12px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:4px;">⚠️ Players in untargeted age groups</div>
+      <div style="font-size:12px;color:var(--text-dim);">${unplannedAGs.map(ag=>`${ag}: ${byAG[ag].length} player${byAG[ag].length!==1?'s':''}`).join(' · ')} — these age groups are not in your season plan.</div>
+    </div>` : ''}
+
+    ${alerts.length ? `<h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;text-transform:uppercase;letter-spacing:.5px;margin:20px 0 10px;">🎯 Recruitment Focus</h3><div style="background:var(--bg);border-radius:10px;padding:12px;">${alerts.join('')}</div>` : ''}
+
+    <!-- AI Insights panel (populated by getAIInsights()) -->
+    <div id="ai-insights-panel" style="display:none;margin-top:20px;background:#fff;border:1.5px solid #a78bfa;border-radius:12px;padding:16px 20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed;">🤖 AI Insights</div>
+        <button onclick="document.getElementById('ai-insights-panel').style.display='none'" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:16px;">✕</button>
+      </div>
+      <div id="ai-insights-content" style="font-size:13px;line-height:1.6;color:var(--text);">Loading…</div>
+    </div>
   `;
+}
+
+function toggleAGCard(ag, on) {
+  const card = document.getElementById('cfg-card-' + ag);
+  const settings = document.getElementById('cfg-settings-' + ag);
+  if (card) card.style.cssText = card.style.cssText.replace(/border:[^;]+/, 'border:2px solid ' + (on ? 'var(--green)' : 'var(--border)')).replace(/background:[^;]+/, 'background:' + (on ? 'var(--green-light)' : '#f9fafb'));
+  if (settings) settings.style.display = on ? 'block' : 'none';
+}
+
+async function saveSeasonCfg() {
+  const config = {};
+  ALL_AGE_GROUPS.forEach(ag => {
+    const on = document.getElementById('cfg-on-' + ag)?.checked || false;
+    config[ag] = {
+      active: on,
+      min:    parseInt(document.getElementById('cfg-min-' + ag)?.value)||14,
+      max:    parseInt(document.getElementById('cfg-max-' + ag)?.value)||24,
+      gender: document.getElementById('cfg-gender-' + ag)?.value || 'Mixed',
+      phase:  document.getElementById('cfg-phase-' + ag)?.value  || 'Competition'
+    };
+  });
+  const btn = document.getElementById('cfg-save-btn');
+  btnLoading(btn, true);
+  const res = await api('saveSeasonConfig', { year: plSeason, config });
+  btnLoading(btn, false);
+  if (res.error) { showToast('Save failed: ' + res.error, 'err'); return; }
+  _seasonCfg = { ...config, _year: plSeason };
+  showToast('Season configuration saved ✓');
+  _renderOverviewHTML();
+}
+
+async function getAIInsights() {
+  const panel   = document.getElementById('ai-insights-panel');
+  const content = document.getElementById('ai-insights-content');
+  if (!panel || !content) return;
+  panel.style.display = 'block';
+  content.innerHTML = '<div class="ls-spinner" style="margin:0 auto 8px;"></div><div style="text-align:center;color:var(--text-dim);">Analysing your player data…</div>';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // Gather AGGREGATE-ONLY data — no names, no personal details, no club identifier sent to AI.
+  const rows  = plSeasonRows();
+  const pm    = plPlayerMap();
+  const cfg   = _seasonCfg || {};
+
+  const byAG = {}, byAGGender = {};
+  rows.forEach(r => {
+    const ag = effectiveAgeGroup(r);
+    byAG[ag] = (byAG[ag]||0) + 1;
+    const g = (pm[r.profileId]||{}).gender === 'Male' ? 'M' : 'F';
+    byAGGender[ag] = byAGGender[ag] || { M:0, F:0 };
+    byAGGender[ag][g]++;
+  });
+  const prevRows = (plData.seasons||[]).filter(s => +s.year === +plSeason - 1);
+  const prevByAG = {};
+  prevRows.forEach(r => { const ag = effectiveAgeGroup(r); prevByAG[ag] = (prevByAG[ag]||0)+1; });
+  const activeGroups = ALL_AGE_GROUPS.filter(ag => cfg[ag]?.active);
+  const totalBoys  = rows.filter(r => (pm[r.profileId]||{}).gender === 'Male').length;
+  const totalGirls = rows.filter(r => (pm[r.profileId]||{}).gender === 'Female').length;
+
+  // De-identified prompt — only aggregate counts sent, no club name, no personal data
+  const agLines = ALL_AGE_GROUPS.map(ag => {
+    const n = byAG[ag]||0, prev = prevByAG[ag], g = byAGGender[ag]||{M:0,F:0};
+    const trend = prev !== undefined
+      ? (n > prev ? ` (up ${n-prev} from prior year)` : n < prev ? ` (down ${prev-n} from prior year)` : ' (unchanged)')
+      : '';
+    return `  ${ag}: ${n} total (${g.M||0} boys / ${g.F||0} girls)${trend}${cfg[ag]?.active ? ' [TARGETED]' : ''}`;
+  }).join('\n');
+
+  const prompt = `You are an AFL junior football analyst. Analyse this anonymous aggregate registration data.
+
+Season: ${plSeason}
+Total registered: ${rows.length} (${totalBoys} boys / ${totalGirls} girls)
+
+Age group breakdown (aggregate counts only — no personal data included):
+${agLines}
+
+Targeted age groups: ${activeGroups.length ? activeGroups.join(', ') : 'None set'}
+Targets: ${activeGroups.map(ag => `${ag} min ${cfg[ag]?.min||14} / max ${cfg[ag]?.max||24}`).join(', ')}
+
+Provide:
+1. **Optimal age group mix** — Which groups maximise full teams? Adjacent groups (e.g. U11/U12 combined) are viable.
+2. **Recruitment priorities** — Which groups need players most urgently and how many?
+3. **Trend analysis** — Growing vs declining age groups year-on-year.
+4. **One bold recommendation** — Single highest-impact action for participation.
+
+Concise bullet points only. No preamble.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await resp.json();
+    const text = data.content?.[0]?.text || 'No response received.';
+    // Render markdown-ish formatting
+    content.innerHTML = text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^## (.+)$/gm, '<div style="font-weight:800;font-size:14px;margin:12px 0 6px;font-family:Barlow Condensed,sans-serif;text-transform:uppercase;letter-spacing:.5px;">$1</div>')
+      .replace(/^### (.+)$/gm, '<div style="font-weight:700;font-size:13px;margin:10px 0 4px;">$1</div>')
+      .replace(/^\d+\. \*\*(.+?)\*\*(.*)$/gm, '<div style="margin:10px 0 4px;"><span style="font-weight:800;color:var(--green);">$1</span>$2</div>')
+      .replace(/^- (.+)$/gm, '<div style="padding:2px 0 2px 12px;border-left:2px solid var(--green-light);">• $1</div>')
+      .replace(/\n/g, '<br>');
+  } catch(e) {
+    content.innerHTML = `<div style="color:var(--red);">Could not load AI insights: ${e.message}</div>`;
+  }
 }
 
 function showAgeGroup(ag) {
   switchPlTab(document.querySelector('.pl-tab[data-tab="players"]'), 'players');
   setTimeout(()=>{ document.getElementById('pl-filter-ag').value=ag; renderFilteredPlayers(); }, 50);
 }
+
 
 // ── PLAYERS TAB ───────────────────────────────────────────────────
 function renderPlPlayers() {
@@ -3635,34 +3847,56 @@ function renderPlTeams() {
         </div>
 
         <!-- Bulk assign section -->
-        <div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;">
-          <div style="background:var(--bg);padding:10px 14px;border-bottom:1px solid var(--border);font-weight:700;font-size:13px;">
-            Bulk Assign Players
-            <span style="font-size:11px;font-weight:400;color:var(--text-dim);margin-left:8px;">${unassigned} unassigned players</span>
+        <div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-top:4px;">
+          <div style="background:var(--bg);padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div style="font-weight:700;font-size:13px;flex:1;">
+              Bulk Assign Players
+              <span style="font-size:11px;font-weight:400;color:var(--text-dim);margin-left:8px;" id="ba-unassigned-count">${unassigned} unassigned</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <select id="ba-team-select" style="font-size:12px;padding:5px 10px;border:1.5px solid var(--border);border-radius:7px;background:#fff;">
+                <option value="">— select team —</option>
+                ${teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
+              </select>
+              <button class="mprimary" onclick="bulkAssignSelected()" style="font-size:12px;padding:5px 14px;">Assign Selected</button>
+              <button class="msecondary" onclick="bulkUnassignSelected()" style="font-size:12px;padding:5px 12px;">Remove Team</button>
+            </div>
           </div>
-          <div style="padding:14px;">
+          <div style="padding:8px 14px;background:#f8faf8;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <label style="font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--text-dim);">
+              <input type="checkbox" id="ba-select-all" onchange="bulkSelectAll(this.checked)" style="accent-color:var(--green);">
+              Select all
+            </label>
+            <span style="color:var(--border);">|</span>
+            ${[...new Set(allSeasonRows.map(s=>effectiveAgeGroup(s)))].sort().map(ag =>
+              `<label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer;background:var(--green-light);padding:2px 8px;border-radius:10px;">
+                <input type="checkbox" onchange="bulkSelectByAG('${ag}',this.checked)" style="accent-color:var(--green);">${ag}
+              </label>`
+            ).join('')}
+            <span style="margin-left:auto;font-size:11px;color:var(--text-dim);" id="ba-selected-count">0 selected</span>
+          </div>
+          <div style="max-height:400px;overflow-y:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:12px;">
-              <thead><tr>
-                <th style="text-align:left;padding:5px 8px;color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1.5px solid var(--border);">Player</th>
-                <th style="text-align:left;padding:5px 8px;color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1.5px solid var(--border);">Age Group</th>
-                <th style="text-align:left;padding:5px 8px;color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1.5px solid var(--border);">Team</th>
+              <thead><tr style="position:sticky;top:0;background:#fff;z-index:1;">
+                <th style="width:32px;padding:6px 8px;border-bottom:1.5px solid var(--border);"></th>
+                <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1.5px solid var(--border);">Player</th>
+                <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1.5px solid var(--border);">Age</th>
+                <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1.5px solid var(--border);">Current Team</th>
               </tr></thead>
               <tbody>
                 ${allSeasonRows.sort((a,b)=>{
                   const pa=pm[a.profileId]||{}, pb=pm[b.profileId]||{};
-                  return (pa.lastName||'').localeCompare(pb.lastName||'');
+                  const agA=effectiveAgeGroup(a), agB=effectiveAgeGroup(b);
+                  return agA.localeCompare(agB)||((pa.lastName||'').localeCompare(pb.lastName||''));
                 }).map(s => {
                   const p = pm[s.profileId]; if (!p) return '';
                   const ag = effectiveAgeGroup(s);
-                  return `<tr style="border-bottom:1px solid var(--border);">
-                    <td style="padding:5px 8px;font-weight:600;">${plName(p)}</td>
-                    <td style="padding:5px 8px;color:var(--text-dim);">${ag||'—'}</td>
-                    <td style="padding:5px 8px;">
-                      <select onchange="bulkAssignTeam('${s.id}',this.value)" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;background:#fff;">
-                        <option value="">— unassigned —</option>
-                        ${teams.map(t=>`<option value="${t.id}" ${s.assignedTeam===t.id?'selected':''}>${t.name}</option>`).join('')}
-                      </select>
-                    </td>
+                  const team = teams.find(t=>t.id===s.assignedTeam);
+                  return `<tr class="ba-row" data-sid="${s.id}" data-ag="${ag}" style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="bulkToggleRow(this)">
+                    <td style="padding:6px 8px;"><input type="checkbox" class="ba-cb" data-sid="${s.id}" style="accent-color:var(--green);" onclick="event.stopPropagation();bulkUpdateCount()"></td>
+                    <td style="padding:6px 8px;font-weight:600;">${plName(p)}</td>
+                    <td style="padding:6px 8px;"><span style="background:var(--green-light);color:var(--green);font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;">${ag||'?'}</span></td>
+                    <td style="padding:6px 8px;color:${team?'var(--text)':'var(--text-dim)'};">${team?team.name:'— unassigned —'}</td>
                   </tr>`;
                 }).join('')}
               </tbody>
@@ -3776,12 +4010,79 @@ async function deleteTeamConfirm(id, name) {
   renderPlTeams();
 }
 
-async function bulkAssignTeam(seasonId, teamId) {
-  const res = await api('updatePlayerSeason', { id: seasonId, assignedTeam: teamId });
-  if (res.error) { showToast('Assign failed: ' + res.error, 'err'); return; }
-  const s = (plData.seasons||[]).find(x => x.id === seasonId);
-  if (s) s.assignedTeam = teamId;
-  // Refresh team counts in the cards without full re-render
+// ── BULK ASSIGN HELPERS ───────────────────────────────────────────────────────
+function bulkToggleRow(tr) {
+  const cb = tr.querySelector('.ba-cb');
+  if (!cb) return;
+  cb.checked = !cb.checked;
+  tr.style.background = cb.checked ? 'var(--green-light)' : '';
+  bulkUpdateCount();
+}
+
+function bulkUpdateCount() {
+  const all = document.querySelectorAll('.ba-cb');
+  const checked = [...all].filter(c => c.checked).length;
+  const el = document.getElementById('ba-selected-count');
+  if (el) el.textContent = checked + ' selected';
+  // Sync select-all checkbox state
+  const sa = document.getElementById('ba-select-all');
+  if (sa) sa.checked = checked > 0 && checked === all.length;
+  // Highlight rows
+  all.forEach(cb => {
+    const tr = cb.closest('tr');
+    if (tr) tr.style.background = cb.checked ? 'var(--green-light)' : '';
+  });
+}
+
+function bulkSelectAll(on) {
+  document.querySelectorAll('.ba-cb').forEach(cb => { cb.checked = on; });
+  bulkUpdateCount();
+}
+
+function bulkSelectByAG(ag, on) {
+  document.querySelectorAll(`.ba-row[data-ag="${ag}"] .ba-cb`).forEach(cb => { cb.checked = on; });
+  bulkUpdateCount();
+}
+
+async function bulkAssignSelected() {
+  const teamId = document.getElementById('ba-team-select')?.value;
+  if (!teamId) { showToast('Select a team first', 'err'); return; }
+  const checked = [...document.querySelectorAll('.ba-cb:checked')];
+  if (!checked.length) { showToast('Select at least one player', 'err'); return; }
+  const teamName = document.getElementById('ba-team-select')?.selectedOptions[0]?.text || '';
+
+  if (!confirm(`Assign ${checked.length} player${checked.length!==1?'s':''} to "${teamName}"?`)) return;
+
+  let done = 0, errors = 0;
+  for (const cb of checked) {
+    const sid = cb.dataset.sid;
+    const res = await api('updatePlayerSeason', { id: sid, assignedTeam: teamId });
+    if (res.error) { errors++; continue; }
+    const s = (plData.seasons||[]).find(x => x.id === sid);
+    if (s) s.assignedTeam = teamId;
+    done++;
+  }
+  if (errors) showToast(`${done} assigned, ${errors} failed`, 'err');
+  else showToast(`${done} player${done!==1?'s':''} assigned to ${teamName} ✓`);
+  renderPlTeams();
+}
+
+async function bulkUnassignSelected() {
+  const checked = [...document.querySelectorAll('.ba-cb:checked')];
+  if (!checked.length) { showToast('Select at least one player', 'err'); return; }
+  if (!confirm(`Remove team assignment from ${checked.length} player${checked.length!==1?'s':''}?`)) return;
+
+  let done = 0;
+  for (const cb of checked) {
+    const sid = cb.dataset.sid;
+    const res = await api('updatePlayerSeason', { id: sid, assignedTeam: '' });
+    if (!res.error) {
+      const s = (plData.seasons||[]).find(x => x.id === sid);
+      if (s) s.assignedTeam = '';
+      done++;
+    }
+  }
+  showToast(`${done} player${done!==1?'s':''} unassigned ✓`);
   renderPlTeams();
 }
 
