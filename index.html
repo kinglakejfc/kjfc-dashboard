@@ -3235,8 +3235,8 @@ function ageLabel(ps) {
   // Human-readable age label for player display (not team names)
   // "Age 9 on Jan 1" instead of "U9"
   const nat = playerNaturalAge(ps);
-  if (nat !== null) return 'Age ' + nat + ' on Jan 1';
-  if (ps.calcAge) return 'Age ' + (ps.calcAge - 1) + ' on Jan 1';
+  if (nat !== null) return 'Age ' + nat;
+  if (ps.calcAge) return 'Age ' + (ps.calcAge - 1);
   return '?';
 }
 
@@ -3409,12 +3409,13 @@ function _renderOverviewHTML() {
     });
   });
 
-  // Untargeted/unplanned panel — only truly stranded players (no eligible active group)
-  // Use plain age label, exclude too-young players
+  // Untargeted/unplanned panel — show both:
+  // 1. Truly stranded: no eligible active group
+  // 2. Partially stranded: eligible but not yet planned (auto-plan may have missed them due to caps)
   const untargetedByNat = {};
-  trulyStranded.forEach(e => {
-    if (e.eligible.length === 0) return; // too young — skip
-    const label = e.nat !== null ? 'Age ' + e.nat + ' on Jan 1' : 'Unknown age';
+  [...trulyStranded, ...partiallyStranded].forEach(e => {
+    if (e.eligible.length === 0) return; // too young — skip entirely
+    const label = e.nat !== null ? 'Age ' + e.nat : 'Unknown age';
     untargetedByNat[label] = untargetedByNat[label] || [];
     untargetedByNat[label].push(e);
   });
@@ -3469,14 +3470,15 @@ function _renderOverviewHTML() {
           const players = untargetedByNat[label];
           const canSlotInto = activeGroups.filter(ag => players.some(e => e.eligible.includes(ag)));
           const profileIds = players.map(e => e.r.profileId).join(',');
-          return `<div style="background:#fff;border-radius:8px;padding:10px 12px;border-left:3px solid #f59e0b;cursor:pointer;transition:background .1s;" onclick="openUntargetedGroup(event,'${label}',this)" onmouseenter="this.style.background='#fef9c3'" onmouseleave="this.style.background='#fff'" data-pids="${profileIds}">
+          const isPartial = players.some(e => e.eligible.some(ag => activeGroups.includes(ag)));
+          return `<div style="background:#fff;border-radius:8px;padding:10px 12px;border-left:3px solid ${isPartial?'#f59e0b':'#dc2626'};cursor:pointer;transition:background .1s;" onclick="openUntargetedGroup(event,'${label}',this)" onmouseenter="this.style.background='#fef9c3'" onmouseleave="this.style.background='#fff'" data-pids="${profileIds}">
             <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
               <span style="font-weight:800;font-size:13px;">${label}</span>
               <span style="font-size:12px;color:var(--text-dim);">${players.length} player${players.length!==1?'s':''}</span>
               ${canSlotInto.length
-                ? `<span style="font-size:12px;">→ eligible for: ${canSlotInto.map(ag=>'<strong>'+ag+'</strong>').join(', ')}</span>`
-                : `<span style="font-size:12px;color:#dc2626;">→ no targeted teams available for these players</span>`}
-              <span style="margin-left:auto;font-size:10px;color:var(--text-dim);">View players ›</span>
+                ? `<span style="font-size:12px;">→ eligible for: ${canSlotInto.map(ag=>'<strong>'+ag+'</strong>').join(', ')} · <em style="color:#ca8a04;">click to plan</em></span>`
+                : `<span style="font-size:12px;color:#dc2626;">→ no targeted teams available</span>`}
+              <span style="margin-left:auto;font-size:10px;color:var(--text-dim);">View ›</span>
             </div>
           </div>`;
         }).join('')}
@@ -4737,23 +4739,29 @@ function _renderTeamSlide() {
   // Players assigned to THIS team
   const assignedIds = new Set(allRows.filter(s => s.assignedTeam === teamId).map(s => s.profileId));
 
-  // Build player list: assigned first, then unassigned, sorted by age group then name
+  // Build player list: only eligible players for this team's age group (+ dispensation players)
+  // Plus anyone already assigned to this team regardless of eligibility
   const players = allRows.map(r => {
     const p   = pm[r.profileId] || {};
     const nat = playerNaturalAge(r);
     const ag  = effectiveAgeGroup(r);
-    return { r, p, nat, ag, assigned: assignedIds.has(r.profileId) };
-  }).filter(e => e.p.firstName)
+    const eligible = playerEligibleGroups(r, p);
+    const hasDisp  = r.dispensation === true || r.dispensation === 'true';
+    const onThisTeam = assignedIds.has(r.profileId);
+    // Include if: on this team, OR has dispensation, OR eligible for team's age group, OR team has no age group set
+    const include = onThisTeam || hasDisp || !team.ageGroup || eligible.includes(team.ageGroup);
+    return { r, p, nat, ag, assigned: assignedIds.has(r.profileId), include };
+  }).filter(e => e.p.firstName && e.include)
     .sort((a, b) => {
       if (a.assigned !== b.assigned) return a.assigned ? -1 : 1;
-      return (a.ag||'').localeCompare(b.ag||'') || (a.p.lastName||'').localeCompare(b.p.lastName||'');
+      return (a.nat||0) - (b.nat||0) || (a.p.lastName||'').localeCompare(b.p.lastName||'');
     });
 
   // Filter
   const agGroups = [...new Set(players.map(e => e.ag).filter(Boolean))].sort();
   let visible = players;
   if (_teamSlideFilter === 'assigned')   visible = players.filter(e => e.assigned);
-  if (_teamSlideFilter === 'unassigned') visible = players.filter(e => !e.assigned);
+  if (_teamSlideFilter === 'unassigned') visible = players.filter(e => !e.r.assignedTeam);
   if (_teamSlideFilter.startsWith('ag:')) {
     const filterAG = _teamSlideFilter.slice(3);
     visible = players.filter(e => e.ag === filterAG);
@@ -4763,10 +4771,11 @@ function _renderTeamSlide() {
 
   document.getElementById('tsl-title').textContent = team.name;
   document.getElementById('tsl-sub').textContent   = assignedCount + ' assigned · click player to toggle';
+  const totalUnassigned = allRows.filter(s => !s.assignedTeam).length;
   document.getElementById('tsl-stats').innerHTML   = `
-    <span><strong>${assignedCount}</strong> on team</span>
+    <span><strong>${assignedCount}</strong> on this team</span>
     <span style="color:var(--text-dim);">|</span>
-    <span>${allRows.length - assignedCount} not assigned</span>
+    <span>${totalUnassigned} have no team</span>
     ${team.coach ? `<span style="color:var(--text-dim);">|</span><span>👤 ${team.coach}</span>` : ''}
   `;
 
@@ -4774,11 +4783,11 @@ function _renderTeamSlide() {
   document.getElementById('tsl-filters').innerHTML = [
     { key: 'all',        label: `All (${players.length})` },
     { key: 'assigned',   label: `On team (${assignedCount})` },
-    { key: 'unassigned', label: `Unassigned (${players.filter(e=>!e.assigned).length})` },
+    { key: 'unassigned', label: `No team (${allRows.filter(s=>!s.assignedTeam).length})` },
     ...agGroups.map(ag => {
       // Convert UXX → "Age X on Jan 1" for display
       const agNum = parseInt(ag.slice(1));
-      const displayLabel = isNaN(agNum) ? ag : 'Age ' + (agNum - 1) + ' on Jan 1';
+      const displayLabel = isNaN(agNum) ? ag : 'Age ' + (agNum - 1);
       return { key: 'ag:' + ag, label: displayLabel + ' (' + players.filter(e=>e.ag===ag).length + ')' };
     })
   ].map(f => `<button class="pl-tab${_teamSlideFilter===f.key?' act':''}"
