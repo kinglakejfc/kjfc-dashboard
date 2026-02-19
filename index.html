@@ -1312,6 +1312,51 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
   </div>
 </div>
 
+<!-- PLANNING SLIDEOVER -->
+<div id="planning-overlay" onclick="closePlanningSlide()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:3500;"></div>
+<div id="planning-slide" style="position:fixed;top:0;right:0;height:100vh;width:440px;max-width:98vw;background:var(--card);z-index:3501;box-shadow:-4px 0 30px rgba(0,0,0,.18);transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;">
+  <!-- Header -->
+  <div style="background:var(--green);padding:14px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+    <div style="flex:1;">
+      <div id="pls-title" style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;color:#fff;text-transform:uppercase;letter-spacing:.5px;"></div>
+      <div id="pls-sub" style="font-size:11px;color:rgba(255,255,255,.7);margin-top:1px;"></div>
+    </div>
+    <button onclick="closePlanningSlide()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;">×</button>
+  </div>
+  <!-- Stats bar -->
+  <div id="pls-stats" style="background:var(--bg);border-bottom:1.5px solid var(--border);padding:10px 16px;display:flex;gap:16px;flex-shrink:0;flex-wrap:wrap;font-size:12px;"></div>
+  <!-- Filter tabs -->
+  <div style="display:flex;border-bottom:1.5px solid var(--border);flex-shrink:0;background:#fff;">
+    <button id="pls-filter-all" class="pl-tab act" onclick="plsSetFilter('all')" style="flex:1;text-align:center;">All eligible</button>
+    <button id="pls-filter-sel" class="pl-tab" onclick="plsSetFilter('selected')" style="flex:1;text-align:center;">Selected</button>
+    <button id="pls-filter-nat" class="pl-tab" onclick="plsSetFilter('natural')" style="flex:1;text-align:center;">Natural age</button>
+    <button id="pls-filter-up"  class="pl-tab" onclick="plsSetFilter('slotup')" style="flex:1;text-align:center;">Slotting up</button>
+  </div>
+  <!-- Player list -->
+  <div id="pls-body" style="flex:1;overflow-y:auto;padding:12px 14px;"></div>
+  <!-- Footer actions -->
+  <div style="padding:12px 16px;border-top:1.5px solid var(--border);display:flex;gap:8px;flex-shrink:0;background:#fff;">
+    <button class="msecondary" onclick="closePlanningSlide()" style="flex:1;">Close</button>
+    <button class="mprimary" id="pls-promote-btn" onclick="openPromoteDialog()" style="flex:2;">Promote to Team →</button>
+  </div>
+</div>
+
+<!-- PROMOTE DIALOG -->
+<div id="promote-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:3600;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:24px;width:380px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.2);">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;margin-bottom:4px;" id="promote-title">Promote Plan to Team</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;" id="promote-sub"></div>
+    <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">SELECT TARGET TEAM</div>
+    <select id="promote-team-sel" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;margin-bottom:16px;">
+      <option value="">— select team —</option>
+    </select>
+    <div style="display:flex;gap:8px;">
+      <button class="msecondary" onclick="closePromoteDialog()" style="flex:1;">Cancel</button>
+      <button class="mprimary" onclick="doPromotePlan()" style="flex:2;" id="promote-confirm-btn">Assign Players to Team</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADMIN MODAL -->
 <div class="moverlay" id="admin-modal">
   <div class="modal" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column;">
@@ -3130,7 +3175,9 @@ async function loadPlayerData() {
 
 async function loadPlayerView() {
   plSeason = +document.getElementById('pl-season-sel').value;
-  plData = null;
+  plData          = null;
+  _seasonCfg      = null;  // force reload from Sheets for new season
+  _planningLoaded = false; // force reload planning data for new season
   await loadPlayerData();
 }
 
@@ -3273,11 +3320,14 @@ async function renderPlOverview() {
   document.getElementById('pl-body').innerHTML =
     '<div style="text-align:center;padding:40px;color:var(--text-dim)"><div class="ls-spinner" style="margin:0 auto 12px"></div>Loading…</div>';
 
+  // Load season config from Sheets (persists for all users)
   if (!_seasonCfg || _seasonCfg._year !== plSeason) {
-    const res = await api('getSeasonConfig', { year: plSeason });
+    const res = await api('getSeasonConfigSheet', { year: plSeason });
     if (res.error) { document.getElementById('pl-body').innerHTML = `<div style="color:var(--red);padding:20px">${res.error}</div>`; return; }
     _seasonCfg = { ...res.config, _year: plSeason };
   }
+  // Load planning data (tentative team selections)
+  await loadPlanningData();
   _renderOverviewHTML();
 }
 
@@ -3360,7 +3410,7 @@ function _renderOverviewHTML() {
     const hex        = colour==='green'?'#16a34a':colour==='amber'?'#ca8a04':'#dc2626';
     const pct        = Math.min(100, Math.round(eligCnt / max * 100));
 
-    return `<div class="ag-card ${colour}" onclick="showAgeGroup('${ag}')" style="cursor:pointer;min-width:160px;">
+    return `<div class="ag-card ${colour}" onclick="openPlanningSlide('${ag}')" style="cursor:pointer;min-width:160px;">
       <div class="ag-label">${ag}</div>
       <div class="ag-count" style="color:${hex}">${eligCnt}</div>
       <div style="font-size:10px;color:${hex};font-weight:600;margin-top:-2px;margin-bottom:6px;">eligible to play</div>
@@ -3373,6 +3423,7 @@ function _renderOverviewHTML() {
         ${shortfall > 0
           ? `<div style="margin-top:4px;font-size:10px;font-weight:700;color:${hex};background:${colour==='red'?'rgba(220,38,38,.1)':'rgba(202,138,4,.1)'};padding:3px 7px;border-radius:6px;display:inline-block;">Need ${shortfall} more to field a team</div>`
           : `<div style="margin-top:4px;font-size:10px;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);padding:3px 7px;border-radius:6px;display:inline-block;">✓ Viable</div>`}
+        ${(_planningData[ag]||[]).length > 0 ? `<div style="margin-top:5px;font-size:10px;font-weight:700;color:#7c3aed;background:rgba(124,58,237,.1);padding:2px 7px;border-radius:6px;display:inline-block;">${(_planningData[ag]||[]).length} planned</div>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -3538,7 +3589,7 @@ async function saveSeasonCfg() {
   });
   const btn = document.getElementById('cfg-save-btn');
   if (btn) btnLoading(btn, true);
-  const res = await api('saveSeasonConfig', { year: plSeason, config });
+  const res = await api('saveSeasonConfigSheet', { year: plSeason, config });
   if (btn) btnLoading(btn, false);
   if (res.error) { showToast('Save failed: ' + res.error, 'err'); return; }
   _seasonCfg = { ...config, _year: plSeason };
@@ -3626,6 +3677,225 @@ Concise bullet points only. No preamble.`;
   } catch(e) {
     content.innerHTML = `<div style="color:var(--red);">Could not load AI insights: ${e.message}</div>`;
   }
+}
+
+
+// ── PLANNING TEAMS ────────────────────────────────────────────────
+// _planningData: { ageGroup: [profileId, ...], ... } for current season
+let _planningData   = {};
+let _plsAgeGroup    = null;  // currently open ag in planning slide
+let _plsFilter      = 'all'; // all | selected | natural | slotup
+let _planningLoaded = false;
+
+async function loadPlanningData() {
+  if (_planningLoaded && _planningData._year === plSeason) return;
+  const res = await api('getPlanningData', { year: plSeason });
+  if (!res.error) {
+    _planningData       = res.plan || {};
+    _planningData._year = plSeason;
+    _planningLoaded     = true;
+  }
+}
+
+async function openPlanningSlide(ag) {
+  await loadPlanningData();
+  _plsAgeGroup = ag;
+  _plsFilter   = 'all';
+
+  const overlay = document.getElementById('planning-overlay');
+  const panel   = document.getElementById('planning-slide');
+  overlay.style.display = 'block';
+  panel.style.transform = 'translateX(0)';
+
+  _renderPlanningSlide();
+}
+
+function _renderPlanningSlide() {
+  const ag      = _plsAgeGroup;
+  const rows    = plSeasonRows();
+  const pm      = plPlayerMap();
+  const cfg     = _seasonCfg || {};
+  const cfgAG   = cfg[ag] || { min:14, max:24 };
+  const selected = _planningData[ag] || [];
+
+  // All players eligible for this group
+  const eligible = rows.map(r => {
+    const p   = pm[r.profileId] || {};
+    const nat = playerNaturalAge(r);
+    const el  = playerEligibleGroups(r, p);
+    return { r, p, nat, eligible: el };
+  }).filter(e => e.eligible.includes(ag));
+
+  // Check which are already planned in OTHER groups
+  const plannedElsewhere = {};
+  Object.keys(_planningData).forEach(otherAG => {
+    if (otherAG === ag || otherAG === '_year') return;
+    (_planningData[otherAG] || []).forEach(pid => { plannedElsewhere[pid] = otherAG; });
+  });
+
+  // Sort: selected first, then by naturalness, then name
+  eligible.sort((a, b) => {
+    const aSel = selected.includes(a.r.profileId) ? 0 : 1;
+    const bSel = selected.includes(b.r.profileId) ? 0 : 1;
+    if (aSel !== bSel) return aSel - bSel;
+    const aNat = ('U' + a.nat) === ag ? 0 : 1;
+    const bNat = ('U' + b.nat) === ag ? 0 : 1;
+    if (aNat !== bNat) return aNat - bNat;
+    return (a.p.lastName||'').localeCompare(b.p.lastName||'');
+  });
+
+  // Filter
+  let visible = eligible;
+  if (_plsFilter === 'selected') visible = eligible.filter(e => selected.includes(e.r.profileId));
+  if (_plsFilter === 'natural')  visible = eligible.filter(e => ('U' + e.nat) === ag);
+  if (_plsFilter === 'slotup')   visible = eligible.filter(e => ('U' + e.nat) !== ag);
+
+  const natCount  = eligible.filter(e => ('U' + e.nat) === ag).length;
+  const slotCount = eligible.filter(e => ('U' + e.nat) !== ag).length;
+  const min = +cfgAG.min || 14, max = +cfgAG.max || 24;
+
+  document.getElementById('pls-title').textContent = ag + ' Planning — ' + plSeason;
+  document.getElementById('pls-sub').textContent   = selected.length + ' selected · ' + eligible.length + ' eligible';
+
+  document.getElementById('pls-stats').innerHTML = `
+    <span><strong>${selected.length}</strong> planned</span>
+    <span style="color:var(--text-dim);">|</span>
+    <span>${eligible.length} eligible total</span>
+    <span style="color:var(--text-dim);">|</span>
+    <span>${natCount} natural ${ag}</span>
+    <span style="color:var(--text-dim);">|</span>
+    <span style="color:#7c3aed;">${slotCount} slotting up</span>
+    <span style="color:var(--text-dim);">|</span>
+    <span style="color:${selected.length >= min ? '#16a34a' : '#ca8a04'};">Min: ${min} · Max: ${max}</span>
+  `;
+
+  // Update filter tab labels
+  document.getElementById('pls-filter-sel').textContent = `Selected (${selected.length})`;
+  document.getElementById('pls-filter-nat').textContent = `Natural (${natCount})`;
+  document.getElementById('pls-filter-up').textContent  = `Slot up (${slotCount})`;
+
+  // Active filter highlight
+  ['all','selected','natural','slotup'].forEach(f => {
+    const btn = document.getElementById('pls-filter-' + f);
+    if (btn) btn.classList.toggle('act', _plsFilter === f);
+  });
+
+  // Promote button state
+  const promBtn = document.getElementById('pls-promote-btn');
+  if (promBtn) promBtn.disabled = selected.length === 0;
+
+  if (!visible.length) {
+    document.getElementById('pls-body').innerHTML =
+      '<div style="text-align:center;padding:30px;color:var(--text-dim);">No players in this view.</div>';
+    return;
+  }
+
+  document.getElementById('pls-body').innerHTML = visible.map(({ r, p, nat, eligible: elGroups }) => {
+    const pid       = r.profileId;
+    const isSel     = selected.includes(pid);
+    const isNat     = ('U' + nat) === ag;
+    const elsewhere = plannedElsewhere[pid];
+    const dob       = normaliseDobFE(p.dob) || p.dob || '—';
+    const gender    = p.gender === 'Male' ? '♂' : p.gender === 'Female' ? '♀' : '';
+
+    return `<div id="pls-row-${pid}" onclick="togglePlanPlayer('${pid}')"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;margin-bottom:6px;
+               border:2px solid ${isSel ? 'var(--green)' : 'var(--border)'};
+               background:${isSel ? 'var(--green-light)' : '#fff'};transition:all .12s;">
+      <!-- Checkbox indicator -->
+      <div style="width:22px;height:22px;border-radius:50%;border:2px solid ${isSel ? 'var(--green)' : '#d1d5db'};
+                  background:${isSel ? 'var(--green)' : '#fff'};display:flex;align-items:center;justify-content:center;
+                  flex-shrink:0;transition:all .12s;">
+        ${isSel ? '<span style="color:#fff;font-size:12px;font-weight:900;">✓</span>' : ''}
+      </div>
+      <!-- Avatar -->
+      <div style="width:34px;height:34px;border-radius:50%;background:${isSel ? 'var(--green)' : 'var(--green-light)'};
+                  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;
+                  color:${isSel ? '#fff' : 'var(--green)'};font-family:'Barlow Condensed',sans-serif;flex-shrink:0;">
+        ${plInitials(p)}
+      </div>
+      <!-- Info -->
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:13px;">${plName(p)} <span style="color:var(--text-dim);font-weight:400;">${gender}</span></div>
+        <div style="font-size:11px;color:var(--text-dim);">DOB: ${dob} · Age on Jan 1: <strong>${nat !== null ? nat : '?'}</strong></div>
+        <div style="margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;">
+          ${isNat
+            ? `<span style="font-size:10px;font-weight:700;background:var(--green);color:#fff;padding:1px 6px;border-radius:8px;">Natural ${ag}</span>`
+            : `<span style="font-size:10px;font-weight:700;background:#e0e7ff;color:#4338ca;padding:1px 6px;border-radius:8px;">Slots up from U${nat}</span>`}
+          ${elsewhere ? `<span style="font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px;">Also planned: ${elsewhere}</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function plsSetFilter(f) {
+  _plsFilter = f;
+  _renderPlanningSlide();
+}
+
+async function togglePlanPlayer(pid) {
+  const ag  = _plsAgeGroup;
+  const cur = _planningData[ag] || [];
+  const idx = cur.indexOf(pid);
+  if (idx === -1) {
+    _planningData[ag] = [...cur, pid];
+  } else {
+    _planningData[ag] = cur.filter(p => p !== pid);
+  }
+  _renderPlanningSlide();
+  // Save async — don't await so UI stays snappy
+  api('savePlanningTeam', { year: plSeason, ageGroup: ag, profileIds: _planningData[ag] });
+  // Refresh overview cards to update planned count badge
+  if (document.querySelector('.ag-card')) _renderOverviewHTML();
+}
+
+function closePlanningSlide() {
+  document.getElementById('planning-overlay').style.display = 'none';
+  document.getElementById('planning-slide').style.transform = 'translateX(100%)';
+  _plsAgeGroup = null;
+}
+
+function openPromoteDialog() {
+  const ag       = _plsAgeGroup;
+  const selected = _planningData[ag] || [];
+  if (!selected.length) { showToast('No players selected to promote', 'err'); return; }
+
+  const teams = plSeasonTeams().filter(t => !t.ageGroup || t.ageGroup === ag || t.ageGroup === '');
+  document.getElementById('promote-title').textContent = `Promote ${ag} Plan to Team`;
+  document.getElementById('promote-sub').textContent   = `${selected.length} player${selected.length!==1?'s':''} will be assigned to the selected team.`;
+
+  const sel = document.getElementById('promote-team-sel');
+  sel.innerHTML = '<option value="">— select team —</option>' +
+    plSeasonTeams().map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+  document.getElementById('promote-overlay').style.display = 'flex';
+}
+
+function closePromoteDialog() {
+  document.getElementById('promote-overlay').style.display = 'none';
+}
+
+async function doPromotePlan() {
+  const ag       = _plsAgeGroup;
+  const teamId   = document.getElementById('promote-team-sel').value;
+  const selected = _planningData[ag] || [];
+  if (!teamId) { showToast('Select a team first', 'err'); return; }
+
+  const btn = document.getElementById('promote-confirm-btn');
+  btnLoading(btn, true);
+  const res = await api('promotePlanToTeam', { year: plSeason, ageGroup: ag, teamId, profileIds: selected });
+  btnLoading(btn, false);
+
+  if (res.error) { showToast('Promote failed: ' + res.error, 'err'); return; }
+
+  // Update local plData so Teams tab reflects change immediately
+  (plData.seasons||[]).forEach(s => {
+    if (+s.year === +plSeason && selected.includes(s.profileId)) s.assignedTeam = teamId;
+  });
+
+  closePromoteDialog();
+  showToast(`${res.updated} player${res.updated!==1?'s':''} assigned to team ✓`);
 }
 
 function showAgeGroup(ag) {
