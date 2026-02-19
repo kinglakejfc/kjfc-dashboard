@@ -3341,8 +3341,16 @@ async function renderPlOverview() {
     api('getLastImportDate', { season: plSeason }),
     api('getLapsedPlayers',  { year: plSeason })
   ]);
-  _lastImportDate = impRes.lastImport || null;
-  _lapsedCache    = lapRes.lapsed     || [];
+
+  // Use API result, or fall back to importedAt from already-loaded season rows
+  let importDate = (!impRes.error && impRes.lastImport) ? impRes.lastImport : null;
+  if (!importDate) {
+    const seasonRows = (plData.seasons || []).filter(s => String(s.year) === String(plSeason));
+    const dates = seasonRows.map(r => r.importedAt).filter(Boolean).sort();
+    if (dates.length) importDate = dates[dates.length - 1];
+  }
+  _lastImportDate = importDate || null;
+  _lapsedCache    = (!lapRes.error && lapRes.lapsed) ? lapRes.lapsed : [];
 
   _renderOverviewHTML();
 }
@@ -3358,20 +3366,31 @@ function _renderOverviewHTML() {
   const disp   = rows.filter(r => r.dispensation === true || r.dispensation === 'true').length;
   const lapsed = _lapsedCache || [];
 
-  // Data freshness
+  // Data freshness — parse robustly (ISO string, Sheets serial, or DD/MM/YYYY)
   let freshnessHTML = '';
   if (_lastImportDate) {
-    const imp  = new Date(_lastImportDate);
-    const now  = new Date();
-    const days = Math.floor((now - imp) / 86400000);
-    const fmt  = imp.toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
-    const col  = days > 30 ? '#dc2626' : days > 7 ? '#ca8a04' : '#16a34a';
-    freshnessHTML = `<div style="display:flex;align-items:center;gap:8px;background:#f8faf8;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:11px;margin-bottom:16px;">
-      <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></span>
-      <span>Data current as of <strong>${fmt}</strong></span>
-      <span style="color:${col};font-weight:700;">(${days === 0 ? 'today' : days + ' day' + (days!==1?'s':'')+' ago'})</span>
-      <button onclick="switchPlTab(document.querySelector('.pl-tab[data-tab=\"import\"]'),'import')" style="margin-left:auto;font-size:10px;background:none;border:1px solid var(--border);border-radius:5px;padding:2px 8px;cursor:pointer;color:var(--text-dim);">Import new data</button>
-    </div>`;
+    let imp = new Date(_lastImportDate);
+    // Sheets may return a date serial (number of days since 1899-12-30)
+    if (isNaN(imp.getTime()) && !isNaN(Number(_lastImportDate))) {
+      imp = new Date((Number(_lastImportDate) - 25569) * 86400000);
+    }
+    // Try DD/MM/YYYY format
+    if (isNaN(imp.getTime()) && typeof _lastImportDate === 'string') {
+      const m = _lastImportDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (m) imp = new Date(+m[3], +m[2]-1, +m[1]);
+    }
+    if (!isNaN(imp.getTime())) {
+      const now  = new Date();
+      const days = Math.floor((now - imp) / 86400000);
+      const fmt  = imp.toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
+      const col  = days > 30 ? '#dc2626' : days > 7 ? '#ca8a04' : '#16a34a';
+      freshnessHTML = `<div style="display:flex;align-items:center;gap:8px;background:#f8faf8;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:11px;margin-bottom:16px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></span>
+        <span>Data current as of <strong>${fmt}</strong></span>
+        <span style="color:${col};font-weight:700;">(${days === 0 ? 'today' : days + ' day' + (days!==1?'s':'')+' ago'})</span>
+        <button onclick="switchPlTab(document.querySelector('.pl-tab[data-tab=\'import\']'),'import')" style="margin-left:auto;font-size:10px;background:none;border:1px solid var(--border);border-radius:5px;padding:2px 8px;cursor:pointer;color:var(--text-dim);">Import new data</button>
+      </div>`;
+    }
   }
 
   // Schools count
