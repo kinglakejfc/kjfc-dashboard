@@ -155,7 +155,7 @@ header{
   position:sticky;top:102px;z-index:97;
   background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.06);
 }
-/* Row 1: dashboard selector pills — equal width, always all visible */
+/* Row 1: dashboard selector — equal width, centered vertically */
 .dbar-row1{
   display:flex;align-items:stretch;
   border-bottom:1px solid var(--border);
@@ -163,10 +163,12 @@ header{
 }
 .dbar-row1 .dtab.dashboard-tab{
   flex:1;justify-content:center;
-  min-height:40px;border-bottom:3px solid transparent;
+  min-height:44px;padding:10px 16px;
+  border-bottom:3px solid transparent;
   font-size:13px;font-weight:900;
+  letter-spacing:.6px;
 }
-/* Row 2: sub-tabs — spread evenly, no scroll */
+/* Row 2: sub-tabs */
 .dbar-row2{
   display:flex;align-items:stretch;
   border-bottom:2px solid var(--border);
@@ -185,7 +187,7 @@ header{
 }
 .dtab:hover{color:var(--text);background:var(--green-light);}
 .dtab.act{color:var(--green);border-bottom-color:var(--green);background:#fff;}
-.dtab.dashboard-tab.act{background:#fff;}
+.dtab.dashboard-tab.act{color:var(--green-dark,var(--green));background:#fff;border-bottom-color:var(--green);}
 .dtab-icon{font-size:14px;line-height:1;flex-shrink:0;}
 .dtab-lbl{font-size:11px;}
 /* Hamburger menu */
@@ -267,11 +269,7 @@ main{
   max-width:1440px;
   margin:0 auto;
 }
-main.recruitment-active{
-  max-width:100%;
-  padding-left:max(20px,env(safe-area-inset-left));
-  padding-right:max(20px,env(safe-area-inset-right));
-}
+/* Recruitment content uses same layout as sponsorship — no override needed */
 .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;}
 .stitle{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;text-transform:uppercase;letter-spacing:1px;color:var(--text);}
 .stitle span{color:var(--green);}
@@ -685,7 +683,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 .pl-tab.act{color:var(--green);border-bottom-color:var(--green);background:#fff;}
 .pl-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
 @media(max-width:600px){
-  .pl-kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .pl-kpi-grid{grid-template-columns:repeat(2,1fr) !important;}
   #overview-charts-grid{grid-template-columns:1fr !important;}
   #pl-body{padding:12px 0 !important;}
 }
@@ -1046,9 +1044,13 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     </div>
     </div><!-- /sponsor-content -->
 
-    <!-- RECRUITMENT CONTENT (inline, replaces the old full-screen modal) -->
+    <!-- RECRUITMENT CONTENT (inline, mirrors sponsorship layout) -->
     <div id="recruitment-content" style="display:none;">
-      <div id="pl-body" style="min-height:400px;padding:4px 0;"></div>
+      <!-- Section head mirrors .season-head in sponsorship -->
+      <div class="season-head">
+        <h2 class="section-title" id="pl-season-span">RECRUITMENT</h2>
+      </div>
+      <div id="pl-body" style="min-height:400px;padding-top:4px;"></div>
     </div>
   </main>
 
@@ -1768,6 +1770,11 @@ function renderUserUI() {
 //  SEASON TABS
 // ════════════════════════════════════════════════════════
 function renderSeasonTabs() {
+  // After render, scroll active tab into view at start of season bar
+  requestAnimationFrame(() => {
+    const act = document.querySelector('.stab.act');
+    if (act) act.scrollIntoView({ block:'nearest', inline:'start', behavior:'smooth' });
+  });
   document.getElementById('season-tabs').innerHTML = years.map(y =>
     `<button class="stab${+y===+activeSeason?' act':''}" data-year="${y}" onclick="switchSeason(${y})">${y}</button>`
   ).join('');
@@ -3261,10 +3268,6 @@ function switchDashboard(which) {
   document.getElementById('sponsor-content').style.display     = which === 'sponsors'    ? 'block' : 'none';
   document.getElementById('recruitment-content').style.display = which === 'recruitment' ? 'block' : 'none';
 
-  // Toggle main full-width class
-  const mainEl = document.getElementById('main-wrap');
-  if (mainEl) mainEl.classList.toggle('recruitment-active', which === 'recruitment');
-
   if (which === 'recruitment') {
     // Sync plSeason with current yellow bar season
     const activeTab = document.querySelector('.stab.act');
@@ -3631,13 +3634,18 @@ function _renderOverviewHTML() {
     .map(([s,d]) => ({ school:s, total: Object.values(d).reduce((a,b)=>a+b,0), data:d }))
     .sort((a,b)=>b.total-a.total).slice(0,6);
 
+  // Update section heading with season
+  const plSpanEl = document.getElementById('pl-season-span');
+  if (plSpanEl) plSpanEl.textContent = 'Recruitment ' + plSeason + ' Season';
+
   document.getElementById('pl-body').innerHTML = `
     <div style="padding:0 0 24px;">
       ${freshnessHTML}
 
-      <!-- KPI CARDS: 2-col grid on mobile, pairs naturally -->
-      <div class="pl-kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-bottom:20px;align-items:start;">
-        <!-- Registered + Not Returned (natural pair on mobile) -->
+      <!-- KPI CARDS — 4 col desktop, 2 col mobile
+           Order: Registered, Not Returned, New to Club, Dispensations,
+                  Gender Split (full row), Schools, Avg Age -->
+      <div class="pl-kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;align-items:start;">
         <div class="pl-kpi" onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'players\']'),'players')" style="cursor:pointer;">
           <div class="pl-kpi-label">Registered ${plSeason}</div>
           <div class="pl-kpi-val">${total}</div>
@@ -3645,42 +3653,45 @@ function _renderOverviewHTML() {
         </div>
         <div class="pl-kpi" onclick="openLapsedSlideover()" style="cursor:pointer;">
           <div class="pl-kpi-label">Not Returned</div>
-          <div class="pl-kpi-val" style="color:${lapsed.length>0?'var(--yellow-dark)':'var(--green-bright)'}">${lapsed.length}</div>
+          <div class="pl-kpi-val" style="color:${lapsed.length>0?'var(--red)':'var(--green-bright)'}">${lapsed.length}</div>
           <div class="pl-kpi-sub">from last season →</div>
         </div>
-        <!-- Gender Split (full row) -->
-        <div class="pl-kpi" style="cursor:pointer;grid-column:1/-1;" onclick="openGenderSlideover()">
-          <div class="pl-kpi-label">Gender Split</div>
-          <div style="display:flex;align-items:baseline;gap:10px;margin:6px 0 4px;flex-wrap:wrap;">
-            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:30px;color:var(--green);line-height:1;">${boys}</span>
-            <span style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;">Male</span>
-            <span style="font-size:18px;color:var(--border);font-weight:300;line-height:1;">|</span>
-            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:30px;color:var(--yellow-dark);line-height:1;">${girls}</span>
-            <span style="font-size:11px;font-weight:700;color:var(--yellow-dark);text-transform:uppercase;letter-spacing:.5px;">Female</span>
-          </div>
-          <div class="pl-kpi-sub">${total ? Math.round(boys/total*100) : 0}% male · ${total ? Math.round(girls/total*100) : 0}% female →</div>
-        </div>
-        <!-- New to Club + Avg Age (natural pair) -->
         <div class="pl-kpi" onclick="openNewPlayersSlideover()" style="cursor:pointer;">
           <div class="pl-kpi-label">New to Club</div>
           <div class="pl-kpi-val" style="color:var(--green-bright)">${newP}</div>
           <div class="pl-kpi-sub">first season →</div>
         </div>
-        <div class="pl-kpi" onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'players\']'),'players')" style="cursor:pointer;">
-          <div class="pl-kpi-label">Avg Age</div>
-          <div class="pl-kpi-val" style="color:var(--green)">${avgAge > 0 ? avgAge.toFixed(1) : '—'}</div>
-          <div class="pl-kpi-sub">years old →</div>
+        <div class="pl-kpi" onclick="openDispSlideover()" style="cursor:pointer;">
+          <div class="pl-kpi-label">Dispensations</div>
+          <div class="pl-kpi-val" style="color:var(--yellow-dark)">${disp}</div>
+          <div class="pl-kpi-sub">age override →</div>
         </div>
-        <!-- Schools + Dispensations -->
+      </div>
+
+      <!-- Gender Split — full-width card like sponsorship "received" panel -->
+      <div class="pl-kpi" style="cursor:pointer;margin-bottom:16px;" onclick="openGenderSlideover()">
+        <div class="pl-kpi-label">Gender Split</div>
+        <div style="display:flex;align-items:baseline;gap:14px;margin:6px 0 4px;flex-wrap:wrap;">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;color:var(--green);line-height:1;">${boys}</span>
+          <span style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;">Male</span>
+          <span style="font-size:22px;color:var(--border);font-weight:300;line-height:1;padding:0 4px;">|</span>
+          <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;color:var(--yellow-dark);line-height:1;">${girls}</span>
+          <span style="font-size:11px;font-weight:700;color:var(--yellow-dark);text-transform:uppercase;letter-spacing:.5px;">Female</span>
+        </div>
+        <div class="pl-kpi-sub">${total ? Math.round(boys/total*100) : 0}% male · ${total ? Math.round(girls/total*100) : 0}% female →</div>
+      </div>
+
+      <!-- Schools + Avg Age row -->
+      <div class="pl-kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;align-items:start;">
         <div class="pl-kpi" onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'schools\']'),'schools')" style="cursor:pointer;">
           <div class="pl-kpi-label">Schools</div>
           <div class="pl-kpi-val">${schools}</div>
           <div class="pl-kpi-sub">represented →</div>
         </div>
-        <div class="pl-kpi" onclick="openDispSlideover()" style="cursor:pointer;">
-          <div class="pl-kpi-label">Dispensations</div>
-          <div class="pl-kpi-val" style="color:var(--yellow-dark)">${disp}</div>
-          <div class="pl-kpi-sub">age override →</div>
+        <div class="pl-kpi" style="cursor:pointer;">
+          <div class="pl-kpi-label">Avg Age</div>
+          <div class="pl-kpi-val" style="color:var(--green)">${avgAge > 0 ? avgAge.toFixed(1) : '—'}</div>
+          <div class="pl-kpi-sub">years old →</div>
         </div>
       </div>      <!-- CHARTS SECTION -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;" id="overview-charts-grid">
@@ -3701,7 +3712,8 @@ function _renderOverviewHTML() {
         </div>
         <!-- Age group breakdown current season -->
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">${plSeason} Age Breakdown <span style="font-weight:400;text-transform:none;font-size:10px;">· click to view</span></div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:2px;">${plSeason} Age Breakdown</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px;">Age at 1 Jan ${plSeason} · click bar to view players</div>
           <canvas id="chart-age" height="130"></canvas>
         </div>
         <!-- Top schools -->
@@ -3719,8 +3731,12 @@ function _renderOverviewHTML() {
 
 function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
   if (typeof Chart === 'undefined') return;
-  const GREEN = '#2e7d4f', YELLOW = '#c9b400', GREEN_DARK = '#013C1E', GREEN_LIGHT = '#e6f0eb';
-  const BLUE = '#3b82f6', AMBER = '#f59e0b', PURPLE = '#7c3aed'; // kept for age group palette
+  // Use KJFC brand palette — greens + yellow as primary, gradient shades for age groups
+  const GREEN = '#2e7d4f', GREEN_DARK = '#013C1E', GREEN_MID = '#025a2d';
+  const YELLOW = '#c9b400', YELLOW_LIGHT = '#fef083';
+  const GREEN_LIGHT = '#e6f0eb';
+  // Age group palette: alternating green shades + yellow accent
+  const AGE_PALETTE = ['#013C1E','#025a2d','#2e7d4f','#4ead72','#a8d5b5','#c9b400','#fef083','#e6f0eb'];
   const labels = yoyData.map(d => d.year);
 
   // Shared compact options
@@ -3804,23 +3820,64 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
     });
   }
 
-  // ── Age breakdown current season ──
+  // ── Age breakdown current season — grouped into 2-year bands ──
   const ageEl = document.getElementById('chart-age');
   if (ageEl) {
     const ageRows = (plData.seasons||[]).filter(s=>+s.year===+plSeason);
-    const ageCounts = {};
-    ageRows.forEach(r => { const ag=effectiveAgeGroup(r); ageCounts[ag]=(ageCounts[ag]||0)+1; });
-    const ageKeys2 = Object.keys(ageCounts).sort((a,b)=>{
-      const na=parseInt(a.replace(/\D/g,'')), nb=parseInt(b.replace(/\D/g,''));
-      return (isNaN(na)?999:na)-(isNaN(nb)?999:nb);
+    // Compute natural age on Jan 1 of season year for each player
+    const bandCounts = {};   // "9-10" => count
+    const bandRawAgs = {};   // "9-10" => [ageGroup strings] for click drill
+    ageRows.forEach(r => {
+      const p = (plData.players||[]).find(pp=>pp.profileId===r.profileId);
+      if (!p || !p.dob) return;
+      // Natural age = years between dob and Jan 1 of season
+      const jan1 = new Date(+plSeason, 0, 1);
+      const d = new Date(p.dob.split('/').reverse().join('-'));
+      if (isNaN(d)) return;
+      let age = jan1.getFullYear() - d.getFullYear();
+      const m = jan1.getMonth() - d.getMonth();
+      if (m < 0 || (m === 0 && jan1.getDate() < d.getDate())) age--;
+      if (age < 5 || age > 20) return;
+      // 2-year band: round down to nearest odd — 9→"9-10", 10→"9-10", 11→"11-12" etc
+      const lo = age % 2 === 0 ? age - 1 : age;
+      const band = lo + '-' + (lo+1);
+      bandCounts[band] = (bandCounts[band]||0)+1;
+      if (!bandRawAgs[band]) bandRawAgs[band] = new Set();
+      // Track which UXX age groups fall in this band for click drill
+      const ag = effectiveAgeGroup(r);
+      if (ag) bandRawAgs[band].add(ag);
     });
+    // Sort bands numerically
+    const bands = Object.keys(bandCounts).sort((a,b)=>parseInt(a)-parseInt(b));
     ageEl._chart = new Chart(ageEl, {
       type: 'bar',
       data: {
-        labels: ageKeys2.map(ag => { const n=parseInt(ag.replace(/\D/g,'')); return isNaN(n)?ag:'Age '+(n-1); }),
-        datasets: [{ label:'Players', data: ageKeys2.map(k=>ageCounts[k]), backgroundColor: GREEN_LIGHT, borderColor: GREEN, borderWidth:1.5, borderRadius:3 }]
+        labels: bands,
+        datasets: [{ label:'Players', data: bands.map(b=>bandCounts[b]), backgroundColor: GREEN_LIGHT, borderColor: GREEN, borderWidth:1.5, borderRadius:3 }]
       },
-      options: { ...compact, onClick:(e,els) => { if(els.length) openAgeGroupSlideover(ageKeys2[els[0].index]); } }
+      options: { ...compact,
+        onClick:(e,els) => {
+          if (els.length) {
+            const band = bands[els[0].index];
+            const ags  = [...(bandRawAgs[band]||[])];
+            // Open the first matching age group slideover (or combine if needed)
+            if (ags.length === 1) openAgeGroupSlideover(ags[0]);
+            else if (ags.length > 1) {
+              // collect all pids from all matching groups
+              const allPids = [];
+              ags.forEach(ag => {
+                const r2 = (plData.seasons||[]).filter(s=>+s.year===+plSeason && effectiveAgeGroup(s)===ag);
+                r2.forEach(r=>allPids.push(r.profileId));
+              });
+              _openSimpleSlideover('Ages ' + band, allPids.length + ' players', allPids.map(pid=>{
+                const p2=(plData.players||[]).find(pp=>pp.profileId===pid)||{};
+                const s2=(plData.seasons||[]).find(s=>s.profileId===pid&&+s.year===+plSeason)||{};
+                return {p:p2,ps:s2,pid};
+              }));
+            }
+          }
+        }
+      }
     });
   }
 
