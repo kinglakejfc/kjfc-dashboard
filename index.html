@@ -3250,11 +3250,14 @@ function _renderOverviewHTML() {
   });
 
   // Untargeted natural group summary (for warning panel)
+  // Only show players who are actually eligible to play (have at least one eligible group)
+  // Use plain age label — "U6" etc are not real competition groups
   const untargetedByNat = {};
   untargeted.forEach(e => {
-    const ng = 'U' + e.nat;
-    untargetedByNat[ng] = (untargetedByNat[ng] || []);
-    untargetedByNat[ng].push(e);
+    if (e.eligible.length === 0) return; // too young — skip entirely
+    const label = e.nat !== null ? 'Age ' + e.nat + ' on Jan 1' : 'Unknown age';
+    untargetedByNat[label] = untargetedByNat[label] || [];
+    untargetedByNat[label].push(e);
   });
 
   const viableCount = activeGroups.filter(ag => {
@@ -3282,7 +3285,7 @@ function _renderOverviewHTML() {
       <div style="font-size:10px;color:${hex};font-weight:600;margin-top:-2px;margin-bottom:6px;">eligible to play</div>
       <div class="ag-bar-wrap"><div class="ag-bar-fill" style="width:${pct}%;background:${hex}"></div></div>
       <div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;">
-        <div class="ag-meta"><span style="color:var(--text);">🎯 ${natCnt} natural U${ag.slice(1)}</span></div>
+        <div class="ag-meta"><span style="color:var(--text);">🎯 ${natCnt} turn ${ag.slice(1)} this year</span></div>
         ${slots.length ? `<div class="ag-meta" style="color:#7c3aed;">⬆ ${slots.length} can slot from ${slotGroups.join(', ')}</div>` : ''}
         <div class="ag-meta">${s.boys}M · ${s.girls}F</div>
         <div class="ag-meta">Min ${min} · Max ${max}</div>
@@ -3294,20 +3297,23 @@ function _renderOverviewHTML() {
   }).join('');
 
   // ── UNTARGETED PLAYERS PANEL ─────────────────────────────────────
-  const untargetedNatGroups = Object.keys(untargetedByNat).sort((a,b)=>parseInt(a.slice(1))-parseInt(b.slice(1)));
+  const untargetedNatGroups = Object.keys(untargetedByNat).sort((a,b)=>{
+    const na = parseInt(a.replace(/\D/g,'')), nb = parseInt(b.replace(/\D/g,''));
+    return na - nb;
+  });
   const untargetedHTML = untargetedNatGroups.length ? `
     <div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:12px;padding:14px 16px;margin-top:16px;">
-      <div style="font-weight:800;font-size:13px;margin-bottom:10px;color:#92400e;">⚠️ Players in untargeted age groups</div>
+      <div style="font-weight:800;font-size:13px;margin-bottom:10px;color:#92400e;">⚠️ Players not in a targeted age group</div>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        ${untargetedNatGroups.map(ng => {
-          const players = untargetedByNat[ng];
+        ${untargetedNatGroups.map(label => {
+          const players = untargetedByNat[label];
           const canSlotInto = activeGroups.filter(ag => players.some(e => e.eligible.includes(ag)));
           return `<div style="background:#fff;border-radius:8px;padding:10px 12px;border-left:3px solid #f59e0b;">
             <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
-              <span style="font-weight:800;font-size:13px;">${ng}</span>
+              <span style="font-weight:800;font-size:13px;">${label}</span>
               <span style="font-size:12px;color:var(--text-dim);">${players.length} player${players.length!==1?'s':''}</span>
               ${canSlotInto.length
-                ? `<span style="font-size:12px;">→ can play in: ${canSlotInto.map(ag=>`<strong>${ag}</strong>`).join(', ')}</span>`
+                ? `<span style="font-size:12px;">→ eligible for: ${canSlotInto.map(ag=>'<strong>'+ag+'</strong>').join(', ')}</span>`
                 : `<span style="font-size:12px;color:#dc2626;">→ no targeted teams available for these players</span>`}
             </div>
           </div>`;
