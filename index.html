@@ -151,28 +151,68 @@ header{
 /* ════════════════════════════════════════
    DASHBOARD NAV BAR
    ════════════════════════════════════════ */
-.dbar{
-  background:#fff;
-  border-bottom:2px solid var(--border);
-  display:flex;align-items:stretch;
-  padding:0 max(16px,env(safe-area-inset-left));
-  gap:0;overflow-x:auto;scrollbar-width:none;
+.dashboard-nav{
   position:sticky;top:102px;z-index:97;
-  box-shadow:0 2px 6px rgba(0,0,0,.06);
+  background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.06);
 }
-.dbar::-webkit-scrollbar{display:none;}
-.dbar-section{display:flex;align-items:stretch;gap:0;flex-shrink:0;}
-.dbar-divider{width:1px;background:var(--border);margin:8px 4px;flex-shrink:0;}
+/* Row 1: dashboard selector pills — equal width, always all visible */
+.dbar-row1{
+  display:flex;align-items:stretch;
+  border-bottom:1px solid var(--border);
+  background:#f9fafb;
+}
+.dbar-row1 .dtab.dashboard-tab{
+  flex:1;justify-content:center;
+  min-height:40px;border-bottom:3px solid transparent;
+  font-size:13px;font-weight:900;
+}
+/* Row 2: sub-tabs — spread evenly, no scroll */
+.dbar-row2{
+  display:flex;align-items:stretch;
+  border-bottom:2px solid var(--border);
+  background:#fff;
+}
+/* Recruitment row: 7 tabs spread evenly */
+.dbar-row2-recruit .dtab{flex:1;justify-content:center;padding:0 4px;min-width:0;}
+/* Sponsor row: left-aligned */
+.dbar-row2:not(.dbar-row2-recruit) .dtab{padding:0 18px;}
 .dtab{
-  padding:0 16px;min-height:42px;border:none;border-bottom:3px solid transparent;
+  min-height:38px;border:none;border-bottom:3px solid transparent;
   background:transparent;font-size:12px;font-weight:700;cursor:pointer;
-  font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;
-  color:var(--text-dim);white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px;
+  font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.4px;
+  color:var(--text-dim);white-space:nowrap;transition:all .15s;
+  display:flex;align-items:center;gap:4px;
 }
 .dtab:hover{color:var(--text);background:var(--green-light);}
 .dtab.act{color:var(--green);border-bottom-color:var(--green);background:#fff;}
-.dtab.dashboard-tab{font-size:13px;font-weight:900;}
-.dtab.dashboard-tab.act{color:var(--green);border-bottom-color:var(--green);}
+.dtab.dashboard-tab.act{background:#fff;}
+.dtab-icon{font-size:14px;line-height:1;flex-shrink:0;}
+.dtab-lbl{font-size:11px;}
+/* Hamburger menu */
+.hamburger-btn{
+  display:none;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+  color:#fff;width:34px;height:34px;border-radius:7px;font-size:18px;cursor:pointer;
+  flex-shrink:0;align-items:center;justify-content:center;
+}
+.hamburger-menu{
+  display:none;position:absolute;top:100%;right:0;min-width:200px;
+  background:var(--card);border:1.5px solid var(--border);border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.14);z-index:500;padding:6px;
+  flex-direction:column;gap:2px;
+}
+.hamburger-menu.open{display:flex;}
+.hmenu-item{
+  width:100%;text-align:left;background:transparent;border:none;cursor:pointer;
+  padding:10px 12px;border-radius:7px;font-size:13px;font-weight:600;color:var(--text);
+  font-family:'Barlow',sans-serif;transition:background .12s;
+}
+.hmenu-item:hover{background:var(--green-light);}
+.hmenu-danger{color:var(--red);}
+.hmenu-divider{height:1px;background:var(--border);margin:4px 0;}
+/* Desktop nav group */
+.hnav-desktop{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.hnav-sync{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.hnav-signout{} /* always visible on desktop */
 
 /* ════════════════════════════════════════
    SEASON BAR
@@ -646,18 +686,8 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 .pl-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
 @media(max-width:600px){
   .pl-kpi-grid{grid-template-columns:repeat(2,1fr);}
-  /* dbar divider hidden on mobile */
-  .dbar-divider{display:none;}
-  .dtab.dashboard-tab{min-height:36px;font-size:12px;padding:0 12px;}
-  .dtab{min-height:34px;font-size:11px;padding:0 10px;}
-  /* overview charts stack on mobile */
   #overview-charts-grid{grid-template-columns:1fr !important;}
-  /* tighter recruitment body padding */
   #pl-body{padding:12px 0 !important;}
-}
-@media(max-width:420px){
-  .dtab.dashboard-tab{padding:0 8px;font-size:11px;}
-  .dtab{padding:0 7px;font-size:10px;}
 }
 .pl-kpi{background:var(--card);border:1.5px solid var(--border);border-radius:11px;padding:14px 16px;}
 .pl-kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:4px;}
@@ -693,34 +723,74 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 .import-drop.drag{border-color:var(--green);background:var(--green-light);}
 .lapsed-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
 
+/* ══════════════════════════════════════════
+   HAMBURGER MENU
+   ══════════════════════════════════════════ */
+.hamburger-btn{
+  display:none;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);
+  color:#fff;width:34px;height:34px;border-radius:6px;font-size:18px;cursor:pointer;
+  flex-shrink:0;align-items:center;justify-content:center;line-height:1;
+  transition:background .15s;
+}
+.hamburger-btn:hover{background:rgba(255,255,255,.25);}
+.hamburger-menu{
+  display:none;position:absolute;top:100%;right:0;z-index:500;
+  background:var(--card);border:1.5px solid var(--border);border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:180px;overflow:hidden;
+}
+.hamburger-menu.open{display:block;}
+.hmenu-item{
+  display:block;width:100%;text-align:left;padding:12px 16px;
+  background:none;border:none;font-size:13px;font-weight:600;cursor:pointer;
+  color:var(--text);transition:background .12s;font-family:'Barlow',sans-serif;
+}
+.hmenu-item:hover{background:var(--green-light);}
+.hmenu-danger{color:var(--red)!important;}
+.hmenu-divider{height:1px;background:var(--border);margin:4px 0;}
+/* dashboard tab labels - hidden on very small screens */
+.dtab-lbl{display:inline;}
+
 /* ── HEADER MOBILE ── */
 @media(max-width:640px){
-  header{padding:8px 12px;gap:6px;min-height:48px;}
+  /* ─ Header ─ */
+  header{padding:6px 12px;gap:5px;min-height:44px;position:relative;}
   .logo-text small{display:none;}
-  .logo-badge{width:32px;height:32px;font-size:12px;}
-  .logo-text h1{font-size:18px;}
-  /* Hide verbose items on mobile */
+  .logo-badge{width:30px;height:30px;font-size:11px;}
+  .logo-text h1{font-size:17px;}
   #user-name{display:none!important;}
-  .user-pill{padding:3px 6px 3px 4px;}
-  .hnav-btn{padding:4px 8px;font-size:10px;letter-spacing:0;}
+  .user-pill{padding:2px 5px 2px 3px;}
   #sync-state{display:none;}
   .sync-refresh{padding:4px 8px;font-size:10px;}
-  .lobtn{padding:4px 8px;font-size:10px;}
-  /* hright stays on same row but compact */
-  .hright{gap:3px;flex-wrap:nowrap;}
-  /* sbar tighter on mobile */
-  .sbar{padding:5px 10px;}
-  .stab{padding:4px 10px;font-size:11px;}
-  /* dbar tighter, recruiment sub-tabs scrollable */
-  .dbar{top:90px !important;}
-  #dash-sub-recruitment{overflow-x:auto;scrollbar-width:none;}
-  #dash-sub-recruitment::-webkit-scrollbar{display:none;}
+  .hnav-sync{gap:3px;}
+  .lobtn,.hnav-signout{display:none!important;} /* in hamburger */
+  .hnav-desktop{display:none!important;} /* in hamburger */
+  .hright{gap:4px;flex-wrap:nowrap;position:relative;}
+  .hamburger-btn{display:flex;}
+  /* ─ Yellow season bar ─ */
+  .sbar{padding:4px 10px;}
+  .stab{padding:3px 10px;font-size:11px;}
+  /* ─ Dashboard nav ─ */
+  .dashboard-nav{top:88px;}
+  .dbar-row1 .dtab.dashboard-tab{min-height:36px;font-size:12px;}
+  .dbar-row2 .dtab{min-height:32px;}
+  .dtab-lbl{font-size:10px;}
+  /* ─ Recruitment sub-tabs: constrain labels ─ */
+  .dbar-row2-recruit .dtab{flex:1;padding:0 2px;min-width:0;}
+  .dbar-row2-recruit .dtab-icon{font-size:13px;}
+  /* ─ Charts ─ */
+  #overview-charts-grid{grid-template-columns:1fr !important;}
+  #pl-body{padding:10px 0 !important;}
+}
+@media(max-width:420px){
+  /* Icon-only recruitment tabs — labels too cramped */
+  .dbar-row2-recruit .dtab-lbl{display:none;}
+  .dbar-row2-recruit .dtab-icon{font-size:16px;}
+  .dbar-row2-recruit .dtab{min-height:38px;padding:0;justify-content:center;}
+  #dashboard-nav{top:84px;}
 }
 @media(max-width:380px){
-  .logo-badge{width:28px;height:28px;font-size:10px;}
-  .logo-text h1{font-size:16px;}
-  .hnav-btn{padding:3px 5px;font-size:9px;}
-  #admin-nav-btns{display:none!important;}
+  .logo-badge{width:26px;height:26px;font-size:10px;}
+  .logo-text h1{font-size:15px;}
 }
 /* Table: hide contact column on mobile, allow horizontal scroll */
 @media(max-width:600px){
@@ -816,20 +886,34 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
         <div class="user-pill-init" id="user-init">?</div>
         <span id="user-name"></span>
       </div>
-      <!-- Admin nav (admin only) -->
-      <!-- Packages visible to all users -->
-      <button class="hnav-btn" onclick="openAdminModal('packages')">Packages</button>
-      <!-- Admin-only nav -->
-      <div id="admin-nav-btns" style="display:none;align-items:center;gap:4px;">
-        <button class="hnav-btn" onclick="openAdminModal('log')">Access Log</button>
-        <button class="hnav-btn" onclick="openAdminModal('users')">Users</button>
+      <!-- Desktop nav items (hidden on mobile via CSS) -->
+      <div id="header-nav-desktop" class="hnav-desktop">
+        <button class="hnav-btn" onclick="openAdminModal('packages')">Packages</button>
+        <div id="admin-nav-btns" style="display:none;align-items:center;gap:4px;">
+          <button class="hnav-btn" onclick="openAdminModal('log')">Access Log</button>
+          <button class="hnav-btn" onclick="openAdminModal('users')">Users</button>
+        </div>
       </div>
-      <!-- Sync + Refresh + Sign Out -->
-      <div style="display:flex;align-items:center;gap:4px;margin-left:auto;">
+      <!-- Sync + Refresh always visible -->
+      <div class="hnav-sync">
         <div id="sync-state" class="sync-ok">●&nbsp;Synced</div>
         <button class="sync-refresh" onclick="loadAll()"><span class="refresh-icon">↻</span> Refresh</button>
-        <button class="lobtn" onclick="doLogout()">Sign Out</button>
+        <button class="lobtn hnav-signout" onclick="doLogout()" id="signout-btn">Sign Out</button>
       </div>
+      <!-- Hamburger (mobile only) -->
+      <button id="hamburger-btn" class="hamburger-btn" onclick="toggleHamburger()" aria-label="Menu">☰</button>
+    </div>
+
+    <!-- Hamburger dropdown panel (hidden by default) -->
+    <div id="hamburger-menu" class="hamburger-menu">
+      <button class="hmenu-item" onclick="openAdminModal('packages');toggleHamburger()">📦 Packages</button>
+      <div id="hmenu-admin" style="display:none;">
+        <button class="hmenu-item" onclick="openAdminModal('log');toggleHamburger()">📋 Access Log</button>
+        <button class="hmenu-item" onclick="openAdminModal('users');toggleHamburger()">👥 Users</button>
+      </div>
+      <div class="hmenu-divider"></div>
+      <button class="hmenu-item" onclick="loadAll();toggleHamburger()">↻ Refresh</button>
+      <button class="hmenu-item hmenu-danger" onclick="doLogout()">Sign Out</button>
     </div>
   </header>
 
@@ -839,28 +923,27 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     <button class="sadd" onclick="openSeasonModal()">+ Season</button>
   </div>
 
-  <!-- DASHBOARD NAV BAR (3rd row: dashboard selector + contextual sub-tabs) -->
-  <div class="dbar" id="dashboard-nav">
-    <!-- Dashboard selector -->
-    <div class="dbar-section">
+  <!-- DASHBOARD NAV: Row 1 = dashboard switcher, Row 2 = sub-tabs -->
+  <div id="dashboard-nav" class="dashboard-nav">
+    <!-- Row 1: Dashboard selector — always fully visible, tabs fill width equally -->
+    <div class="dbar-row1">
       <button class="dtab dashboard-tab act" id="dash-tab-sponsors" onclick="switchDashboard('sponsors')">🏆 Sponsorship</button>
       <button class="dtab dashboard-tab" id="dash-tab-recruitment" onclick="switchDashboard('recruitment')" style="display:none;">🏉 Recruitment</button>
     </div>
-    <div class="dbar-divider"></div>
-    <!-- Sponsor sub-tabs (shown when sponsors active) -->
-    <div class="dbar-section" id="dash-sub-sponsors">
+    <!-- Row 2a: Sponsor sub-tabs -->
+    <div class="dbar-row2" id="dash-sub-sponsors">
       <button class="dtab act" id="dsub-add-sponsor" onclick="openAddOrg()">+ Add Sponsor</button>
       <button class="dtab" onclick="openAdminModal('packages')">Packages</button>
     </div>
-    <!-- Recruitment sub-tabs (shown when recruitment active, hidden initially) -->
-    <div class="dbar-section" id="dash-sub-recruitment" style="display:none;">
-      <button class="dtab act" data-tab="overview"  onclick="switchPlTab(this,'overview')">📊 Overview</button>
-      <button class="dtab"     data-tab="players"   onclick="switchPlTab(this,'players')">👥 Players</button>
-      <button class="dtab"     data-tab="planning"  onclick="switchPlTab(this,'planning')">📋 Planning</button>
-      <button class="dtab"     data-tab="teams"     onclick="switchPlTab(this,'teams')">🏉 Teams</button>
-      <button class="dtab"     data-tab="schools"   onclick="switchPlTab(this,'schools')">🏫 Schools</button>
-      <button class="dtab"     data-tab="import"    onclick="switchPlTab(this,'import')">📥 Import</button>
-      <button class="dtab"     data-tab="settings"  onclick="switchPlTab(this,'settings')">⚙️ Settings</button>
+    <!-- Row 2b: Recruitment sub-tabs — all 7 fit on one row, labels shorten on mobile -->
+    <div class="dbar-row2 dbar-row2-recruit" id="dash-sub-recruitment" style="display:none;">
+      <button class="dtab act" data-tab="overview"  onclick="switchPlTab(this,'overview')"><span class="dtab-icon">📊</span><span class="dtab-lbl">Overview</span></button>
+      <button class="dtab"     data-tab="players"   onclick="switchPlTab(this,'players')"><span class="dtab-icon">👥</span><span class="dtab-lbl">Players</span></button>
+      <button class="dtab"     data-tab="planning"  onclick="switchPlTab(this,'planning')"><span class="dtab-icon">📋</span><span class="dtab-lbl">Planning</span></button>
+      <button class="dtab"     data-tab="teams"     onclick="switchPlTab(this,'teams')"><span class="dtab-icon">🏉</span><span class="dtab-lbl">Teams</span></button>
+      <button class="dtab"     data-tab="schools"   onclick="switchPlTab(this,'schools')"><span class="dtab-icon">🏫</span><span class="dtab-lbl">Schools</span></button>
+      <button class="dtab"     data-tab="import"    onclick="switchPlTab(this,'import')"><span class="dtab-icon">📥</span><span class="dtab-lbl">Import</span></button>
+      <button class="dtab"     data-tab="settings"  onclick="switchPlTab(this,'settings')"><span class="dtab-icon">⚙️</span><span class="dtab-lbl">Settings</span></button>
     </div>
   </div>
 
@@ -1678,7 +1761,7 @@ function renderUserUI() {
     pic.src = me.picture; pic.style.display = 'block';
     if (initEl) initEl.style.display = 'none';
   }
-  if (me.admin) { const el = document.getElementById('admin-nav-btns'); if(el) el.style.display='flex'; const rt = document.getElementById('dash-tab-recruitment'); if(rt) rt.style.display='flex'; }  if (!me.edit) { const b = document.getElementById('add-sponsor-btn'); if(b) b.style.display='none'; }
+  if (me.admin) { const el = document.getElementById('admin-nav-btns'); if(el) el.style.display='flex'; const rt = document.getElementById('dash-tab-recruitment'); if(rt) rt.style.display='flex'; const hma = document.getElementById('hmenu-admin'); if(hma) hma.style.display='block'; }  if (!me.edit) { const b = document.getElementById('add-sponsor-btn'); if(b) b.style.display='none'; }
 }
 
 // ════════════════════════════════════════════════════════
@@ -1688,6 +1771,7 @@ function renderSeasonTabs() {
   document.getElementById('season-tabs').innerHTML = years.map(y =>
     `<button class="stab${+y===+activeSeason?' act':''}" data-year="${y}" onclick="switchSeason(${y})">${y}</button>`
   ).join('');
+  scrollActiveSeasonIntoView();
   // Only rebuild the year select if the SS modal is NOT open (avoid resetting user's choice)
   const sel = document.getElementById('sf-year');
   if (sel && !document.getElementById('ss-modal').classList.contains('open')) {
@@ -3121,6 +3205,36 @@ let plSearchQ    = '';
 let plDetailId   = null;  // profileId of open player detail
 
 // ── OPEN / CLOSE ─────────────────────────────────────────────────
+// ── HAMBURGER MENU ───────────────────────────────────────────────
+function toggleHamburger() {
+  const menu = document.getElementById('hamburger-menu');
+  menu.classList.toggle('open');
+}
+// Close hamburger if clicking outside
+document.addEventListener('click', function(e) {
+  const btn = document.getElementById('hamburger-btn');
+  const menu = document.getElementById('hamburger-menu');
+  if (menu && menu.classList.contains('open')) {
+    if (!btn.contains(e.target) && !menu.contains(e.target)) {
+      menu.classList.remove('open');
+    }
+  }
+});
+
+// ── SEASON TAB: scroll active season to left of yellow bar ───────
+function scrollActiveSeasonIntoView() {
+  const bar = document.getElementById('season-tabs');
+  if (!bar) return;
+  const active = bar.querySelector('.stab.act');
+  if (!active) return;
+  requestAnimationFrame(() => {
+    const sbar = bar.closest('.sbar');
+    if (!sbar) return;
+    // Scroll so active season tab is at the left edge (with small gap)
+    sbar.scrollLeft = Math.max(0, active.offsetLeft - 8);
+  });
+}
+
 function openPlayersModal() {
   // Legacy shim — just switch to recruitment dashboard
   switchDashboard('recruitment');
@@ -3266,9 +3380,8 @@ async function loadPlayerView() {
 
 // ── TAB SWITCHING ─────────────────────────────────────────────────
 function switchPlTab(btn, tab) {
-  // Update both the dtab buttons (new unified nav) and any legacy pl-tab buttons
+  // Update dtab buttons in recruitment sub-nav
   document.querySelectorAll('#dash-sub-recruitment .dtab').forEach(b => b.classList.toggle('act', b===btn));
-  document.querySelectorAll('.pl-tab').forEach(b => b.classList.toggle('act', b===btn));
   plTab = tab;
   renderPlTab();
 }
@@ -3448,6 +3561,10 @@ function _renderOverviewHTML() {
   const newP   = rows.filter(r => r.newToClub === 'Yes').length;
   const disp   = rows.filter(r => r.dispensation === true || r.dispensation === 'true').length;
   const lapsed = _lapsedCache || [];
+  // Average age (natural age = calcAge on Jan 1 of season)
+  const _ageVals = rows.map(r => r.calcAge != null ? +r.calcAge - 1 : null).filter(v => v !== null && v >= 5 && v <= 18);
+  const avgAge   = _ageVals.length ? _ageVals.reduce((a,b)=>a+b,0)/_ageVals.length : 0;
+
 
   // Data freshness — parse robustly (ISO string, Sheets serial, or DD/MM/YYYY)
   let freshnessHTML = '';
@@ -3471,7 +3588,7 @@ function _renderOverviewHTML() {
         <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></span>
         <span>Data current as of <strong>${fmt}</strong></span>
         <span style="color:${col};font-weight:700;">(${days === 0 ? 'today' : days + ' day' + (days!==1?'s':'')+' ago'})</span>
-        <button onclick="switchPlTab(document.querySelector('.pl-tab[data-tab=\'import\']'),'import')" style="margin-left:auto;font-size:10px;background:none;border:1px solid var(--border);border-radius:5px;padding:2px 8px;cursor:pointer;color:var(--text-dim);">Import new data</button>
+        <button onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'import\']'),'import')" style="margin-left:auto;font-size:10px;background:none;border:1px solid var(--border);border-radius:5px;padding:2px 8px;cursor:pointer;color:var(--text-dim);">Import new data</button>
       </div>`;
     }
   }
@@ -3518,47 +3635,54 @@ function _renderOverviewHTML() {
     <div style="padding:0 0 24px;">
       ${freshnessHTML}
 
-      <!-- KPI CARDS -->
+      <!-- KPI CARDS: 2-col grid on mobile, pairs naturally -->
       <div class="pl-kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-bottom:20px;align-items:start;">
-        <div class="pl-kpi" onclick="switchPlTab(document.querySelector('.pl-tab[data-tab=\\'players\\']'),'players')" style="cursor:pointer;">
+        <!-- Registered + Not Returned (natural pair on mobile) -->
+        <div class="pl-kpi" onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'players\']'),'players')" style="cursor:pointer;">
           <div class="pl-kpi-label">Registered ${plSeason}</div>
           <div class="pl-kpi-val">${total}</div>
           <div class="pl-kpi-sub">all players →</div>
         </div>
-        <div class="pl-kpi" style="cursor:pointer;grid-column:span 2;" onclick="openGenderSlideover()">
+        <div class="pl-kpi" onclick="openLapsedSlideover()" style="cursor:pointer;">
+          <div class="pl-kpi-label">Not Returned</div>
+          <div class="pl-kpi-val" style="color:${lapsed.length>0?'var(--yellow-dark)':'var(--green-bright)'}">${lapsed.length}</div>
+          <div class="pl-kpi-sub">from last season →</div>
+        </div>
+        <!-- Gender Split (full row) -->
+        <div class="pl-kpi" style="cursor:pointer;grid-column:1/-1;" onclick="openGenderSlideover()">
           <div class="pl-kpi-label">Gender Split</div>
           <div style="display:flex;align-items:baseline;gap:10px;margin:6px 0 4px;flex-wrap:wrap;">
-            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;color:var(--green);line-height:1;">${boys}</span>
-            <span style="font-size:11px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:.5px;">Male</span>
-            <span style="font-size:20px;color:var(--border);font-weight:300;line-height:1;">|</span>
-            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;color:#7c3aed;line-height:1;">${girls}</span>
-            <span style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;">Female</span>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:30px;color:var(--green);line-height:1;">${boys}</span>
+            <span style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;">Male</span>
+            <span style="font-size:18px;color:var(--border);font-weight:300;line-height:1;">|</span>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:30px;color:var(--yellow-dark);line-height:1;">${girls}</span>
+            <span style="font-size:11px;font-weight:700;color:var(--yellow-dark);text-transform:uppercase;letter-spacing:.5px;">Female</span>
           </div>
           <div class="pl-kpi-sub">${total ? Math.round(boys/total*100) : 0}% male · ${total ? Math.round(girls/total*100) : 0}% female →</div>
         </div>
+        <!-- New to Club + Avg Age (natural pair) -->
         <div class="pl-kpi" onclick="openNewPlayersSlideover()" style="cursor:pointer;">
           <div class="pl-kpi-label">New to Club</div>
           <div class="pl-kpi-val" style="color:var(--green-bright)">${newP}</div>
           <div class="pl-kpi-sub">first season →</div>
         </div>
-        <div class="pl-kpi" onclick="openLapsedSlideover()" style="cursor:pointer;">
-          <div class="pl-kpi-label">Not Returned</div>
-          <div class="pl-kpi-val" style="color:${lapsed.length>0?'#ca8a04':'var(--green-bright)'}">${lapsed.length}</div>
-          <div class="pl-kpi-sub">from last season →</div>
+        <div class="pl-kpi" onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'players\']'),'players')" style="cursor:pointer;">
+          <div class="pl-kpi-label">Avg Age</div>
+          <div class="pl-kpi-val" style="color:var(--green)">${avgAge > 0 ? avgAge.toFixed(1) : '—'}</div>
+          <div class="pl-kpi-sub">years old →</div>
         </div>
-        <div class="pl-kpi" onclick="switchPlTab(document.querySelector('.pl-tab[data-tab=\\'schools\\']'),'schools')" style="cursor:pointer;">
+        <!-- Schools + Dispensations -->
+        <div class="pl-kpi" onclick="switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'schools\']'),'schools')" style="cursor:pointer;">
           <div class="pl-kpi-label">Schools</div>
           <div class="pl-kpi-val">${schools}</div>
           <div class="pl-kpi-sub">represented →</div>
         </div>
         <div class="pl-kpi" onclick="openDispSlideover()" style="cursor:pointer;">
           <div class="pl-kpi-label">Dispensations</div>
-          <div class="pl-kpi-val" style="color:#7c3aed">${disp}</div>
+          <div class="pl-kpi-val" style="color:var(--yellow-dark)">${disp}</div>
           <div class="pl-kpi-sub">age override →</div>
         </div>
-      </div>
-
-      <!-- CHARTS SECTION -->
+      </div>      <!-- CHARTS SECTION -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;" id="overview-charts-grid">
         <!-- Total registrations YOY -->
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
@@ -3595,7 +3719,8 @@ function _renderOverviewHTML() {
 
 function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
   if (typeof Chart === 'undefined') return;
-  const GREEN = '#16a34a', BLUE = '#3b82f6', AMBER = '#f59e0b', PURPLE = '#7c3aed';
+  const GREEN = '#2e7d4f', YELLOW = '#c9b400', GREEN_DARK = '#013C1E', GREEN_LIGHT = '#e6f0eb';
+  const BLUE = '#3b82f6', AMBER = '#f59e0b', PURPLE = '#7c3aed'; // kept for age group palette
   const labels = yoyData.map(d => d.year);
 
   // Shared compact options
@@ -3623,8 +3748,8 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
       data: {
         labels,
         datasets: [
-          { type:'bar',  label:'Total', data: yoyData.map(d=>d.total), backgroundColor: GREEN+'55', borderColor: GREEN, borderWidth:1, borderRadius:3 },
-          { type:'line', label:'Trend', data: yoyData.map(d=>d.total), borderColor: GREEN, backgroundColor:'transparent', borderWidth:2, pointRadius:3, pointBackgroundColor: GREEN, tension:0.3 }
+          { type:'bar',  label:'Total', data: yoyData.map(d=>d.total), backgroundColor: GREEN_LIGHT, borderColor: GREEN, borderWidth:1.5, borderRadius:3 },
+          { type:'line', label:'Trend', data: yoyData.map(d=>d.total), borderColor: GREEN_DARK, backgroundColor:'transparent', borderWidth:2, pointRadius:3, pointBackgroundColor: GREEN_DARK, tension:0.3 }
         ]
       },
       options: { ...compact, onClick:(e,els) => { if(els.length) showYearPlayersSlideover(yoyData[els[0].index].year); } }
@@ -3639,8 +3764,8 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
       data: {
         labels,
         datasets: [
-          { label:'Male',   data: yoyData.map(d=>d.boys),  backgroundColor: BLUE+'88',   borderRadius:3 },
-          { label:'Female', data: yoyData.map(d=>d.girls), backgroundColor: PURPLE+'88', borderRadius:3 }
+          { label:'Male',   data: yoyData.map(d=>d.boys),  backgroundColor: GREEN+'cc',  borderColor:GREEN,  borderWidth:1, borderRadius:3 },
+          { label:'Female', data: yoyData.map(d=>d.girls), backgroundColor: YELLOW+'99', borderColor:YELLOW, borderWidth:1, borderRadius:3 }
         ]
       },
       options: { ...compact,
@@ -3656,7 +3781,7 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
   if (ageYoyEl && allYears.length) {
     const ageKeys = [...new Set((plData.seasons||[]).map(r=>effectiveAgeGroup(r)).filter(Boolean))]
       .sort((a,b)=>(parseInt(a.replace(/\D/g,''))||0)-(parseInt(b.replace(/\D/g,''))||0));
-    const palette = ['#16a34a','#3b82f6','#f59e0b','#7c3aed','#f43f5e','#06b6d4','#84cc16','#f97316','#ec4899'];
+    const ageColors = ['#013C1E','#2e7d4f','#c9b400','#6aa84f','#ca8a04','#4a7c59','#8db87a','#025a2d','#a8d5b5'];
     ageYoyEl._chart = new Chart(ageYoyEl, {
       type: 'bar',
       data: {
@@ -3667,7 +3792,7 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
             const yRows = (plData.seasons||[]).filter(s=>+s.year===+y);
             return yRows.filter(r=>effectiveAgeGroup(r)===ag).length;
           }),
-          backgroundColor: palette[i%palette.length]+'99',
+          backgroundColor: ageColors[i%ageColors.length]+'99',
           borderRadius: 2
         }))
       },
@@ -3693,7 +3818,7 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
       type: 'bar',
       data: {
         labels: ageKeys2.map(ag => { const n=parseInt(ag.replace(/\D/g,'')); return isNaN(n)?ag:'Age '+(n-1); }),
-        datasets: [{ label:'Players', data: ageKeys2.map(k=>ageCounts[k]), backgroundColor: GREEN+'66', borderColor: GREEN, borderWidth:1, borderRadius:3 }]
+        datasets: [{ label:'Players', data: ageKeys2.map(k=>ageCounts[k]), backgroundColor: GREEN_LIGHT, borderColor: GREEN, borderWidth:1.5, borderRadius:3 }]
       },
       options: { ...compact, onClick:(e,els) => { if(els.length) openAgeGroupSlideover(ageKeys2[els[0].index]); } }
     });
@@ -3702,7 +3827,7 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
   // ── Top schools line chart ──
   const schoolEl = document.getElementById('chart-schools');
   if (schoolEl && topSchools.length) {
-    const colors = [GREEN, BLUE, AMBER, PURPLE, '#f43f5e', '#06b6d4'];
+    const colors = [GREEN_DARK, GREEN, YELLOW, '#6aa84f', '#4a7c59', '#8db87a'];
     schoolEl._chart = new Chart(schoolEl, {
       type: 'line',
       data: {
@@ -3775,6 +3900,9 @@ function openNewPlayersSlideover() {
 
 function openLapsedSlideover() {
   const lapsed = _lapsedCache || [];
+  // Average age (natural age = calcAge on Jan 1 of season)
+  const _ageVals = rows.map(r => r.calcAge != null ? +r.calcAge - 1 : null).filter(v => v !== null && v >= 5 && v <= 18);
+  const avgAge   = _ageVals.length ? _ageVals.reduce((a,b)=>a+b,0)/_ageVals.length : 0;
   const pm     = plPlayerMap();
   // Lapsed players may not be in current season — build from lapsed array directly
   const body = document.getElementById('pso-body');
