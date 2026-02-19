@@ -4546,123 +4546,74 @@ let _importData = null; // { season, include[], exclude[] } set after parsing
 
 // ── TEAMS TAB ────────────────────────────────────────────────────────────────
 function renderPlTeams() {
-  const body     = document.getElementById('pl-body');
-  const teams    = plSeasonTeams();
-  const seasons  = (plData.players||[]).length ? null : null; // just for reference
-  const allSeasonRows = (plData.seasons||[]).filter(s => +s.year === +plSeason);
-  const pm       = plPlayerMap();
-
-  // Count players per team
-  const teamCount = {};
-  allSeasonRows.forEach(s => { if (s.assignedTeam) teamCount[s.assignedTeam] = (teamCount[s.assignedTeam]||0)+1; });
-  const unassigned = allSeasonRows.filter(s => !s.assignedTeam).length;
+  const body        = document.getElementById('pl-body');
+  const teams       = plSeasonTeams();
+  const allRows     = (plData.seasons||[]).filter(s => +s.year === +plSeason);
+  const pm          = plPlayerMap();
+  const teamCount   = {};
+  allRows.forEach(s => { if (s.assignedTeam) teamCount[s.assignedTeam] = (teamCount[s.assignedTeam]||0)+1; });
+  const unassigned  = allRows.filter(s => !s.assignedTeam).length;
 
   body.innerHTML = `
     <div style="padding:16px 20px;">
-
-      <!-- Header -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
         <div>
           <div style="font-size:14px;font-weight:700;">${plSeason} Teams</div>
-          <div style="font-size:12px;color:var(--text-dim);">${teams.length} team${teams.length!==1?'s':''} · ${allSeasonRows.length} registered · ${unassigned} unassigned</div>
+          <div style="font-size:12px;color:var(--text-dim);">${teams.length} team${teams.length!==1?'s':''} · ${allRows.length} registered · ${unassigned} unassigned</div>
         </div>
         <button class="mprimary" onclick="openTeamModal(null)" style="font-size:12px;padding:7px 14px;">+ Add Team</button>
       </div>
 
-      <!-- Teams grid -->
       ${teams.length === 0 ? `
         <div style="text-align:center;padding:40px 20px;color:var(--text-dim);">
           <div style="font-size:32px;margin-bottom:10px;">🏉</div>
           <div style="font-weight:700;margin-bottom:6px;">No teams set up for ${plSeason}</div>
-          <div style="font-size:13px;margin-bottom:16px;">Add teams first, then assign players from the Players tab or bulk-assign below.</div>
+          <div style="font-size:13px;margin-bottom:16px;">Create a team, then click it to assign players.</div>
           <button class="mprimary" onclick="openTeamModal(null)">+ Add First Team</button>
         </div>
       ` : `
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:24px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;">
           ${teams.map(t => {
-            const count  = teamCount[t.id] || 0;
-            const roster = allSeasonRows.filter(s => s.assignedTeam === t.id).map(s => pm[s.profileId]).filter(Boolean);
+            const count   = teamCount[t.id] || 0;
+            const roster  = allRows.filter(s => s.assignedTeam === t.id).map(s => pm[s.profileId]).filter(Boolean);
+            const pct     = Math.min(100, Math.round(count / 24 * 100));
+            const colour  = count === 0 ? '#9ca3af' : count < 14 ? '#ca8a04' : '#16a34a';
             return `
-              <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;">
-                <div style="background:var(--green);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
-                  <div>
-                    <div style="font-weight:800;font-size:14px;color:#fff;font-family:'Barlow Condensed',sans-serif;">${t.name}</div>
-                    <div style="font-size:11px;color:rgba(255,255,255,.75);">${[t.ageGroup,t.gender].filter(Boolean).join(' · ')}</div>
+              <div onclick="openTeamSlide('${t.id}')"
+                style="background:#fff;border:2px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;transition:all .15s;"
+                onmouseenter="this.style.borderColor='var(--green)';this.style.boxShadow='0 4px 16px rgba(22,163,74,.15)'"
+                onmouseleave="this.style.borderColor='var(--border)';this.style.boxShadow=''">
+                <!-- Header -->
+                <div style="background:var(--green);padding:12px 14px;display:flex;justify-content:space-between;align-items:flex-start;">
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-weight:900;font-size:15px;color:#fff;font-family:'Barlow Condensed',sans-serif;letter-spacing:.3px;">${t.name}</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:1px;">${[t.ageGroup,t.gender].filter(Boolean).join(' · ')}</div>
                   </div>
-                  <div style="display:flex;gap:6px;align-items:center;">
-                    <span style="background:rgba(255,255,255,.2);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">${count} player${count!==1?'s':''}</span>
+                  <div style="display:flex;gap:5px;margin-left:8px;" onclick="event.stopPropagation()">
                     <button onclick="openTeamModal('${t.id}')" style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">Edit</button>
-                    <button onclick="deleteTeamConfirm('${t.id}','${t.name.replace(/'/g,"\'")}')" style="background:rgba(255,0,0,.2);border:none;color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">✕</button>
+                    <button onclick="deleteTeamConfirm('${t.id}','${t.name.replace(/'/g,"&#39;")}')" style="background:rgba(255,0,0,.25);border:none;color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">✕</button>
                   </div>
                 </div>
-                <div style="padding:10px 14px;">
-                  ${t.coach ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">👤 Coach: <strong>${t.coach}</strong>${t.assistantCoach?' · Asst: <strong>'+t.assistantCoach+'</strong>':''}</div>` : ''}
+                <!-- Body -->
+                <div style="padding:12px 14px;">
+                  ${t.coach ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">👤 ${t.coach}${t.assistantCoach?' · '+t.assistantCoach:''}</div>` : ''}
+                  <!-- Count + bar -->
+                  <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px;">
+                    <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;color:${colour};">${count}</span>
+                    <span style="font-size:11px;color:var(--text-dim);">players assigned</span>
+                  </div>
+                  <div style="height:4px;background:#e5e7eb;border-radius:4px;margin-bottom:8px;">
+                    <div style="height:4px;border-radius:4px;background:${colour};width:${pct}%;transition:width .3s;"></div>
+                  </div>
+                  <!-- Mini roster -->
                   ${roster.length ? `
-                    <div style="display:flex;flex-wrap:wrap;gap:4px;">
-                      ${roster.map(p=>`<span style="background:var(--green-light);color:var(--green);font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;">${plName(p)}</span>`).join('')}
-                    </div>
-                  ` : `<div style="font-size:12px;color:var(--text-dim);font-style:italic;">No players assigned yet</div>`}
+                    <div style="display:flex;flex-wrap:wrap;gap:3px;">
+                      ${roster.slice(0,8).map(p=>`<span style="background:var(--green-light);color:var(--green);font-size:10px;font-weight:600;padding:1px 6px;border-radius:8px;">${plName(p)}</span>`).join('')}
+                      ${roster.length > 8 ? `<span style="background:#f3f4f6;color:var(--text-dim);font-size:10px;font-weight:600;padding:1px 6px;border-radius:8px;">+${roster.length-8} more</span>` : ''}
+                    </div>` : `<div style="font-size:11px;color:var(--text-dim);font-style:italic;">Click to assign players →</div>`}
                 </div>
               </div>`;
           }).join('')}
-        </div>
-
-        <!-- Bulk assign section -->
-        <div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-top:4px;">
-          <div style="background:var(--bg);padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <div style="font-weight:700;font-size:13px;flex:1;">
-              Bulk Assign Players
-              <span style="font-size:11px;font-weight:400;color:var(--text-dim);margin-left:8px;" id="ba-unassigned-count">${unassigned} unassigned</span>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              <select id="ba-team-select" style="font-size:12px;padding:5px 10px;border:1.5px solid var(--border);border-radius:7px;background:#fff;">
-                <option value="">— select team —</option>
-                ${teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
-              </select>
-              <button class="mprimary" onclick="bulkAssignSelected()" style="font-size:12px;padding:5px 14px;">Assign Selected</button>
-              <button class="msecondary" onclick="bulkUnassignSelected()" style="font-size:12px;padding:5px 12px;">Remove Team</button>
-            </div>
-          </div>
-          <div style="padding:8px 14px;background:#f8faf8;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <label style="font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--text-dim);">
-              <input type="checkbox" id="ba-select-all" onchange="bulkSelectAll(this.checked)" style="accent-color:var(--green);">
-              Select all
-            </label>
-            <span style="color:var(--border);">|</span>
-            ${[...new Set(allSeasonRows.map(s=>effectiveAgeGroup(s)))].sort().map(ag =>
-              `<label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer;background:var(--green-light);padding:2px 8px;border-radius:10px;">
-                <input type="checkbox" onchange="bulkSelectByAG('${ag}',this.checked)" style="accent-color:var(--green);">${ag}
-              </label>`
-            ).join('')}
-            <span style="margin-left:auto;font-size:11px;color:var(--text-dim);" id="ba-selected-count">0 selected</span>
-          </div>
-          <div style="max-height:400px;overflow-y:auto;">
-            <table style="width:100%;border-collapse:collapse;font-size:12px;">
-              <thead><tr style="position:sticky;top:0;background:#fff;z-index:1;">
-                <th style="width:32px;padding:6px 8px;border-bottom:1.5px solid var(--border);"></th>
-                <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1.5px solid var(--border);">Player</th>
-                <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1.5px solid var(--border);">Age</th>
-                <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1.5px solid var(--border);">Current Team</th>
-              </tr></thead>
-              <tbody>
-                ${allSeasonRows.sort((a,b)=>{
-                  const pa=pm[a.profileId]||{}, pb=pm[b.profileId]||{};
-                  const agA=effectiveAgeGroup(a), agB=effectiveAgeGroup(b);
-                  return agA.localeCompare(agB)||((pa.lastName||'').localeCompare(pb.lastName||''));
-                }).map(s => {
-                  const p = pm[s.profileId]; if (!p) return '';
-                  const ag = effectiveAgeGroup(s);
-                  const team = teams.find(t=>t.id===s.assignedTeam);
-                  return `<tr class="ba-row" data-sid="${s.id}" data-ag="${ag}" style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="bulkToggleRow(this)">
-                    <td style="padding:6px 8px;"><input type="checkbox" class="ba-cb" data-sid="${s.id}" style="accent-color:var(--green);" onclick="event.stopPropagation();bulkUpdateCount()"></td>
-                    <td style="padding:6px 8px;font-weight:600;">${plName(p)}</td>
-                    <td style="padding:6px 8px;"><span style="background:var(--green-light);color:var(--green);font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;">${ag||'?'}</span></td>
-                    <td style="padding:6px 8px;color:${team?'var(--text)':'var(--text-dim)'};">${team?team.name:'— unassigned —'}</td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
         </div>
       `}
     </div>
@@ -4682,14 +4633,16 @@ function renderPlTeams() {
               <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">AGE GROUP</div>
               <select id="tm-age" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
                 <option value="">—</option>
-                ${['U9','U10','U11','U12','U13','U14','U15','U16','U17'].map(g=>`<option>${g}</option>`).join('')}
+                ${ALL_AGE_GROUPS.map(ag=>`<option value="${ag}">${ag}</option>`).join('')}
               </select>
             </div>
             <div>
               <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">GENDER</div>
               <select id="tm-gender" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
                 <option value="">—</option>
-                <option>Boys</option><option>Girls</option><option>Mixed</option>
+                <option value="Mixed">Mixed</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
               </select>
             </div>
           </div>
@@ -4703,147 +4656,202 @@ function renderPlTeams() {
           </div>
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">NOTES</div>
-            <input id="tm-notes" type="text" placeholder="Any notes" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+            <textarea id="tm-notes" rows="2" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;resize:vertical;"></textarea>
           </div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
-          <button onclick="closeTeamModal()" style="padding:8px 18px;border:1.5px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:13px;">Cancel</button>
-          <button onclick="saveTeamModal()" class="mprimary" style="padding:8px 18px;font-size:13px;">Save Team</button>
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <button class="msecondary" onclick="closeTeamModal()" style="flex:1;">Cancel</button>
+          <button class="mprimary" onclick="saveTeamModal()" style="flex:2;">Save Team</button>
         </div>
       </div>
     </div>
   `;
 }
 
-function openTeamModal(teamId) {
-  const overlay = document.getElementById('team-modal-overlay');
-  const t = teamId ? (plData.teams||[]).find(x=>x.id===teamId) : null;
-  document.getElementById('team-modal-title').textContent = t ? 'Edit Team' : 'Add Team';
-  document.getElementById('tm-id').value       = t?.id || '';
-  document.getElementById('tm-name').value     = t?.name || '';
-  document.getElementById('tm-age').value      = t?.ageGroup || '';
-  document.getElementById('tm-gender').value   = t?.gender || '';
-  document.getElementById('tm-coach').value    = t?.coach || '';
-  document.getElementById('tm-acoach').value   = t?.assistantCoach || '';
-  document.getElementById('tm-notes').value    = t?.notes || '';
-  overlay.style.display = 'flex';
-}
+// ── TEAM ASSIGNMENT SLIDEOVER ──────────────────────────────────────
+// Click a team card → slide in from right → toggle players to assign/unassign
+// Same UX pattern as planning slideover. Saves immediately per toggle.
 
-function closeTeamModal() {
-  document.getElementById('team-modal-overlay').style.display = 'none';
-}
+let _teamSlideId     = null;
+let _teamSlideFilter = 'all'; // all | assigned | unassigned | byAG
 
-async function saveTeamModal() {
-  const name = document.getElementById('tm-name').value.trim();
-  if (!name) { showToast('Team name is required', 'err'); return; }
-  const payload = {
-    id:             document.getElementById('tm-id').value || undefined,
-    season:         plSeason,
-    name,
-    ageGroup:       document.getElementById('tm-age').value,
-    gender:         document.getElementById('tm-gender').value,
-    coach:          document.getElementById('tm-coach').value.trim(),
-    assistantCoach: document.getElementById('tm-acoach').value.trim(),
-    notes:          document.getElementById('tm-notes').value.trim(),
-  };
-  const res = await api('saveTeam', payload);
-  if (res.error) { showToast('Save failed: ' + res.error, 'err'); return; }
+async function openTeamSlide(teamId) {
+  _teamSlideId     = teamId;
+  _teamSlideFilter = 'all';
 
-  // Update local data
-  const existing = (plData.teams||[]).findIndex(t => t.id === payload.id);
-  const newTeam  = { ...payload, id: res.id };
-  if (existing >= 0) plData.teams[existing] = newTeam;
-  else { plData.teams = plData.teams || []; plData.teams.push(newTeam); }
+  // Reuse or create overlay/panel
+  let overlay = document.getElementById('team-slide-overlay');
+  let panel   = document.getElementById('team-slide');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'team-slide-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:3500;display:none;';
+    overlay.onclick = closeTeamSlide;
+    document.body.appendChild(overlay);
 
-  closeTeamModal();
-  showToast(payload.id ? 'Team updated' : 'Team added');
-  renderPlTeams();
-}
-
-async function deleteTeamConfirm(id, name) {
-  if (!confirm(`Delete team "${name}"? Players assigned to it will become unassigned.`)) return;
-  const res = await api('deleteTeam', { id });
-  if (res.error) { showToast('Delete failed: ' + res.error, 'err'); return; }
-  plData.teams = (plData.teams||[]).filter(t => t.id !== id);
-  // Clear assignedTeam for any player season that used this team
-  (plData.seasons||[]).forEach(s => { if (s.assignedTeam === id) s.assignedTeam = ''; });
-  showToast(`Team "${name}" deleted`);
-  renderPlTeams();
-}
-
-// ── BULK ASSIGN HELPERS ───────────────────────────────────────────────────────
-function bulkToggleRow(tr) {
-  const cb = tr.querySelector('.ba-cb');
-  if (!cb) return;
-  cb.checked = !cb.checked;
-  tr.style.background = cb.checked ? 'var(--green-light)' : '';
-  bulkUpdateCount();
-}
-
-function bulkUpdateCount() {
-  const all = document.querySelectorAll('.ba-cb');
-  const checked = [...all].filter(c => c.checked).length;
-  const el = document.getElementById('ba-selected-count');
-  if (el) el.textContent = checked + ' selected';
-  // Sync select-all checkbox state
-  const sa = document.getElementById('ba-select-all');
-  if (sa) sa.checked = checked > 0 && checked === all.length;
-  // Highlight rows
-  all.forEach(cb => {
-    const tr = cb.closest('tr');
-    if (tr) tr.style.background = cb.checked ? 'var(--green-light)' : '';
-  });
-}
-
-function bulkSelectAll(on) {
-  document.querySelectorAll('.ba-cb').forEach(cb => { cb.checked = on; });
-  bulkUpdateCount();
-}
-
-function bulkSelectByAG(ag, on) {
-  document.querySelectorAll(`.ba-row[data-ag="${ag}"] .ba-cb`).forEach(cb => { cb.checked = on; });
-  bulkUpdateCount();
-}
-
-async function bulkAssignSelected() {
-  const teamId = document.getElementById('ba-team-select')?.value;
-  if (!teamId) { showToast('Select a team first', 'err'); return; }
-  const checked = [...document.querySelectorAll('.ba-cb:checked')];
-  if (!checked.length) { showToast('Select at least one player', 'err'); return; }
-  const teamName = document.getElementById('ba-team-select')?.selectedOptions[0]?.text || '';
-
-  if (!confirm(`Assign ${checked.length} player${checked.length!==1?'s':''} to "${teamName}"?`)) return;
-
-  let done = 0, errors = 0;
-  for (const cb of checked) {
-    const sid = cb.dataset.sid;
-    const res = await api('updatePlayerSeason', { id: sid, assignedTeam: teamId });
-    if (res.error) { errors++; continue; }
-    const s = (plData.seasons||[]).find(x => x.id === sid);
-    if (s) s.assignedTeam = teamId;
-    done++;
+    panel = document.createElement('div');
+    panel.id = 'team-slide';
+    panel.style.cssText = 'position:fixed;top:0;right:0;height:100vh;width:440px;max-width:98vw;background:var(--card);z-index:3501;box-shadow:-4px 0 30px rgba(0,0,0,.18);transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;';
+    panel.innerHTML = `
+      <div style="background:var(--green);padding:14px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+        <div style="flex:1;">
+          <div id="tsl-title" style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;color:#fff;text-transform:uppercase;letter-spacing:.5px;"></div>
+          <div id="tsl-sub" style="font-size:11px;color:rgba(255,255,255,.7);margin-top:1px;"></div>
+        </div>
+        <button onclick="closeTeamSlide()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;">×</button>
+      </div>
+      <div id="tsl-stats" style="background:var(--bg);border-bottom:1.5px solid var(--border);padding:10px 16px;display:flex;gap:16px;flex-shrink:0;flex-wrap:wrap;font-size:12px;"></div>
+      <div id="tsl-filters" style="display:flex;border-bottom:1.5px solid var(--border);flex-shrink:0;background:#fff;overflow-x:auto;"></div>
+      <div id="tsl-body" style="flex:1;overflow-y:auto;padding:12px 14px;"></div>
+      <div style="padding:12px 16px;border-top:1.5px solid var(--border);background:#fff;flex-shrink:0;">
+        <button class="msecondary" onclick="closeTeamSlide()" style="width:100%;">Close</button>
+      </div>`;
+    document.body.appendChild(panel);
   }
-  if (errors) showToast(`${done} assigned, ${errors} failed`, 'err');
-  else showToast(`${done} player${done!==1?'s':''} assigned to ${teamName} ✓`);
-  renderPlTeams();
+
+  overlay.style.display = 'block';
+  panel.style.transform = 'translateX(0)';
+  _renderTeamSlide();
 }
 
-async function bulkUnassignSelected() {
-  const checked = [...document.querySelectorAll('.ba-cb:checked')];
-  if (!checked.length) { showToast('Select at least one player', 'err'); return; }
-  if (!confirm(`Remove team assignment from ${checked.length} player${checked.length!==1?'s':''}?`)) return;
+function _renderTeamSlide() {
+  const teamId  = _teamSlideId;
+  const teams   = plSeasonTeams();
+  const team    = teams.find(t => t.id === teamId);
+  if (!team) return;
 
-  let done = 0;
-  for (const cb of checked) {
-    const sid = cb.dataset.sid;
-    const res = await api('updatePlayerSeason', { id: sid, assignedTeam: '' });
-    if (!res.error) {
-      const s = (plData.seasons||[]).find(x => x.id === sid);
-      if (s) s.assignedTeam = '';
-      done++;
-    }
+  const allRows = (plData.seasons||[]).filter(s => +s.year === +plSeason);
+  const pm      = plPlayerMap();
+
+  // Players assigned to THIS team
+  const assignedIds = new Set(allRows.filter(s => s.assignedTeam === teamId).map(s => s.profileId));
+
+  // Build player list: assigned first, then unassigned, sorted by age group then name
+  const players = allRows.map(r => {
+    const p   = pm[r.profileId] || {};
+    const nat = playerNaturalAge(r);
+    const ag  = effectiveAgeGroup(r);
+    return { r, p, nat, ag, assigned: assignedIds.has(r.profileId) };
+  }).filter(e => e.p.firstName)
+    .sort((a, b) => {
+      if (a.assigned !== b.assigned) return a.assigned ? -1 : 1;
+      return (a.ag||'').localeCompare(b.ag||'') || (a.p.lastName||'').localeCompare(b.p.lastName||'');
+    });
+
+  // Filter
+  const agGroups = [...new Set(players.map(e => e.ag).filter(Boolean))].sort();
+  let visible = players;
+  if (_teamSlideFilter === 'assigned')   visible = players.filter(e => e.assigned);
+  if (_teamSlideFilter === 'unassigned') visible = players.filter(e => !e.assigned);
+  if (_teamSlideFilter.startsWith('ag:')) {
+    const filterAG = _teamSlideFilter.slice(3);
+    visible = players.filter(e => e.ag === filterAG);
   }
-  showToast(`${done} player${done!==1?'s':''} unassigned ✓`);
+
+  const assignedCount = players.filter(e => e.assigned).length;
+
+  document.getElementById('tsl-title').textContent = team.name;
+  document.getElementById('tsl-sub').textContent   = assignedCount + ' assigned · click player to toggle';
+  document.getElementById('tsl-stats').innerHTML   = `
+    <span><strong>${assignedCount}</strong> on team</span>
+    <span style="color:var(--text-dim);">|</span>
+    <span>${allRows.length - assignedCount} not assigned</span>
+    ${team.coach ? `<span style="color:var(--text-dim);">|</span><span>👤 ${team.coach}</span>` : ''}
+  `;
+
+  // Filter tabs: All | Assigned | Unassigned | each age group
+  document.getElementById('tsl-filters').innerHTML = [
+    { key: 'all',        label: `All (${players.length})` },
+    { key: 'assigned',   label: `On team (${assignedCount})` },
+    { key: 'unassigned', label: `Unassigned (${players.filter(e=>!e.assigned).length})` },
+    ...agGroups.map(ag => ({ key: 'ag:' + ag, label: ag + ' (' + players.filter(e=>e.ag===ag).length + ')' }))
+  ].map(f => `<button class="pl-tab${_teamSlideFilter===f.key?' act':''}"
+    onclick="tslSetFilter('${f.key}')"
+    style="flex-shrink:0;padding:8px 12px;font-size:11px;">${f.label}</button>`).join('');
+
+  if (!visible.length) {
+    document.getElementById('tsl-body').innerHTML =
+      '<div style="text-align:center;padding:30px;color:var(--text-dim);">No players in this view.</div>';
+    return;
+  }
+
+  document.getElementById('tsl-body').innerHTML = visible.map(({ r, p, ag, nat, assigned }) => {
+    const pid  = r.profileId;
+    const dob  = normaliseDobFE(p.dob) || p.dob || '—';
+    const gender = p.gender === 'Male' ? '♂' : p.gender === 'Female' ? '♀' : '';
+    // Check if assigned to a different team
+    const otherTeam = r.assignedTeam && r.assignedTeam !== teamId
+      ? (teams.find(t => t.id === r.assignedTeam)||{}).name : null;
+
+    return `<div id="tsl-row-${pid}" onclick="toggleTeamPlayer('${pid}','${r.id}')"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;margin-bottom:6px;
+               border:2px solid ${assigned ? 'var(--green)' : 'var(--border)'};
+               background:${assigned ? 'var(--green-light)' : '#fff'};transition:all .12s;"
+        onmouseenter="if(!this.classList.contains('tsl-saving'))this.style.background='${assigned?'#dcfce7':'#f0fdf4'}'"
+        onmouseleave="this.style.background='${assigned ? 'var(--green-light)' : '#fff'}'">
+      <!-- Tick circle -->
+      <div style="width:22px;height:22px;border-radius:50%;border:2px solid ${assigned ? 'var(--green)' : '#d1d5db'};
+                  background:${assigned ? 'var(--green)' : '#fff'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        ${assigned ? '<span style="color:#fff;font-size:12px;font-weight:900;">✓</span>' : ''}
+      </div>
+      <!-- Avatar -->
+      <div style="width:34px;height:34px;border-radius:50%;background:${assigned ? 'var(--green)' : 'var(--green-light)'};
+                  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;
+                  color:${assigned ? '#fff' : 'var(--green)'};font-family:'Barlow Condensed',sans-serif;flex-shrink:0;">
+        ${plInitials(p)}
+      </div>
+      <!-- Info -->
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:13px;">${plName(p)} <span style="color:var(--text-dim);font-weight:400;font-size:12px;">${gender}</span></div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">
+          ${ag ? `<span style="background:var(--green-light);color:var(--green);font-size:10px;font-weight:700;padding:1px 5px;border-radius:6px;margin-right:4px;">${ag}</span>` : ''}
+          DOB: ${dob}
+        </div>
+        ${otherTeam ? `<div style="font-size:10px;font-weight:700;color:#ca8a04;margin-top:2px;">⚠ On ${otherTeam}</div>` : ''}
+      </div>
+      <div style="color:var(--text-dim);font-size:16px;flex-shrink:0;">${assigned ? '✓' : '+'}</div>
+    </div>`;
+  }).join('');
+}
+
+function tslSetFilter(f) {
+  _teamSlideFilter = f;
+  _renderTeamSlide();
+}
+
+async function toggleTeamPlayer(profileId, seasonRowId) {
+  const teamId  = _teamSlideId;
+  const allRows = (plData.seasons||[]).filter(s => +s.year === +plSeason);
+  const row     = allRows.find(s => s.profileId === profileId);
+  if (!row) return;
+
+  const isAssigned = row.assignedTeam === teamId;
+  const newTeamId  = isAssigned ? '' : teamId;
+
+  // Optimistic update
+  row.assignedTeam = newTeamId;
+  _renderTeamSlide();
+
+  const res = await api('updatePlayerSeason', { id: row.id, assignedTeam: newTeamId });
+  if (res.error) {
+    // Revert
+    row.assignedTeam = isAssigned ? teamId : '';
+    _renderTeamSlide();
+    showToast('Failed to update: ' + res.error, 'err');
+    return;
+  }
+
+  // Refresh team cards in background
+  if (document.querySelector('#pl-body .mprimary')) renderPlTeams();
+}
+
+function closeTeamSlide() {
+  const overlay = document.getElementById('team-slide-overlay');
+  const panel   = document.getElementById('team-slide');
+  if (overlay) overlay.style.display = 'none';
+  if (panel)   panel.style.transform = 'translateX(100%)';
+  _teamSlideId = null;
+  // Refresh cards with latest counts
   renderPlTeams();
 }
 
