@@ -644,7 +644,21 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 .pl-tab:hover{color:var(--text);background:var(--green-light);}
 .pl-tab.act{color:var(--green);border-bottom-color:var(--green);background:#fff;}
 .pl-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
-@media(max-width:600px){.pl-kpi-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){
+  .pl-kpi-grid{grid-template-columns:repeat(2,1fr);}
+  /* dbar divider hidden on mobile */
+  .dbar-divider{display:none;}
+  .dtab.dashboard-tab{min-height:36px;font-size:12px;padding:0 12px;}
+  .dtab{min-height:34px;font-size:11px;padding:0 10px;}
+  /* overview charts stack on mobile */
+  #overview-charts-grid{grid-template-columns:1fr !important;}
+  /* tighter recruitment body padding */
+  #pl-body{padding:12px 0 !important;}
+}
+@media(max-width:420px){
+  .dtab.dashboard-tab{padding:0 8px;font-size:11px;}
+  .dtab{padding:0 7px;font-size:10px;}
+}
 .pl-kpi{background:var(--card);border:1.5px solid var(--border);border-radius:11px;padding:14px 16px;}
 .pl-kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:4px;}
 .pl-kpi-val{font-size:28px;font-weight:900;font-family:'Barlow Condensed',sans-serif;color:var(--green);}
@@ -681,29 +695,32 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 
 /* ── HEADER MOBILE ── */
 @media(max-width:640px){
-  header{flex-wrap:wrap;padding:8px 12px;gap:6px;}
-  .logo-area{flex:1;min-width:0;}
-  /* hright drops to its own full-width row */
-  .hright{
-    width:100%;
-    flex-wrap:wrap;
-    gap:4px;
-    justify-content:flex-end;
-  }
-  /* Hide name in user pill - just show avatar circle */
+  header{padding:8px 12px;gap:6px;min-height:48px;}
+  .logo-text small{display:none;}
+  .logo-badge{width:32px;height:32px;font-size:12px;}
+  .logo-text h1{font-size:18px;}
+  /* Hide verbose items on mobile */
   #user-name{display:none!important;}
-  .user-pill{padding:3px 7px 3px 4px;}
-  /* Compact buttons */
+  .user-pill{padding:3px 6px 3px 4px;}
   .hnav-btn{padding:4px 8px;font-size:10px;letter-spacing:0;}
   #sync-state{display:none;}
   .sync-refresh{padding:4px 8px;font-size:10px;}
   .lobtn{padding:4px 8px;font-size:10px;}
+  /* hright stays on same row but compact */
+  .hright{gap:3px;flex-wrap:nowrap;}
+  /* sbar tighter on mobile */
+  .sbar{padding:5px 10px;}
+  .stab{padding:4px 10px;font-size:11px;}
+  /* dbar tighter, recruiment sub-tabs scrollable */
+  .dbar{top:90px !important;}
+  #dash-sub-recruitment{overflow-x:auto;scrollbar-width:none;}
+  #dash-sub-recruitment::-webkit-scrollbar{display:none;}
 }
 @media(max-width:380px){
-  .logo-text small{display:none;}
-  .logo-badge{width:30px;height:30px;font-size:11px;}
+  .logo-badge{width:28px;height:28px;font-size:10px;}
   .logo-text h1{font-size:16px;}
-  .hnav-btn{padding:3px 6px;font-size:9px;}
+  .hnav-btn{padding:3px 5px;font-size:9px;}
+  #admin-nav-btns{display:none!important;}
 }
 /* Table: hide contact column on mobile, allow horizontal scroll */
 @media(max-width:600px){
@@ -1617,12 +1634,21 @@ async function loadAll() {
     rebuildTierLookups();
     populatePackageSelect();
     renderSeasonTabs();
-    render();
+    render(); // always update sponsorship KPIs
     setSyncState('ok', 'Synced · ' + fmtTime(new Date()));
-    // If recruitment dashboard is active, refresh now that sponsor year data is loaded
-    if (typeof _currentDashboard !== 'undefined' && _currentDashboard === 'recruitment') {
+    // Restore whichever dashboard was active — don't reset to sponsors on refresh
+    const wasDash = typeof _currentDashboard !== 'undefined' ? _currentDashboard : 'sponsors';
+    if (wasDash === 'recruitment') {
+      // Re-apply recruitment panel visibility (render() above doesn't touch dashboard state)
+      document.getElementById('sponsor-content').style.display     = 'none';
+      document.getElementById('recruitment-content').style.display = 'block';
+      document.getElementById('dash-tab-sponsors').classList.remove('act');
+      document.getElementById('dash-tab-recruitment').classList.add('act');
+      document.getElementById('dash-sub-sponsors').style.display    = 'none';
+      document.getElementById('dash-sub-recruitment').style.display = 'flex';
       initPlayerSeasonSel();
-      if (!plData) loadPlayerData();
+      plData = null; _seasonCfg = null; _planningLoaded = false;
+      loadPlayerData();
     }
   } catch(e) {
     setSyncState('err', 'Load failed: ' + e.message);
@@ -3533,26 +3559,31 @@ function _renderOverviewHTML() {
       </div>
 
       <!-- CHARTS SECTION -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;" id="overview-charts-grid">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;" id="overview-charts-grid">
         <!-- Total registrations YOY -->
-        <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:16px;">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Year on Year Registrations</div>
-          <canvas id="chart-yoy" height="180"></canvas>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">Registrations by Year</div>
+          <canvas id="chart-yoy" height="130"></canvas>
         </div>
         <!-- Gender YOY -->
-        <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:16px;">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Gender Split by Year</div>
-          <canvas id="chart-gender" height="180"></canvas>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">Gender by Year</div>
+          <canvas id="chart-gender" height="130"></canvas>
+        </div>
+        <!-- Age group breakdown YOY -->
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">Age Groups by Year <span style="font-weight:400;text-transform:none;font-size:10px;">· click to view</span></div>
+          <canvas id="chart-age-yoy" height="130"></canvas>
         </div>
         <!-- Age group breakdown current season -->
-        <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:16px;">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">${plSeason} Age Breakdown <span style="font-size:10px;font-weight:400;text-transform:none;color:var(--text-dim);">click bar to view players</span></div>
-          <canvas id="chart-age" height="180"></canvas>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">${plSeason} Age Breakdown <span style="font-weight:400;text-transform:none;font-size:10px;">· click to view</span></div>
+          <canvas id="chart-age" height="130"></canvas>
         </div>
         <!-- Top schools -->
-        <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:16px;">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Top Schools by Year <span style="font-size:10px;font-weight:400;text-transform:none;color:var(--text-dim);">click bar to view players</span></div>
-          <canvas id="chart-schools" height="180"></canvas>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;grid-column:1/-1;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">Top Schools by Year <span style="font-weight:400;text-transform:none;font-size:10px;">· click to view</span></div>
+          <canvas id="chart-schools" height="110"></canvas>
         </div>
       </div>
     </div>
@@ -3567,8 +3598,19 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
   const GREEN = '#16a34a', BLUE = '#3b82f6', AMBER = '#f59e0b', PURPLE = '#7c3aed';
   const labels = yoyData.map(d => d.year);
 
+  // Shared compact options
+  const compact = {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#9ca3af' } },
+      y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, color: '#9ca3af', maxTicksLimit: 5 } }
+    }
+  };
+
   // Destroy any existing charts
-  ['chart-yoy','chart-gender','chart-age','chart-schools'].forEach(id => {
+  ['chart-yoy','chart-gender','chart-age-yoy','chart-age','chart-schools'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el._chart) { el._chart.destroy(); }
   });
@@ -3581,13 +3623,11 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
       data: {
         labels,
         datasets: [
-          { type:'bar',  label:'Total', data: yoyData.map(d=>d.total), backgroundColor: GREEN+'cc', borderColor: GREEN, borderWidth:1.5, borderRadius:4 },
-          { type:'line', label:'Trend', data: yoyData.map(d=>d.total), borderColor: AMBER, backgroundColor:'transparent', borderWidth:2.5, pointRadius:4, pointBackgroundColor: AMBER, tension:0.3 }
+          { type:'bar',  label:'Total', data: yoyData.map(d=>d.total), backgroundColor: GREEN+'55', borderColor: GREEN, borderWidth:1, borderRadius:3 },
+          { type:'line', label:'Trend', data: yoyData.map(d=>d.total), borderColor: GREEN, backgroundColor:'transparent', borderWidth:2, pointRadius:3, pointBackgroundColor: GREEN, tension:0.3 }
         ]
       },
-      options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:10 } } },
-        onClick:(e,els) => { if(els.length) { const yr = yoyData[els[0].index].year; showYearPlayersSlideover(yr); } }
-      }
+      options: { ...compact, onClick:(e,els) => { if(els.length) showYearPlayersSlideover(yoyData[els[0].index].year); } }
     });
   }
 
@@ -3599,13 +3639,42 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
       data: {
         labels,
         datasets: [
-          { label:'Male',   data: yoyData.map(d=>d.boys),  backgroundColor: BLUE+'cc',   borderRadius:4 },
-          { label:'Female', data: yoyData.map(d=>d.girls), backgroundColor: PURPLE+'cc', borderRadius:4 }
+          { label:'Male',   data: yoyData.map(d=>d.boys),  backgroundColor: BLUE+'88',   borderRadius:3 },
+          { label:'Female', data: yoyData.map(d=>d.girls), backgroundColor: PURPLE+'88', borderRadius:3 }
         ]
       },
-      options: { responsive:true, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12, font:{ size:10 } } } },
-        scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true } },
-        onClick:(e,els) => { if(els.length) { const yr = yoyData[els[0].index].year; showYearPlayersSlideover(yr); } }
+      options: { ...compact,
+        plugins: { legend: { position:'bottom', labels:{ boxWidth:9, font:{ size:9 }, color:'#6b7280' } } },
+        scales: { ...compact.scales, x: { ...compact.scales.x, stacked:true }, y: { ...compact.scales.y, stacked:true } },
+        onClick:(e,els) => { if(els.length) showYearPlayersSlideover(yoyData[els[0].index].year); }
+      }
+    });
+  }
+
+  // ── Age groups by year (stacked bars) ──
+  const ageYoyEl = document.getElementById('chart-age-yoy');
+  if (ageYoyEl && allYears.length) {
+    const ageKeys = [...new Set((plData.seasons||[]).map(r=>effectiveAgeGroup(r)).filter(Boolean))]
+      .sort((a,b)=>(parseInt(a.replace(/\D/g,''))||0)-(parseInt(b.replace(/\D/g,''))||0));
+    const palette = ['#16a34a','#3b82f6','#f59e0b','#7c3aed','#f43f5e','#06b6d4','#84cc16','#f97316','#ec4899'];
+    ageYoyEl._chart = new Chart(ageYoyEl, {
+      type: 'bar',
+      data: {
+        labels: allYears,
+        datasets: ageKeys.map((ag,i) => ({
+          label: ag,
+          data: allYears.map(y => {
+            const yRows = (plData.seasons||[]).filter(s=>+s.year===+y);
+            return yRows.filter(r=>effectiveAgeGroup(r)===ag).length;
+          }),
+          backgroundColor: palette[i%palette.length]+'99',
+          borderRadius: 2
+        }))
+      },
+      options: { ...compact,
+        plugins: { legend: { position:'bottom', labels:{ boxWidth:8, font:{ size:9 }, color:'#6b7280', padding:6 } } },
+        scales: { ...compact.scales, x: { ...compact.scales.x, stacked:true }, y: { ...compact.scales.y, stacked:true } },
+        onClick:(e,els) => { if(els.length) { const ag=ageKeys[els[0].datasetIndex]; const yr=allYears[els[0].index]; openSchoolYearSlideover && openAgeGroupSlideover(ag); } }
       }
     });
   }
@@ -3616,21 +3685,17 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
     const ageRows = (plData.seasons||[]).filter(s=>+s.year===+plSeason);
     const ageCounts = {};
     ageRows.forEach(r => { const ag=effectiveAgeGroup(r); ageCounts[ag]=(ageCounts[ag]||0)+1; });
-    const ageKeys = Object.keys(ageCounts).sort((a,b)=>{
+    const ageKeys2 = Object.keys(ageCounts).sort((a,b)=>{
       const na=parseInt(a.replace(/\D/g,'')), nb=parseInt(b.replace(/\D/g,''));
       return (isNaN(na)?999:na)-(isNaN(nb)?999:nb);
     });
     ageEl._chart = new Chart(ageEl, {
       type: 'bar',
       data: {
-        labels: ageKeys.map(ag => { const n=parseInt(ag.replace(/\D/g,'')); return isNaN(n)?ag:'Age '+(n-1); }),
-        datasets: [{ label:'Players', data: ageKeys.map(k=>ageCounts[k]), backgroundColor: GREEN+'cc', borderColor: GREEN, borderWidth:1.5, borderRadius:4 }]
+        labels: ageKeys2.map(ag => { const n=parseInt(ag.replace(/\D/g,'')); return isNaN(n)?ag:'Age '+(n-1); }),
+        datasets: [{ label:'Players', data: ageKeys2.map(k=>ageCounts[k]), backgroundColor: GREEN+'66', borderColor: GREEN, borderWidth:1, borderRadius:3 }]
       },
-      options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:5 } } },
-        onClick:(e,els) => {
-          if(els.length) { const ag=ageKeys[els[0].index]; openAgeGroupSlideover(ag); }
-        }
-      }
+      options: { ...compact, onClick:(e,els) => { if(els.length) openAgeGroupSlideover(ageKeys2[els[0].index]); } }
     });
   }
 
@@ -3643,22 +3708,17 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
       data: {
         labels: allYears,
         datasets: topSchools.map((s,i) => ({
-          label: s.school.length > 18 ? s.school.slice(0,18)+'…' : s.school,
+          label: s.school.length > 20 ? s.school.slice(0,20)+'…' : s.school,
           data:  allYears.map(y => s.data[y] || 0),
           borderColor: colors[i%colors.length],
-          backgroundColor: colors[i%colors.length]+'33',
-          borderWidth: 2, pointRadius: 3, tension: 0.3,
-          fill: false
+          backgroundColor: 'transparent',
+          borderWidth: 1.5, pointRadius: 2, tension: 0.3,
         }))
       },
-      options: { responsive:true, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, font:{ size:9 } } } },
-        scales:{ y:{ beginAtZero:true, ticks:{ stepSize:2 } } },
+      options: { ...compact,
+        plugins: { legend: { position:'bottom', labels:{ boxWidth:9, font:{ size:9 }, color:'#6b7280', padding:6 } } },
         onClick:(e,els) => {
-          if(els.length) {
-            const ds = topSchools[els[0].datasetIndex];
-            const yr = allYears[els[0].index];
-            openSchoolYearSlideover(ds.school, yr);
-          }
+          if(els.length) { const ds=topSchools[els[0].datasetIndex]; openSchoolYearSlideover(ds.school, allYears[els[0].index]); }
         }
       }
     });
