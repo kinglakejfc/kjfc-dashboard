@@ -3301,18 +3301,39 @@ function openPlayerDetail(profileId) {
   const calcAgeVal = ps.calcAge ? +ps.calcAge : null;
   const eligible = calcAgeVal ? [calcAgeVal-1, calcAgeVal, calcAgeVal+1].filter(a=>a>=9&&a<=17).map(a=>'U'+a) : [];
 
+  // Build seasons history for this player
+  const allPlayerSeasons = (plData.seasons||[])
+    .filter(s => s.profileId === profileId)
+    .sort((a,b) => b.year - a.year);
+
+  // Determine photo src: fileId stored → use Drive thumbnail URL pattern
+  const photoSrc = photo
+    ? (photo.startsWith('http') ? photo : `https://lh3.googleusercontent.com/d/${photo}=s200`)
+    : null;
+
   document.getElementById('pdm-body').innerHTML = `
-    <!-- Photo -->
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
-      <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;background:var(--green-light);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:var(--green);font-family:'Barlow Condensed',sans-serif;">
-        ${photo?`<img src="${photo}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">`:''}
-        ${init}
+    <!-- Photo + consent -->
+    <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+      <!-- Avatar / photo -->
+      <div style="position:relative;flex-shrink:0;">
+        <div id="pdm-avatar-large" style="width:72px;height:72px;border-radius:50%;overflow:hidden;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:var(--green);font-family:'Barlow Condensed',sans-serif;cursor:pointer;border:2px solid var(--border);" onclick="document.getElementById('pdm-photo-file').click()" title="Click to upload photo">
+          ${photoSrc ? `<img id="pdm-photo-img" src="${photoSrc}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">` : ''}
+          <span id="pdm-avatar-initials">${init}</span>
+        </div>
+        <div style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid #fff;" onclick="document.getElementById('pdm-photo-file').click()" title="Upload photo">
+          <span style="color:#fff;font-size:10px;line-height:1;">📷</span>
+        </div>
+        <input type="file" id="pdm-photo-file" accept="image/*" style="display:none" onchange="handlePhotoUpload(this)">
       </div>
-      <div>
-        <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Profile photo URL</div>
-        <input id="pdm-photo" type="text" value="${p.photoUrl||''}" placeholder="https://... or leave blank for initials"
-          style="width:280px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;">
-        <div style="margin-top:8px;">
+
+      <!-- Photo controls -->
+      <div style="flex:1;">
+        <div id="pdm-photo-status" style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">
+          ${photoSrc ? '✓ Photo stored in Drive (private)' : 'No photo — click avatar to upload'}
+        </div>
+        ${photoSrc ? `<button onclick="removePlayerPhoto()" style="font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;color:var(--text-dim);">Remove photo</button>` : ''}
+        <input type="hidden" id="pdm-photo" value="${p.photoUrl||''}">
+        <div style="margin-top:10px;">
           <label style="font-size:12px;display:flex;align-items:center;gap:7px;cursor:pointer;">
             <input type="checkbox" id="pdm-photo-consent" ${p.photoConsent!=='No'?'checked':''}
               style="width:14px;height:14px;accent-color:var(--green);cursor:pointer;">
@@ -3323,6 +3344,24 @@ function openPlayerDetail(profileId) {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Registered seasons -->
+    <div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">Registered Seasons</div>
+      ${allPlayerSeasons.length ? `
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${allPlayerSeasons.map(s => {
+            const team = plTeamById(s.assignedTeam);
+            const isCur = +s.year === +plSeason;
+            return `<div style="background:${isCur?'var(--green)':'#fff'};color:${isCur?'#fff':'var(--text)'};border:1.5px solid ${isCur?'var(--green)':'var(--border)'};border-radius:8px;padding:5px 10px;font-size:12px;">
+              <div style="font-weight:700;">${s.year}</div>
+              <div style="font-size:10px;opacity:.8;">${s.ageGroupRaw||('U'+(s.calcAge||'?'))}</div>
+              ${team ? `<div style="font-size:10px;opacity:.8;">🏉 ${team.name}</div>` : '<div style="font-size:10px;opacity:.6;">No team</div>'}
+              ${s.dispensation ? '<div style="font-size:9px;opacity:.8;">⚡ Disp</div>' : ''}
+            </div>`;
+          }).join('')}
+        </div>` : '<div style="font-size:12px;color:var(--text-dim);">No season records found</div>'}
     </div>
 
     <!-- Age / Dispensation -->
@@ -3406,11 +3445,141 @@ function openPlayerDetail(profileId) {
   modal.classList.add('open');
 }
 
+// ── PLAYER PHOTO UPLOAD ──────────────────────────────────────────────────────
+// Flow: user picks file → resize in canvas → chunked upload to backend →
+//       backend stores in private Drive folder → fileId saved on player record.
+// Photos are NEVER publicly accessible — Drive folder is private.
+
+async function handlePhotoUpload(input) {
+  const file = input.files[0];
+  if (!file || !plDetailId) return;
+
+  const statusEl = document.getElementById('pdm-photo-status');
+  const avatarEl = document.getElementById('pdm-avatar-large');
+  if (statusEl) statusEl.textContent = '⏳ Resizing…';
+
+  // Resize to max 400×400px using canvas
+  let dataUrl;
+  try {
+    dataUrl = await resizeImage(file, 400);
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '❌ Resize failed: ' + e.message;
+    showToast('Image resize failed', 'err');
+    return;
+  }
+
+  if (statusEl) statusEl.textContent = '⏳ Uploading to Drive…';
+
+  // Convert dataUrl to base64 string (strip the data:image/jpeg;base64, prefix)
+  const b64 = dataUrl.split(',')[1];
+  const mimeType = 'image/jpeg';
+
+  // Get upload URL from backend (creates placeholder in private Drive folder)
+  const urlRes = await api('getPhotoUploadUrl', { profileId: plDetailId, mimeType });
+  if (urlRes.error) {
+    if (statusEl) statusEl.textContent = '❌ ' + urlRes.error;
+    showToast('Upload failed: ' + urlRes.error, 'err');
+    return;
+  }
+
+  // Upload image bytes using chunked JSONP (same approach as CSV import)
+  const CHUNK = 2000;
+  const chunks = [];
+  for (let i = 0; i < b64.length; i += CHUNK) chunks.push(b64.slice(i, i + CHUNK));
+
+  const startRes = await api('startUpload', { totalChunks: chunks.length });
+  if (startRes.error) {
+    if (statusEl) statusEl.textContent = '❌ ' + startRes.error;
+    return;
+  }
+  const uploadId = startRes.uploadId;
+
+  // Send chunks in parallel batches
+  for (let i = 0; i < chunks.length; i += 8) {
+    const batch = chunks.slice(i, i + 8);
+    const results = await Promise.all(batch.map((data, j) => api('appendChunk', { uploadId, index: i+j, data })));
+    for (const r of results) {
+      if (r.error) {
+        if (statusEl) statusEl.textContent = '❌ Chunk upload failed: ' + r.error;
+        return;
+      }
+    }
+    if (statusEl) statusEl.textContent = `⏳ Uploading… ${Math.min(i+8, chunks.length)}/${chunks.length}`;
+  }
+
+  // Finalise: backend reassembles, writes to Drive file, saves fileId on player
+  const finalRes = await api('finalisePhotoToPlayer', {
+    uploadId,
+    profileId: plDetailId,
+    fileId: urlRes.fileId
+  });
+
+  if (finalRes.error) {
+    if (statusEl) statusEl.textContent = '❌ ' + finalRes.error;
+    showToast('Photo save failed: ' + finalRes.error, 'err');
+    return;
+  }
+
+  // Update UI: show photo in avatar and update hidden input
+  const thumbUrl = `https://lh3.googleusercontent.com/d/${urlRes.fileId}=s200`;
+  const imgEl = document.getElementById('pdm-photo-img');
+  const initEl = document.getElementById('pdm-avatar-initials');
+  if (imgEl) { imgEl.src = thumbUrl; imgEl.style.display = ''; }
+  else if (avatarEl) {
+    avatarEl.innerHTML = `<img id="pdm-photo-img" src="${thumbUrl}" style="width:100%;height:100%;object-fit:cover;">`;
+  }
+  if (initEl) initEl.style.display = 'none';
+  document.getElementById('pdm-photo').value = urlRes.fileId;
+  if (statusEl) statusEl.innerHTML = '✓ Photo stored in Drive (private) <button onclick="removePlayerPhoto()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;color:var(--text-dim);margin-left:8px;">Remove</button>';
+
+  // Update local plData
+  const p = (plData.players||[]).find(x=>x.profileId===plDetailId);
+  if (p) p.photoUrl = urlRes.fileId;
+
+  showToast('Photo uploaded successfully');
+  input.value = ''; // reset file input
+}
+
+function resizeImage(file, maxSize) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const w = img.width, h = img.height;
+      const scale = Math.min(maxSize/w, maxSize/h, 1);
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => reject(new Error('Could not load image'));
+    img.src = url;
+  });
+}
+
+async function removePlayerPhoto() {
+  if (!plDetailId) return;
+  if (!confirm("Remove this player's photo?")) return;
+  const res = await api('updatePlayer', { profileId: plDetailId, photoUrl: '' });
+  if (res.error) { showToast('Remove failed: ' + res.error, 'err'); return; }
+  const p = (plData.players||[]).find(x=>x.profileId===plDetailId);
+  if (p) p.photoUrl = '';
+  document.getElementById('pdm-photo').value = '';
+  const avatarEl = document.getElementById('pdm-avatar-large');
+  const p2 = (plData.players||[]).find(x=>x.profileId===plDetailId);
+  if (avatarEl) avatarEl.innerHTML = `<span id="pdm-avatar-initials">${plInitials(p2||{})}</span>`;
+  const statusEl = document.getElementById('pdm-photo-status');
+  if (statusEl) statusEl.textContent = 'No photo — click avatar to upload';
+  showToast('Photo removed');
+}
+
 async function savePlayerDetail() {
   if (!plDetailId) return;
   const ps = plSeasonRows().find(r=>r.profileId===plDetailId)||{};
 
-  const photoUrl     = document.getElementById('pdm-photo')?.value?.trim()||'';
+  const photoUrl     = document.getElementById('pdm-photo')?.value?.trim()||'';  // hidden input, set by upload
   const photoConsent = document.getElementById('pdm-photo-consent')?.checked ? 'Yes' : 'No';
   const dispensation = document.getElementById('pdm-disp')?.checked||false;
   const assignedTeam = document.getElementById('pdm-assigned-team')?.value||'';
@@ -3465,15 +3634,28 @@ async function renderPlLapsed() {
     <input class="pl-search" id="lapsed-search" placeholder="Search name, school…" oninput="filterLapsed()" style="width:100%;margin-bottom:12px;">
     <div id="lapsed-list">
     ${lapsed.map(p => `
-      <div class="lapsed-row" id="lapsed-${p.profileId}">
+      <div class="lapsed-row" id="lapsed-${p.profileId}" onclick="openPlayerDetail('${p.profileId}')"
+           style="cursor:pointer;" onmouseenter="this.style.background='var(--green-light)'" onmouseleave="this.style.background=''">
         <div class="pl-avatar">${plInitials(p)}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:13px;">${plName(p)}</div>
-          <div style="font-size:11px;color:var(--text-dim);">Last: ${p.lastAgeGroup||'—'} · Age ${calcCurAge(p)||'?'} this year · ${p.school||'—'} · ${p.suburb||'—'}</div>
+          <div style="font-weight:700;font-size:13px;">${plName(p)}
+            <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:6px;">${p.lastAgeGroup||''} · ${p.gender||''}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);">Age ${calcCurAge(p)||'?'} in ${res.year} · ${p.school||'—'} · ${p.suburb||'—'}</div>
         </div>
-        <div style="text-align:right;flex-shrink:0;">
-          ${p.parent1Phone?`<div style="font-size:12px;font-weight:600;">${fmtPhone(p.parent1Phone)}</div>`:''}
-          ${p.parent1Email?`<div style="font-size:11px;color:var(--text-dim);word-break:break-all;">${p.parent1Email}</div>`:''}
+        <div style="flex-shrink:0;min-width:180px;">
+          ${p.parent1Name||p.parent1Phone ? `
+            <div style="font-size:11px;display:flex;gap:6px;align-items:baseline;">
+              <span style="font-weight:600;font-size:11px;min-width:90px;">${p.parent1Name||''}</span>
+              <span style="color:var(--text-dim);">${p.parent1Phone?fmtPhone(p.parent1Phone):''}</span>
+            </div>` : ''}
+          ${p.parent2Name||p.parent2Phone ? `
+            <div style="font-size:11px;display:flex;gap:6px;align-items:baseline;margin-top:1px;">
+              <span style="font-weight:600;font-size:11px;min-width:90px;">${p.parent2Name||''}</span>
+              <span style="color:var(--text-dim);">${p.parent2Phone?fmtPhone(p.parent2Phone):''}</span>
+            </div>` : ''}
+          ${!p.parent1Name&&!p.parent1Phone&&!p.parent2Name&&!p.parent2Phone ?
+            '<div style="font-size:11px;color:var(--text-dim);">No contact info</div>' : ''}
         </div>
       </div>`).join('')}
     </div>
