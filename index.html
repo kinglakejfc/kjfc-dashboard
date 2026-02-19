@@ -3260,7 +3260,7 @@ function renderFilteredPlayers() {
         ${filtered.map(({ps,p}) => {
           const ag   = effectiveAgeGroup(ps);
           const init = plInitials(p);
-          const photo = p.photoUrl ? `<img src="${p.photoUrl}" onerror="this.style.display='none'">` : init;
+          const photo = p.photoUrl ? `<img src="${p.photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : init;
           const dispTag = (ps.dispensation===true||ps.dispensation==='true') ? '<span class="disp-tag">disp.</span>' : '';
           return `<tr onclick="openPlayerDetail('${p.profileId}')">
             <td><div class="pl-avatar">${photo}</div></td>
@@ -3286,34 +3286,18 @@ function openPlayerDetail(profileId) {
   const ps  = plSeasonRows().find(r=>r.profileId===profileId) || {};
   plDetailId = profileId;
 
-  const init        = plInitials(p);
-  const photoFileId = p.photoUrl;                  // Drive file ID (or empty)
-  const cachedPhoto = p._photoDataUrl || null;     // in-memory cache from this session
+  const init    = plInitials(p);
+  const photoUrl = p.photoUrl || null;   // data URL stored directly in sheet
   const ag    = effectiveAgeGroup(ps);
   const disp  = ps.dispensation===true||ps.dispensation==='true';
 
-  // Show initials immediately; photo loads async below if we have a fileId
-  document.getElementById('pdm-avatar').innerHTML = cachedPhoto
-    ? `<img src="${cachedPhoto}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+  document.getElementById('pdm-avatar').innerHTML = photoUrl
+    ? `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
     : init;
   document.getElementById('pdm-name').textContent  = plName(p);
   document.getElementById('pdm-meta').textContent  = `${ag} · ${p.gender||''} · DOB ${normaliseDob(p.dob)||''} · ${p.suburb||''}`;
 
-  // Async: load photo from Drive via backend proxy (doesn't block modal open)
-  if (photoFileId && !cachedPhoto) {
-    api('servePhotoB64', { fileId: photoFileId }).then(r => {
-      if (!r.dataUrl) return;
-      p._photoDataUrl = r.dataUrl;
-      const hd = document.getElementById('pdm-avatar');
-      if (hd) hd.innerHTML = `<img src="${r.dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-      const lg = document.getElementById('pdm-avatar-large');
-      if (lg) lg.innerHTML = `<img id="pdm-photo-img" src="${r.dataUrl}" style="width:100%;height:100%;object-fit:cover;">`;
-      const st = document.getElementById('pdm-photo-status');
-      if (st && !st.textContent.includes('⏳')) {
-        st.innerHTML = '✓ Photo stored in Drive (private) <button onclick="removePlayerPhoto()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;color:var(--text-dim);margin-left:8px;">Remove</button>';
-      }
-    });
-  }
+  // photoUrl is stored as a data URL — use directly, no async fetch needed
 
   // Compute age + eligibility for nearby groups
   const calcAgeVal = ps.calcAge ? +ps.calcAge : null;
@@ -3324,8 +3308,8 @@ function openPlayerDetail(profileId) {
     .filter(s => s.profileId === profileId)
     .sort((a,b) => b.year - a.year);
 
-  // photoSrc for body: use cached dataUrl if already loaded, else null (will load async)
-  const photoSrc = cachedPhoto;
+  // photoSrc for the avatar in modal body — same data URL
+  const photoSrc = photoUrl;
 
   document.getElementById('pdm-body').innerHTML = `
     <!-- Photo + consent -->
@@ -3462,9 +3446,10 @@ function openPlayerDetail(profileId) {
 }
 
 // ── PLAYER PHOTO UPLOAD ──────────────────────────────────────────────────────
-// Flow: pick file → resize to 300px in canvas → single POST (JSON body) to
-// Apps Script → backend creates Drive file → fileId saved on player.
-// Single round-trip, no chunking, ~1-2 seconds total.
+// Store photo as a base64 data URL directly in the Players sheet (photoUrl column).
+// A 200px JPEG at 60% quality is ~8-15KB base64 — fits in one normal JSONP api()
+// call (same as every other save), no CORS issues, no Drive needed for display.
+// The data URL is used directly as img src — instant display, zero extra requests.
 
 async function handlePhotoUpload(input) {
   const file = input.files[0];
@@ -3474,78 +3459,58 @@ async function handlePhotoUpload(input) {
   const avatarEl = document.getElementById('pdm-avatar-large');
   if (statusEl) statusEl.textContent = '⏳ Processing…';
 
-  // Resize to max 300×300px — keeps base64 under ~20KB, well within POST limits
+  // Resize to 200×200px at 60% JPEG quality — keeps data URL under ~15KB
   let dataUrl;
   try {
-    dataUrl = await resizeImage(file, 300);
+    dataUrl = await resizeImage(file, 200, 0.6);
   } catch(e) {
     if (statusEl) statusEl.textContent = '❌ ' + e.message;
     showToast('Image error: ' + e.message, 'err');
     return;
   }
 
-  if (statusEl) statusEl.textContent = '⏳ Uploading…';
+  if (statusEl) statusEl.textContent = '⏳ Saving…';
 
-  // POST the base64 directly — single request, no chunking needed
-  // Apps Script doPost handles JSON body with no URL length limits
-  const b64 = dataUrl.split(',')[1];
-  let res;
-  try {
-    const resp = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action:    'uploadPhoto',
-        token:     token,
-        payload:   { profileId: plDetailId, imageB64: b64 }
-      }),
-      redirect: 'follow'
-    });
-    res = await resp.json();
-  } catch(e) {
-    if (statusEl) statusEl.textContent = '❌ Upload failed: ' + e.message;
-    showToast('Upload failed: ' + e.message, 'err');
-    return;
-  }
+  // Save via normal updatePlayer — data URL stored directly in photoUrl column
+  const res = await api('updatePlayer', { profileId: plDetailId, photoUrl: dataUrl });
 
   if (res.error) {
     if (statusEl) statusEl.textContent = '❌ ' + res.error;
-    showToast('Upload failed: ' + res.error, 'err');
+    showToast('Save failed: ' + res.error, 'err');
     return;
   }
 
-  const newFileId = res.fileId;
-
-  // Show photo immediately from the local dataUrl — no second round-trip
+  // Update UI immediately — dataUrl is the src, no second fetch needed
   if (avatarEl) avatarEl.innerHTML = `<img id="pdm-photo-img" src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;">`;
   const initEl = document.getElementById('pdm-avatar-initials');
   if (initEl) initEl.style.display = 'none';
-  document.getElementById('pdm-photo').value = newFileId;
-  if (statusEl) statusEl.innerHTML = '✓ Photo stored in Drive (private)&nbsp;&nbsp;<button onclick="removePlayerPhoto()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;color:var(--text-dim);">Remove</button>';
+  document.getElementById('pdm-photo').value = dataUrl;
+  if (statusEl) statusEl.innerHTML = '✓ Photo saved&nbsp;&nbsp;<button onclick="removePlayerPhoto()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;color:var(--text-dim);">Remove</button>';
 
-  const p = (plData.players||[]).find(x=>x.profileId===plDetailId);
-  if (p) { p.photoUrl = newFileId; p._photoDataUrl = dataUrl; }
+  const p = (plData.players||[]).find(x => x.profileId === plDetailId);
+  if (p) p.photoUrl = dataUrl;
 
   const hdAvatar = document.getElementById('pdm-avatar');
   if (hdAvatar) hdAvatar.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
 
-  showToast('Photo uploaded ✓');
+  showToast('Photo saved ✓');
   input.value = '';
 }
 
-function resizeImage(file, maxSize) {
+function resizeImage(file, maxSize, quality) {
+  quality = quality || 0.6;
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
       const w = img.width, h = img.height;
-      const scale = Math.min(maxSize/w, maxSize/h, 1);
+      const scale = Math.min(maxSize / w, maxSize / h, 1);
       const canvas = document.createElement('canvas');
       canvas.width  = Math.round(w * scale);
       canvas.height = Math.round(h * scale);
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', 0.85));
+      resolve(canvas.toDataURL('image/jpeg', quality));
     };
     img.onerror = () => reject(new Error('Could not load image'));
     img.src = url;
@@ -3557,16 +3522,17 @@ async function removePlayerPhoto() {
   if (!confirm("Remove this player's photo?")) return;
   const res = await api('updatePlayer', { profileId: plDetailId, photoUrl: '' });
   if (res.error) { showToast('Remove failed: ' + res.error, 'err'); return; }
-  const p = (plData.players||[]).find(x=>x.profileId===plDetailId);
+  const p = (plData.players||[]).find(x => x.profileId === plDetailId);
   if (p) p.photoUrl = '';
   document.getElementById('pdm-photo').value = '';
   const avatarEl = document.getElementById('pdm-avatar-large');
-  const p2 = (plData.players||[]).find(x=>x.profileId===plDetailId);
-  if (avatarEl) avatarEl.innerHTML = `<span id="pdm-avatar-initials">${plInitials(p2||{})}</span>`;
+  if (avatarEl) avatarEl.innerHTML = `<span id="pdm-avatar-initials">${plInitials(p||{})}</span>`;
+  document.getElementById('pdm-avatar').innerHTML = plInitials(p||{});
   const statusEl = document.getElementById('pdm-photo-status');
   if (statusEl) statusEl.textContent = 'No photo — click avatar to upload';
   showToast('Photo removed');
 }
+
 
 async function savePlayerDetail() {
   if (!plDetailId) return;
