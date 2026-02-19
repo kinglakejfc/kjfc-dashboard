@@ -1619,11 +1619,9 @@ async function loadAll() {
     renderSeasonTabs();
     render();
     setSyncState('ok', 'Synced · ' + fmtTime(new Date()));
-    // If player modal was opened before sponsor data loaded, refresh its season selector now
-    // players-modal removed — now inline via switchDashboard
-    if (plModal && plModal.classList.contains('open')) {
+    // If recruitment dashboard is active, refresh now that sponsor year data is loaded
+    if (typeof _currentDashboard !== 'undefined' && _currentDashboard === 'recruitment') {
       initPlayerSeasonSel();
-      // If player data loaded against an incomplete year list, reload it
       if (!plData) loadPlayerData();
     }
   } catch(e) {
