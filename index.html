@@ -3940,12 +3940,10 @@ function _renderOverviewHTML() {
         <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">${totalShort} player${totalShort!==1?'s':''} needed across ${shortTeams.length} team${shortTeams.length!==1?'s':''} to reach minimum numbers</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           ${shortTeams.map(({t, count, short}) => {
-            const pct     = Math.min(100, Math.round(count / t.minPlayers * 100));
-            const trainP  = t.trainingCount || 0;  // total est. incl. registered
-            const intP    = t.interestCount || 0;  // total est. incl. registered
-            const estTot  = Math.max(trainP, intP, count);
-            const estPct  = Math.min(100, Math.round(estTot / t.minPlayers * 100));
-            const col     = count >= Math.ceil(t.minPlayers * 0.8) ? '#ca8a04' : '#dc2626';
+            const pct    = Math.min(100, Math.round(count / t.minPlayers * 100));
+            const estTot = (t.estimateCount && t.estimateCount > count) ? t.estimateCount : 0;
+            const estPct = estTot > 0 ? Math.min(100, Math.round(estTot / t.minPlayers * 100)) : 0;
+            const col    = count >= Math.ceil(t.minPlayers * 0.8) ? '#ca8a04' : '#dc2626';
             const schoolYr = t.ageGroup ? agRecruitTarget(t.ageGroup) : '';
             return '<div style="background:#fafafa;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;">'
               + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:4px;">'
@@ -3955,19 +3953,14 @@ function _renderOverviewHTML() {
               +   '</div>'
               +   '<span style="font-size:12px;font-weight:700;color:' + col + ';">Need ' + short + ' more</span>'
               + '</div>'
-              + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:' + ((trainP||intP)?'5':'0') + 'px;">'
+              + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:' + (estTot>0?'5':'0') + 'px;">'
               +   '<div style="flex:1;position:relative;height:6px;background:#e5e7eb;border-radius:4px;">'
               +     (estPct > pct ? '<div style="position:absolute;height:6px;border-radius:4px;background:#bfdbfe;width:' + estPct + '%;"></div>' : '')
               +     '<div style="position:absolute;height:6px;border-radius:4px;background:' + col + ';width:' + pct + '%;"></div>'
               +   '</div>'
               +   '<span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">' + count + '/' + t.minPlayers + '</span>'
               + '</div>'
-              + ((trainP||intP) ? '<div style="display:flex;gap:8px;align-items:center;margin-top:4px;">'
-                + '<span style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">Est. total:</span>'
-                + (trainP ? '<span title="Training total (incl. registered)" style="font-size:10px;color:#1d4ed8;font-weight:600;">🏃 ' + trainP + '</span>' : '')
-                + (intP   ? '<span title="Interest total (incl. registered)" style="font-size:10px;color:#7c3aed;font-weight:600;">✋ ' + intP + '</span>' : '')
-                + (estTot >= t.minPlayers ? '<span style="font-size:10px;color:#16a34a;font-weight:700;margin-left:4px;">Est. viable ✓</span>' : '')
-                + '</div>' : '')
+              + (estTot > 0 ? '<div style="font-size:10px;color:#6b7280;margin-top:4px;">📊 Club estimate: <strong>' + estTot + '</strong>' + (estTot >= t.minPlayers ? ' <span style=\"color:#16a34a;font-weight:700;\">Est. viable ✓</span>' : '') + '</div>' : '')
               + '</div>';
           }).join('')}
         </div>
@@ -5291,11 +5284,9 @@ function renderPlTeams() {
             const count    = teamCount[t.id] || 0;
             const roster   = allRows.filter(s => s.assignedTeam === t.id).map(s => pm[s.profileId]).filter(Boolean);
             const minP     = t.minPlayers || 0;
-            const trainP   = t.trainingCount || 0;  // estimated total incl. registered
-            const intP     = t.interestCount || 0;  // estimated total incl. registered
-            const estTotal = Math.max(trainP, intP, count); // highest demand estimate
+            const estTotal = (t.estimateCount && t.estimateCount > count) ? t.estimateCount : 0;
             const pct      = minP > 0 ? Math.min(100, Math.round(count / minP * 100)) : 0;
-            const estPct   = (minP > 0 && estTotal > count) ? Math.min(100, Math.round(estTotal / minP * 100)) : 0;
+            const estPct   = (minP > 0 && estTotal > 0) ? Math.min(100, Math.round(estTotal / minP * 100)) : 0;
             const colour   = !minP ? '#9ca3af'
                            : count >= minP ? '#16a34a'
                            : count >= Math.ceil(minP * 0.8) ? '#ca8a04'
@@ -5324,29 +5315,22 @@ function renderPlTeams() {
                     <div style="display:flex;align-items:baseline;gap:6px;">
                       <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;color:${colour};">${count}</span>
                       <span style="font-size:11px;color:var(--text-dim);">registered</span>
-                      ${(trainP||intP) ? '<span style="font-size:11px;color:#6b7280;">· est. ' + estTotal + ' total</span>' : ''}
+                      ${estTotal > 0 ? '<span style="font-size:11px;color:#6b7280;">· est. ' + estTotal + '</span>' : ''}
                     </div>
                     ${minP > 0 ? '<span style="font-size:11px;font-weight:700;color:' + colour + ';">' + (count >= minP ? '✓ meets min' : (minP-count) + ' more needed') + '</span>' : ''}
                   </div>
-                  ${minP > 0 ? '<div style="position:relative;height:7px;background:#e5e7eb;border-radius:4px;margin-bottom:' + ((trainP||intP)?'5':'8') + 'px;">'
-                    + (estPct > pct ? '<div title="Estimated total demand (' + estTotal + ')" style="position:absolute;height:7px;border-radius:4px;background:#bfdbfe;width:' + estPct + '%;"></div>' : '')
+                  ${minP > 0 ? '<div style="position:relative;height:7px;background:#e5e7eb;border-radius:4px;margin-bottom:' + (estTotal>0?'5':'8') + 'px;">'
+                    + (estPct > pct ? '<div title="Club estimate (' + estTotal + ')" style="position:absolute;height:7px;border-radius:4px;background:#bfdbfe;width:' + estPct + '%;"></div>' : '')
                     + '<div title="Registered (' + count + ')" style="position:absolute;height:7px;border-radius:4px;background:' + colour + ';width:' + pct + '%;transition:width .3s;"></div>'
                     + '</div>' : '<div style="height:7px;margin-bottom:8px;"></div>'}
-                  ${(trainP || intP) ? '<div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;align-items:center;">'
-                    + '<span style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">Est. total:</span>'
-                    + (trainP ? '<span title="Training turnout (total estimate including registered)" style="font-size:10px;color:#1d4ed8;font-weight:600;">🏃 ' + trainP + '</span>' : '')
-                    + (intP  ? '<span title="Interest/waitlist (total estimate including registered)" style="font-size:10px;color:#7c3aed;font-weight:600;">✋ ' + intP + '</span>' : '')
-                    + '</div>' : ''}
+                  ${estTotal > 0 ? '<div style="font-size:10px;color:#6b7280;margin-bottom:5px;">📊 Club estimate: <strong>' + estTotal + '</strong>' + (minP > 0 && estTotal >= minP ? ' <span style=\"color:#16a34a;font-weight:700;\">Est. viable ✓</span>' : '') + '</div>' : ''}
                   <!-- Mini roster -->
                   ${roster.length ? `
-                    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:${(t.trainingNames?.length||t.interestNames?.length)?'6':'0'}px;">
+                    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:${t.estimateNames?.length?'6':'0'}px;">
                       ${roster.slice(0,8).map(p=>`<span style="background:var(--green-light);color:var(--green);font-size:10px;font-weight:600;padding:1px 6px;border-radius:8px;">${plName(p)}</span>`).join('')}
                       ${roster.length > 8 ? `<span style="background:#f3f4f6;color:var(--text-dim);font-size:10px;font-weight:600;padding:1px 6px;border-radius:8px;">+${roster.length-8} more</span>` : ''}
-                    </div>` : `<div style="font-size:11px;color:var(--text-dim);font-style:italic;margin-bottom:${(t.trainingNames?.length||t.interestNames?.length)?'6':'0'}px;">Click to assign players →</div>`}
-                  ${(t.trainingNames?.length||t.interestNames?.length) ? '<div style="border-top:1px solid var(--border);padding-top:6px;margin-top:2px;">'
-                    + (t.trainingNames?.length ? '<div style="font-size:10px;color:#1d4ed8;font-weight:600;margin-bottom:2px;">🏃 ' + t.trainingNames.slice(0,3).join(', ') + (t.trainingNames.length>3?' +' + (t.trainingNames.length-3) + ' more':'') + '</div>' : '')
-                    + (t.interestNames?.length ? '<div style="font-size:10px;color:#7c3aed;font-weight:600;">✋ ' + t.interestNames.slice(0,3).join(', ') + (t.interestNames.length>3?' +' + (t.interestNames.length-3) + ' more':'') + '</div>' : '')
-                    + '</div>' : ''}
+                    </div>` : `<div style="font-size:11px;color:var(--text-dim);font-style:italic;margin-bottom:${t.estimateNames?.length?'6':'0'}px;">Click to assign players →</div>`}
+                  ${t.estimateNames?.length ? '<div style="border-top:1px solid var(--border);padding-top:5px;margin-top:2px;font-size:10px;color:#6b7280;">📋 ' + t.estimateNames.slice(0,4).join(', ') + (t.estimateNames.length>4?' <em>+' + (t.estimateNames.length-4) + ' more</em>':'') + '</div>' : ''}
                 </div>
               </div>`;
           }).join('')}
@@ -5390,39 +5374,34 @@ function renderPlTeams() {
             <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">ASSISTANT COACH</div>
             <input id="tm-acoach" type="text" placeholder="Assistant coach name" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
             <div>
               <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">MINIMUM PLAYERS</div>
               <input id="tm-min" type="number" min="1" max="50" placeholder="e.g. 14" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
             </div>
             <div>
-              <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">TRAINING TURNOUT</div>
-              <input id="tm-training" type="number" min="0" max="100" placeholder="e.g. 18" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+              <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">CLUB ESTIMATE</div>
+              <input id="tm-estimate" type="number" min="0" max="200" placeholder="e.g. 16" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
             </div>
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">INTEREST / WAITLIST</div>
-              <input id="tm-interest" type="number" min="0" max="100" placeholder="e.g. 5" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
-            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);line-height:1.5;background:var(--bg);border-radius:7px;padding:8px 10px;margin-top:-4px;">
+            💡 <strong>Club Estimate</strong> — your best guess at total likely players before all registrations are in, based on training attendance and expressions of interest. Must be greater than current registered count. Does not affect registered numbers.
           </div>
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">NOTES</div>
             <textarea id="tm-notes" rows="2" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;resize:vertical;"></textarea>
           </div>
-          <!-- Name lists — collapsible -->
+          <!-- Name list — collapsible, single combined list -->
           <details style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden;">
             <summary style="cursor:pointer;padding:8px 12px;background:var(--bg);font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;list-style:none;display:flex;align-items:center;gap:6px;">
-              <span>📋</span> Optional: Name Lists
-              <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;margin-left:auto;">for record keeping</span>
+              <span>📋</span> Optional: Estimated Players List
+              <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;margin-left:auto;">for record keeping only</span>
             </summary>
-            <div style="padding:10px 12px;background:#fff;display:grid;gap:10px;">
-              <div>
-                <div style="font-size:11px;font-weight:700;color:#1d4ed8;margin-bottom:4px;">🏃 TRAINING NAMES <span style="font-weight:400;font-size:10px;color:#9ca3af;">(one per line, total est. incl. registered)</span></div>
-                <textarea id="tm-training-names" rows="3" placeholder="e.g.&#10;Alex Smith&#10;Jordan Lee&#10;Sam Brown" style="width:100%;padding:8px 10px;border:1.5px solid #bfdbfe;border-radius:7px;font-size:12px;resize:vertical;background:#eff6ff;"></textarea>
+            <div style="padding:10px 12px;background:#fff;">
+              <div style="font-size:11px;color:var(--text-dim);line-height:1.5;margin-bottom:8px;">
+                Names of players expected — from training attendance, expressions of interest, or parent enquiries. One name per line. <strong>This list is for your reference only and does not change any numbers above.</strong>
               </div>
-              <div>
-                <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:4px;">✋ INTEREST / WAITLIST NAMES <span style="font-weight:400;font-size:10px;color:#9ca3af;">(one per line, total est. incl. registered)</span></div>
-                <textarea id="tm-interest-names" rows="3" placeholder="e.g.&#10;Riley Jones&#10;Morgan Clark" style="width:100%;padding:8px 10px;border:1.5px solid #e9d5ff;border-radius:7px;font-size:12px;resize:vertical;background:#faf5ff;"></textarea>
-              </div>
+              <textarea id="tm-estimate-names" rows="5" placeholder="e.g.&#10;Alex Smith&#10;Jordan Lee&#10;Sam Brown&#10;Riley Jones" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;resize:vertical;background:var(--bg);"></textarea>
             </div>
           </details>
         </div>
@@ -5648,10 +5627,8 @@ function openTeamModal(teamId) {
   document.getElementById('tm-acoach').value   = t?.assistantCoach || '';
   document.getElementById('tm-notes').value    = t?.notes || '';
   document.getElementById('tm-min').value      = t?.minPlayers || '';
-  document.getElementById('tm-training').value       = t?.trainingCount || '';
-  document.getElementById('tm-interest').value        = t?.interestCount || '';
-  document.getElementById('tm-training-names').value  = (t?.trainingNames || []).join('\n');
-  document.getElementById('tm-interest-names').value  = (t?.interestNames || []).join('\n');
+  document.getElementById('tm-estimate').value       = t?.estimateCount || '';
+  document.getElementById('tm-estimate-names').value = (t?.estimateNames || []).join('\n');
   overlay.style.display = 'flex';
 }
 
@@ -5663,6 +5640,12 @@ function closeTeamModal() {
 async function saveTeamModal() {
   const name = document.getElementById('tm-name').value.trim();
   if (!name) { showToast('Team name is required', 'err'); return; }
+  const _estVal = parseInt(document.getElementById('tm-estimate').value) || 0;
+  const _tmId   = document.getElementById('tm-id').value;
+  if (_estVal > 0) {
+    const _registeredCount = _tmId ? ((plData.seasons||[]).filter(s => +s.year===+plSeason && s.assignedTeam===_tmId).length) : 0;
+    if (_estVal <= _registeredCount) { showToast('Club estimate must be greater than registered count (' + _registeredCount + ')', 'warn'); return; }
+  }
   const payload = {
     id:             document.getElementById('tm-id').value || undefined,
     season:         plSeason,
@@ -5673,10 +5656,8 @@ async function saveTeamModal() {
     assistantCoach: document.getElementById('tm-acoach').value.trim(),
     notes:          document.getElementById('tm-notes').value.trim(),
     minPlayers:     parseInt(document.getElementById('tm-min').value) || 0,
-    trainingCount:  parseInt(document.getElementById('tm-training').value) || 0,
-    interestCount:  parseInt(document.getElementById('tm-interest').value) || 0,
-    trainingNames:  document.getElementById('tm-training-names').value.split('\n').map(s=>s.trim()).filter(Boolean),
-    interestNames:  document.getElementById('tm-interest-names').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    estimateCount:  parseInt(document.getElementById('tm-estimate').value) || 0,
+    estimateNames:  document.getElementById('tm-estimate-names').value.split('\n').map(s=>s.trim()).filter(Boolean),
   };
   const res = await api('saveTeam', payload);
   if (res.error) { showToast('Save failed: ' + res.error, 'err'); return; }
