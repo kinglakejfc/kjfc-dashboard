@@ -487,6 +487,7 @@ td{padding:10px 10px;vertical-align:middle;}
 .msub{color:var(--text-dim);font-size:12px;margin-bottom:16px;line-height:1.4;}
 .frow{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:10px;}
 .frow.two{grid-template-columns:1fr 1fr;}
+@media(max-width:520px){.frow.two{grid-template-columns:1fr;} .modal{padding:16px 14px 14px;}}
 .frow.full{grid-template-columns:1fr;}
 .fg{display:flex;flex-direction:column;gap:4px;}
 .fg label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);font-weight:700;}
@@ -1795,6 +1796,8 @@ function render() {
   const prev = prevYr ? calcStats(prevYr) : { total:0 };
 
   document.getElementById('season-span').textContent = 'Sponsorship ' + cy + ' Season';
+  // Capture static sponsor HTML so switchDashboard can restore it
+  _sponsorStaticHTML = document.getElementById('sponsor-content').innerHTML || _sponsorStaticHTML;
   document.getElementById('k-total').textContent = fmt(s.total);
   document.getElementById('k-count').textContent = s.count + ' sponsor' + (s.count!==1?'s':'');
   document.getElementById('k-paid').textContent  = fmt(s.recv);
@@ -2416,78 +2419,38 @@ document.getElementById('of-physaddr').addEventListener('input', function() {
 function openAddOrg() {
   if (!me?.edit) return;
   editOrgId = null;
-  _renderOrgPanel(false);
-}
-
-function _renderOrgPanel(isEdit) {
-  // Mark Add Sponsor sub-tab active
-  document.querySelectorAll('#dash-sub-sponsors .dtab').forEach(b => b.classList.remove('act'));
-  const addBtn = document.getElementById('dsub-add-sponsor');
-  if (addBtn) addBtn.classList.add('act');
-  _currentDashboard = 'sponsors';
-  document.getElementById('dash-tab-sponsors').classList.add('act');
-  document.getElementById('dash-tab-recruitment').classList.remove('act');
-  const at = document.getElementById('dash-tab-admin'); if (at) at.classList.remove('act');
-  document.getElementById('dash-sub-sponsors').style.display    = 'flex';
-  document.getElementById('dash-sub-recruitment').style.display = 'none';
-  document.getElementById('dash-sub-admin').style.display       = 'none';
-  document.getElementById('sponsor-content').style.display      = 'block';
-  document.getElementById('recruitment-content').style.display  = 'none';
-  const ap = document.getElementById('admin-panel-content'); if (ap) ap.style.display = 'none';
-
-  const org = isEdit ? orgs.find(o => o.id === editOrgId) : null;
-  const title = isEdit ? 'Edit Sponsor' : 'Add Sponsor';
-
-  const sc = document.getElementById('sponsor-content');
-  sc.innerHTML = `
-    <div class="section-head" style="align-items:center;gap:10px;">
-      <button onclick="switchDashboard('sponsors')" style="background:none;border:none;color:var(--green);font-size:13px;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px;">← Overview</button>
-      <h2 class="section-title" style="flex:1;">${title}</h2>
-    </div>
-    <div style="max-width:600px;">
-      <div style="display:grid;gap:14px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div><label class="fgl">Business Name *</label><input type="text" id="of-name" placeholder="Business name" class="fginput" autocomplete="organization" value="${org?.name||''}"></div>
-          <div><label class="fgl">Status</label><select id="of-orgstatus" class="fginput">
-            <option value="prospect" ${(!org||org.orgStatus==='prospect')?'selected':''}>Prospect</option>
-            <option value="active" ${org?.orgStatus==='active'?'selected':''}>Active Sponsor</option>
-            <option value="lapsed" ${org?.orgStatus==='lapsed'?'selected':''}>Lapsed</option>
-          </select></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div><label class="fgl">Primary Contact</label><input type="text" id="of-contact" class="fginput" placeholder="Contact name" value="${org?.primaryContact||''}"></div>
-          <div><label class="fgl">Email</label><input type="email" id="of-email" class="fginput" placeholder="email@biz.com.au" value="${org?.email||''}"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div><label class="fgl">Phone</label><input type="text" id="of-phone" class="fginput" placeholder="04xx xxx xxx" value="${org?.phone||''}"></div>
-          <div><label class="fgl">Website</label><input type="text" id="of-website" class="fginput" placeholder="www.example.com.au" value="${org?.website||''}"></div>
-        </div>
-        <div><label class="fgl">Physical Address</label><input type="text" id="of-physaddr" class="fginput" placeholder="123 Main St…" value="${org?.physAddr||''}"></div>
-        <div>
-          <label class="fgl">Postal Address</label>
-          <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;color:var(--text-dim);cursor:pointer;">
-            <input type="checkbox" id="of-postsame" onchange="togglePostalSame()" ${org?.postSameAsPhys?'checked':''}>
-            Same as physical address
-          </label>
-          <input type="text" id="of-postaddr" class="fginput" placeholder="PO Box or postal address" value="${org?.postAddr||''}" ${org?.postSameAsPhys?'disabled':''}>
-        </div>
-        <div><label class="fgl">Notes</label><textarea id="of-notes" class="fginput" rows="3" placeholder="General notes…">${org?.notes||''}</textarea></div>
-        <div style="display:flex;gap:8px;padding-top:4px;">
-          <button class="mprimary" onclick="saveOrg()" style="flex:2;">${isEdit ? 'Save Changes' : 'Add Sponsor'}</button>
-          <button class="msecondary" onclick="switchDashboard('sponsors')" style="flex:1;">Cancel</button>
-          ${isEdit ? '<button class="mdanger" onclick="deleteOrg()" style="flex:1;">Delete</button>' : ''}
-        </div>
-      </div>
-    </div>`;
+  resetOrgModal();
+  document.getElementById('org-m-title').textContent = 'Add Sponsor';
+  document.getElementById('org-m-save').textContent  = 'Add Sponsor';
+  document.getElementById('org-m-del').style.display = 'none';
+  document.getElementById('org-m-sub').textContent   = 'New sponsor organisation.';
+  const m = document.getElementById('org-modal'); bringToFront(m); m.classList.add('open');
 }
 
 function openEditOrg(orgId) {
   if (!me?.edit) return;
+  const org = orgs.find(o => o.id===orgId); if (!org) return;
   editOrgId = orgId;
-  _renderOrgPanel(true);
+  resetOrgModal();
+  document.getElementById('org-m-title').textContent    = 'Edit Sponsor';
+  document.getElementById('org-m-save').textContent     = 'Save Changes';
+  document.getElementById('org-m-del').style.display    = 'block';
+  document.getElementById('org-m-sub').textContent      = org.name;
+  document.getElementById('of-name').value              = org.name;
+  document.getElementById('of-orgstatus').value         = org.orgStatus || 'prospect';
+  document.getElementById('of-contact').value           = org.primaryContact || '';
+  document.getElementById('of-email').value             = org.email || '';
+  document.getElementById('of-phone').value             = org.phone || '';
+  document.getElementById('of-website').value           = org.website || '';
+  document.getElementById('of-physaddr').value          = org.physAddr || '';
+  document.getElementById('of-postaddr').value          = org.postAddr || '';
+  document.getElementById('of-notes').value             = org.notes || '';
+  document.getElementById('of-postsame').checked        = !!org.postSameAsPhys;
+  document.getElementById('of-postaddr').disabled       = !!org.postSameAsPhys;
+  const m = document.getElementById('org-modal'); bringToFront(m); m.classList.add('open');
 }
 
-function closeOrgModal() { editOrgId=null; switchDashboard('sponsors'); }
+function closeOrgModal() { document.getElementById('org-modal').classList.remove('open'); editOrgId=null; }
 
 async function saveOrg() {
   const name = document.getElementById('of-name').value.trim();
@@ -2514,16 +2477,21 @@ async function saveOrg() {
   const isNew = !editOrgId;
   if (!editOrgId) { data.id = res.id; orgs.push(data); }
   else { const idx=orgs.findIndex(o=>o.id===editOrgId); if(idx>=0) orgs[idx]={...orgs[idx],...data}; }
-  editOrgId = null;
+  closeOrgModal();
   render();
   setSyncState('ok', 'Saved');
   if (isNew) {
-    showToast('Sponsor added ✓');
-    switchDashboard('sponsors');
-    setTimeout(() => { openOrgDetail(data.id); }, 150);
+    showToast('Sponsor added ✓ — add their season sponsorship below', '');
+    setTimeout(() => {
+      const newOrgId = data.id;
+      if (me?.edit && confirm('Sponsor "' + data.name + '" saved!\n\nWould you like to add their ' + activeSeason + ' season sponsorship package now?')) {
+        openAddSS(newOrgId);
+      } else {
+        openOrgDetail(newOrgId);
+      }
+    }, 100);
   } else {
     showToast('Sponsor updated ✓');
-    switchDashboard('sponsors');
   }
   loadAll();
 }
@@ -3063,30 +3031,7 @@ async function deleteUserConfirm() {
 let editPkgId = null;
 
 function openPackagesPanel() {
-  // Mark packages sub-tab as active
-  document.querySelectorAll('#dash-sub-sponsors .dtab').forEach(b => b.classList.remove('act'));
-  const pkgBtn = document.getElementById('dsub-packages');
-  if (pkgBtn) pkgBtn.classList.add('act');
-  // Show sponsor content area
-  _currentDashboard = 'sponsors';
-  document.getElementById('dash-tab-sponsors').classList.add('act');
-  document.getElementById('dash-tab-recruitment').classList.remove('act');
-  const at = document.getElementById('dash-tab-admin'); if (at) at.classList.remove('act');
-  document.getElementById('dash-sub-sponsors').style.display    = 'flex';
-  document.getElementById('dash-sub-recruitment').style.display = 'none';
-  document.getElementById('dash-sub-admin').style.display       = 'none';
-  document.getElementById('sponsor-content').style.display      = 'block';
-  document.getElementById('recruitment-content').style.display  = 'none';
-  const ap = document.getElementById('admin-panel-content'); if (ap) ap.style.display = 'none';
-  // Render packages into sponsor-content area
-  const sponsorContent = document.getElementById('sponsor-content');
-  sponsorContent.innerHTML =
-    '<div class="section-head" style="align-items:center;gap:10px;">'
-    + '<button onclick="switchDashboard(&quot;sponsors&quot;)" style="background:none;border:none;color:var(--green);font-size:13px;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px;">&#8592; Overview</button>'
-    + '<h2 class="section-title" style="flex:1;">Sponsorship Packages</h2>'
-    + '</div>'
-    + '<div id="adm-body" style="max-width:900px;"></div>';
-  renderPackageManager();
+  openAdminModal('packages');
 }
 
 function renderPackageManager() {
@@ -3472,6 +3417,7 @@ function closePlayersModal() {
 }
 
 let _currentDashboard = 'sponsors';
+let _sponsorStaticHTML = '';
 
 function switchDashboard(which) {
   _currentDashboard = which;
@@ -3493,22 +3439,30 @@ function switchDashboard(which) {
   const adminContent = document.getElementById('admin-panel-content');
   if (adminContent) adminContent.style.display = which === 'admin-panel' ? 'block' : 'none';
 
-  // If returning to sponsors overview, restore sponsor-content if packages panel replaced it
   if (which === 'sponsors') {
-    if (!document.getElementById('season-span')) {
-      // sponsor-content was replaced — reload the page data into it
-      loadAll();
-    }
+    // Always re-render sponsors overview — clear any sub-panel state
     document.querySelectorAll('#dash-sub-sponsors .dtab').forEach(b => b.classList.remove('act'));
+    // Restore static sponsor HTML if it was replaced by a sub-panel
+    const sc = document.getElementById('sponsor-content');
+    if (!sc.querySelector('#season-span')) {
+      sc.innerHTML = _sponsorStaticHTML;
+    }
+    render();
   }
 
   if (which === 'recruitment') {
-    const activeTab = document.querySelector('.stab.act');
-    if (activeTab && activeTab.dataset.year) plSeason = +activeTab.dataset.year;
-    initPlayerSeasonSel();
-    if (!plData) loadPlayerData();
-    else renderPlTab();
+    // Always reset to Overview sub-tab
+    const overviewBtn = document.querySelector('#dash-sub-recruitment .dtab[data-tab="overview"]');
+    if (overviewBtn) switchPlTab(overviewBtn, 'overview');
+    else {
+      const activeTab = document.querySelector('.stab.act');
+      if (activeTab && activeTab.dataset.year) plSeason = +activeTab.dataset.year;
+      initPlayerSeasonSel();
+      if (!plData) loadPlayerData();
+      else renderPlTab();
+    }
   }
+
   if (which === 'admin-panel') {
     renderAdminPanel();
   }
@@ -3984,12 +3938,12 @@ function _renderOverviewHTML() {
         <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">${totalShort} player${totalShort!==1?'s':''} needed across ${shortTeams.length} team${shortTeams.length!==1?'s':''} to reach minimum numbers</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           ${shortTeams.map(({t, count, short}) => {
-            const pct    = Math.min(100, Math.round(count / t.minPlayers * 100));
-            const trainP = t.trainingCount || 0;
-            const intP   = t.interestCount || 0;
-            const estTot = count + trainP + intP;
-            const estPct = Math.min(100, Math.round(estTot / t.minPlayers * 100));
-            const col    = count >= Math.ceil(t.minPlayers * 0.8) ? '#ca8a04' : '#dc2626';
+            const pct     = Math.min(100, Math.round(count / t.minPlayers * 100));
+            const trainP  = t.trainingCount || 0;  // total est. incl. registered
+            const intP    = t.interestCount || 0;  // total est. incl. registered
+            const estTot  = Math.max(trainP, intP, count);
+            const estPct  = Math.min(100, Math.round(estTot / t.minPlayers * 100));
+            const col     = count >= Math.ceil(t.minPlayers * 0.8) ? '#ca8a04' : '#dc2626';
             const schoolYr = t.ageGroup ? agRecruitTarget(t.ageGroup) : '';
             return '<div style="background:#fafafa;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;">'
               + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:4px;">'
@@ -4006,9 +3960,11 @@ function _renderOverviewHTML() {
               +   '</div>'
               +   '<span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">' + count + '/' + t.minPlayers + '</span>'
               + '</div>'
-              + ((trainP||intP) ? '<div style="display:flex;gap:10px;">'
-                + (trainP ? '<span style="font-size:10px;color:#1d4ed8;font-weight:600;">🏃 ' + trainP + ' training</span>' : '')
-                + (intP   ? '<span style="font-size:10px;color:#7c3aed;font-weight:600;">✋ ' + intP + ' interested</span>' : '')
+              + ((trainP||intP) ? '<div style="display:flex;gap:8px;align-items:center;margin-top:4px;">'
+                + '<span style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">Est. total:</span>'
+                + (trainP ? '<span title="Training total (incl. registered)" style="font-size:10px;color:#1d4ed8;font-weight:600;">🏃 ' + trainP + '</span>' : '')
+                + (intP   ? '<span title="Interest total (incl. registered)" style="font-size:10px;color:#7c3aed;font-weight:600;">✋ ' + intP + '</span>' : '')
+                + (estTot >= t.minPlayers ? '<span style="font-size:10px;color:#16a34a;font-weight:700;margin-left:4px;">Est. viable ✓</span>' : '')
                 + '</div>' : '')
               + '</div>';
           }).join('')}
@@ -5333,11 +5289,11 @@ function renderPlTeams() {
             const count    = teamCount[t.id] || 0;
             const roster   = allRows.filter(s => s.assignedTeam === t.id).map(s => pm[s.profileId]).filter(Boolean);
             const minP     = t.minPlayers || 0;
-            const trainP   = t.trainingCount || 0;
-            const intP     = t.interestCount || 0;
-            const estimated = trainP + intP; // combined interest indicator
+            const trainP   = t.trainingCount || 0;  // estimated total incl. registered
+            const intP     = t.interestCount || 0;  // estimated total incl. registered
+            const estTotal = Math.max(trainP, intP, count); // highest demand estimate
             const pct      = minP > 0 ? Math.min(100, Math.round(count / minP * 100)) : 0;
-            const estPct   = (minP > 0 && estimated > count) ? Math.min(100, Math.round(estimated / minP * 100)) : 0;
+            const estPct   = (minP > 0 && estTotal > count) ? Math.min(100, Math.round(estTotal / minP * 100)) : 0;
             const colour   = !minP ? '#9ca3af'
                            : count >= minP ? '#16a34a'
                            : count >= Math.ceil(minP * 0.8) ? '#ca8a04'
@@ -5366,23 +5322,29 @@ function renderPlTeams() {
                     <div style="display:flex;align-items:baseline;gap:6px;">
                       <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;color:${colour};">${count}</span>
                       <span style="font-size:11px;color:var(--text-dim);">registered</span>
+                      ${(trainP||intP) ? '<span style="font-size:11px;color:#6b7280;">· est. ' + estTotal + ' total</span>' : ''}
                     </div>
-                    ${minP > 0 ? '<span style="font-size:11px;font-weight:700;color:' + colour + ';">' + (count >= minP ? '✓ ' + count + '/' + minP : count + '/' + minP + ' · ' + (minP-count) + ' short') + '</span>' : ''}
+                    ${minP > 0 ? '<span style="font-size:11px;font-weight:700;color:' + colour + ';">' + (count >= minP ? '✓ meets min' : (minP-count) + ' more needed') + '</span>' : ''}
                   </div>
-                  ${minP > 0 ? `<div style="position:relative;height:7px;background:#e5e7eb;border-radius:4px;margin-bottom:${(trainP||intP)?'4':'8'}px;">
-                    ${estPct > pct ? '<div style="position:absolute;height:7px;border-radius:4px;background:#bfdbfe;width:' + estPct + '%;"></div>' : ''}
-                    <div style="position:absolute;height:7px;border-radius:4px;background:' + colour + ';width:' + pct + '%;transition:width .3s;"></div>
-                  </div>` : '<div style="height:7px;margin-bottom:8px;"></div>'}
-                  ${(trainP || intP) ? '<div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;">'
-                    + (trainP ? '<span style="font-size:10px;color:#1d4ed8;font-weight:600;">🏃 ' + trainP + ' training</span>' : '')
-                    + (intP  ? '<span style="font-size:10px;color:#7c3aed;font-weight:600;">✋ ' + intP + ' interested</span>' : '')
+                  ${minP > 0 ? '<div style="position:relative;height:7px;background:#e5e7eb;border-radius:4px;margin-bottom:' + ((trainP||intP)?'5':'8') + 'px;">'
+                    + (estPct > pct ? '<div title="Estimated total demand (' + estTotal + ')" style="position:absolute;height:7px;border-radius:4px;background:#bfdbfe;width:' + estPct + '%;"></div>' : '')
+                    + '<div title="Registered (' + count + ')" style="position:absolute;height:7px;border-radius:4px;background:' + colour + ';width:' + pct + '%;transition:width .3s;"></div>'
+                    + '</div>' : '<div style="height:7px;margin-bottom:8px;"></div>'}
+                  ${(trainP || intP) ? '<div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;align-items:center;">'
+                    + '<span style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">Est. total:</span>'
+                    + (trainP ? '<span title="Training turnout (total estimate including registered)" style="font-size:10px;color:#1d4ed8;font-weight:600;">🏃 ' + trainP + '</span>' : '')
+                    + (intP  ? '<span title="Interest/waitlist (total estimate including registered)" style="font-size:10px;color:#7c3aed;font-weight:600;">✋ ' + intP + '</span>' : '')
                     + '</div>' : ''}
                   <!-- Mini roster -->
                   ${roster.length ? `
-                    <div style="display:flex;flex-wrap:wrap;gap:3px;">
+                    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:${(t.trainingNames?.length||t.interestNames?.length)?'6':'0'}px;">
                       ${roster.slice(0,8).map(p=>`<span style="background:var(--green-light);color:var(--green);font-size:10px;font-weight:600;padding:1px 6px;border-radius:8px;">${plName(p)}</span>`).join('')}
                       ${roster.length > 8 ? `<span style="background:#f3f4f6;color:var(--text-dim);font-size:10px;font-weight:600;padding:1px 6px;border-radius:8px;">+${roster.length-8} more</span>` : ''}
-                    </div>` : `<div style="font-size:11px;color:var(--text-dim);font-style:italic;">Click to assign players →</div>`}
+                    </div>` : `<div style="font-size:11px;color:var(--text-dim);font-style:italic;margin-bottom:${(t.trainingNames?.length||t.interestNames?.length)?'6':'0'}px;">Click to assign players →</div>`}
+                  ${(t.trainingNames?.length||t.interestNames?.length) ? '<div style="border-top:1px solid var(--border);padding-top:6px;margin-top:2px;">'
+                    + (t.trainingNames?.length ? '<div style="font-size:10px;color:#1d4ed8;font-weight:600;margin-bottom:2px;">🏃 ' + t.trainingNames.slice(0,3).join(', ') + (t.trainingNames.length>3?' +' + (t.trainingNames.length-3) + ' more':'') + '</div>' : '')
+                    + (t.interestNames?.length ? '<div style="font-size:10px;color:#7c3aed;font-weight:600;">✋ ' + t.interestNames.slice(0,3).join(', ') + (t.interestNames.length>3?' +' + (t.interestNames.length-3) + ' more':'') + '</div>' : '')
+                    + '</div>' : ''}
                 </div>
               </div>`;
           }).join('')}
@@ -5444,6 +5406,23 @@ function renderPlTeams() {
             <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">NOTES</div>
             <textarea id="tm-notes" rows="2" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;resize:vertical;"></textarea>
           </div>
+          <!-- Name lists — collapsible -->
+          <details style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden;">
+            <summary style="cursor:pointer;padding:8px 12px;background:var(--bg);font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;list-style:none;display:flex;align-items:center;gap:6px;">
+              <span>📋</span> Optional: Name Lists
+              <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;margin-left:auto;">for record keeping</span>
+            </summary>
+            <div style="padding:10px 12px;background:#fff;display:grid;gap:10px;">
+              <div>
+                <div style="font-size:11px;font-weight:700;color:#1d4ed8;margin-bottom:4px;">🏃 TRAINING NAMES <span style="font-weight:400;font-size:10px;color:#9ca3af;">(one per line, total est. incl. registered)</span></div>
+                <textarea id="tm-training-names" rows="3" placeholder="e.g.&#10;Alex Smith&#10;Jordan Lee&#10;Sam Brown" style="width:100%;padding:8px 10px;border:1.5px solid #bfdbfe;border-radius:7px;font-size:12px;resize:vertical;background:#eff6ff;"></textarea>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:4px;">✋ INTEREST / WAITLIST NAMES <span style="font-weight:400;font-size:10px;color:#9ca3af;">(one per line, total est. incl. registered)</span></div>
+                <textarea id="tm-interest-names" rows="3" placeholder="e.g.&#10;Riley Jones&#10;Morgan Clark" style="width:100%;padding:8px 10px;border:1.5px solid #e9d5ff;border-radius:7px;font-size:12px;resize:vertical;background:#faf5ff;"></textarea>
+              </div>
+            </div>
+          </details>
         </div>
         <div style="display:flex;gap:8px;margin-top:16px;">
           <button class="msecondary" onclick="closeTeamModal()" style="flex:1;">Cancel</button>
@@ -5667,8 +5646,10 @@ function openTeamModal(teamId) {
   document.getElementById('tm-acoach').value   = t?.assistantCoach || '';
   document.getElementById('tm-notes').value    = t?.notes || '';
   document.getElementById('tm-min').value      = t?.minPlayers || '';
-  document.getElementById('tm-training').value = t?.trainingCount || '';
-  document.getElementById('tm-interest').value = t?.interestCount || '';
+  document.getElementById('tm-training').value       = t?.trainingCount || '';
+  document.getElementById('tm-interest').value        = t?.interestCount || '';
+  document.getElementById('tm-training-names').value  = (t?.trainingNames || []).join('\n');
+  document.getElementById('tm-interest-names').value  = (t?.interestNames || []).join('\n');
   overlay.style.display = 'flex';
 }
 
@@ -5692,6 +5673,8 @@ async function saveTeamModal() {
     minPlayers:     parseInt(document.getElementById('tm-min').value) || 0,
     trainingCount:  parseInt(document.getElementById('tm-training').value) || 0,
     interestCount:  parseInt(document.getElementById('tm-interest').value) || 0,
+    trainingNames:  document.getElementById('tm-training-names').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    interestNames:  document.getElementById('tm-interest-names').value.split('\n').map(s=>s.trim()).filter(Boolean),
   };
   const res = await api('saveTeam', payload);
   if (res.error) { showToast('Save failed: ' + res.error, 'err'); return; }
