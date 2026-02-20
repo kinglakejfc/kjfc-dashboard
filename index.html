@@ -724,8 +724,6 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 .pl-search{width:100%;padding:9px 12px 9px 34px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7a6b' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;margin-bottom:12px;}
 .pl-search:focus{outline:none;border-color:var(--green);}
 .school-bar-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
-.school-bar-track{flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden;}
-.school-bar-fill{height:100%;background:var(--green);border-radius:4px;transition:width .4s;}
 .import-drop{border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);}
 .import-drop.drag{border-color:var(--green);background:var(--green-light);}
 .lapsed-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
@@ -906,7 +904,6 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button class="dtab act" data-tab="overview"  onclick="switchPlTab(this,'overview')"><span class="dtab-icon">📊</span><span class="dtab-lbl">Overview</span></button>
       <button class="dtab"     data-tab="players"   onclick="switchPlTab(this,'players')"><span class="dtab-icon">👥</span><span class="dtab-lbl">Players</span></button>
       <button class="dtab"     data-tab="teams"     onclick="switchPlTab(this,'teams')"><span class="dtab-icon">🏉</span><span class="dtab-lbl">Teams</span></button>
-      <button class="dtab"     data-tab="schools"   onclick="switchPlTab(this,'schools')"><span class="dtab-icon">🏫</span><span class="dtab-lbl">Schools</span></button>
       <button class="dtab"     data-tab="import"    onclick="switchPlTab(this,'import')"><span class="dtab-icon">📥</span><span class="dtab-lbl">Import</span></button>
     </div>
   </div>
@@ -3319,7 +3316,6 @@ function buildHamburgerMenu() {
       { tab:'overview', icon:'📊', lbl:'Overview'  },
       { tab:'players',  icon:'👥', lbl:'Players'   },
       { tab:'teams',    icon:'🏉', lbl:'Teams'     },
-      { tab:'schools',  icon:'🏫', lbl:'Schools'   },
       { tab:'import',   icon:'📥', lbl:'Import'    },
     ];
     plTabs.forEach(t => {
@@ -3530,7 +3526,6 @@ function renderPlTab() {
   const fns = {
     overview: renderPlOverview,
     players:  renderPlPlayers,
-    schools:  renderPlSchools,
     teams:    renderPlTeams,
     import:   renderPlImport,
   };
@@ -3775,6 +3770,31 @@ function _renderOverviewHTML() {
   // Active teams this season
   const activeTeams = plSeasonTeams().filter(t => t.name).length;
 
+  // Recruitment shortfall: teams with minPlayers set that are below target
+  // For a given age group, eligible players have natural age (age+1-1) down to 2 years below,
+  // all capped at U9 minimum (natural age 8). School year ≈ age - 5 (Vic: Prep=age5, Yr1=6…).
+  // Returns e.g. "Ages 10–12 (Yr 5–7)" for U12.
+  function agRecruitTarget(ag) {
+    const top = parseInt(ag.slice(1));       // e.g. 12
+    const rawBot = top - 2;
+    const bot = ag === 'U9' ? 7 : Math.max(8, rawBot); // U9 allows age 7 (Jan–Apr births)
+    const yrTop = Math.max(0, top - 5);      // school year (Vic: age-5)
+    const yrBot = Math.max(0, bot - 5);
+    const ageStr = bot === top ? 'Age ' + bot : 'Ages ' + bot + '–' + top;
+    function schYr(n) { return n <= 0 ? 'Prep' : 'Yr ' + n; }
+    const yrStr = yrBot === yrTop ? schYr(yrTop) : schYr(yrBot) + '–' + schYr(yrTop);
+    return ageStr + ' · ' + yrStr;
+  }
+  const allTeamsData = plSeasonTeams().filter(t => t.name);
+  const teamCountMap = {};
+  rows.forEach(s => { if (s.assignedTeam) teamCountMap[s.assignedTeam] = (teamCountMap[s.assignedTeam]||0)+1; });
+  const shortTeams = allTeamsData
+    .filter(t => t.minPlayers > 0)
+    .map(t => ({ t, count: teamCountMap[t.id]||0, short: Math.max(0, t.minPlayers - (teamCountMap[t.id]||0)) }))
+    .filter(d => d.short > 0)
+    .sort((a,b) => b.short - a.short);
+  const totalShort = shortTeams.reduce((s,d) => s+d.short, 0);
+
   // Retention: players in current season who were also in previous season
   const prevSeason = +plSeason - 1;
   const prevPids = new Set(
@@ -3817,7 +3837,7 @@ function _renderOverviewHTML() {
   });
   const topSchools = Object.entries(schoolYOY)
     .map(([s,d]) => ({ school:s, total: Object.values(d).reduce((a,b)=>a+b,0), data:d }))
-    .sort((a,b)=>b.total-a.total).slice(0,6);
+    .sort((a,b)=>b.total-a.total).slice(0,15);
 
   // Update section heading with season — now handled centrally in renderPlTab
 
@@ -3900,6 +3920,35 @@ function _renderOverviewHTML() {
         })()}
       </div>
 
+      <!-- Recruitment Targets card — full width, only shown when teams have shortfalls -->
+      ${shortTeams.length > 0 ? `
+      <div class="pl-kpi" style="margin-bottom:16px;border-left:4px solid #dc2626;">
+        <div class="pl-kpi-label" style="color:#dc2626;">🎯 Recruitment Targets</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">${totalShort} player${totalShort!==1?'s':''} needed across ${shortTeams.length} team${shortTeams.length!==1?'s':''} to reach minimum numbers</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${shortTeams.map(({t, count, short}) => {
+            const pct = Math.min(100, Math.round(count / t.minPlayers * 100));
+            const col = count >= Math.ceil(t.minPlayers * 0.8) ? '#ca8a04' : '#dc2626';
+            const schoolYr = t.ageGroup ? agRecruitTarget(t.ageGroup) : '';
+            return '<div style="background:#fafafa;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;">'
+              + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:4px;">'
+              +   '<div>'
+              +     '<span style="font-weight:800;font-size:13px;">' + t.name + '</span>'
+              +     (schoolYr ? ' <span style="font-size:10px;background:var(--green-light);color:var(--green);border-radius:5px;padding:1px 6px;font-weight:700;margin-left:4px;">Target: ' + schoolYr + '</span>' : '')
+              +   '</div>'
+              +   '<span style="font-size:12px;font-weight:700;color:' + col + ';">Need ' + short + ' more</span>'
+              + '</div>'
+              + '<div style="display:flex;align-items:center;gap:8px;">'
+              +   '<div style="flex:1;height:5px;background:#e5e7eb;border-radius:4px;">'
+              +     '<div style="height:5px;border-radius:4px;background:' + col + ';width:' + pct + '%;"></div>'
+              +   '</div>'
+              +   '<span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">' + count + ' / ' + t.minPlayers + '</span>'
+              + '</div>'
+              + '</div>';
+          }).join('')}
+        </div>
+      </div>` : ''}
+
       <!-- Schools + Avg Age + Teams + Retention row -->
       <div class="pl-kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;align-items:start;">
         <div class="pl-kpi" onclick="openSchoolsOverviewSlideover()" style="cursor:pointer;">
@@ -3949,7 +3998,7 @@ function _renderOverviewHTML() {
         <!-- Row 4: Schools (full width) -->
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;grid-column:1/-1;">
           <div class="chart-label">Schools — ${plSeason} <span style="font-weight:400;text-transform:none;font-size:10px;">· click to view players</span></div>
-          <div class="chart-wrap" style="height:300px;"><canvas id="chart-schools"></canvas></div>
+          <div class="chart-wrap" style="height:450px;"><canvas id="chart-schools"></canvas></div>
         </div>
       </div>
 
@@ -4481,7 +4530,7 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
       var sch = seasonSchool(r, pm3) || 'Unknown';
       seasonSchoolMap[sch] = (seasonSchoolMap[sch]||0) + 1;
     });
-    var schEntries = Object.entries(seasonSchoolMap).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
+    var schEntries = Object.entries(seasonSchoolMap).sort(function(a,b){return b[1]-a[1];}).slice(0,15);
     var schLabels  = schEntries.map(function(e){ return e[0].length>20 ? e[0].slice(0,20)+'…' : e[0]; });
     var schCounts  = schEntries.map(function(e){ return e[1]; });
     var schFull    = schEntries.map(function(e){ return e[0]; }); // full names for click handler
@@ -5132,42 +5181,6 @@ function exportLapsed(lapsed) {
 }
 
 // ── SCHOOLS TAB ───────────────────────────────────────────────────
-function renderPlSchools() {
-  const rows = plSeasonRows();
-  const pm   = plPlayerMap();
-  const bySch = {};
-  rows.forEach(r => {
-    const p   = pm[r.profileId]||{};
-    const sch = seasonSchool(r, pm) || 'Unknown';
-    // Shorten school name for display
-    const short = sch.replace(/,.*$/,'').trim();
-    if (!bySch[short]) bySch[short] = { count:0, boys:0, girls:0, ags:{} };
-    bySch[short].count++;
-    if (p.gender==='Male') bySch[short].boys++;
-    if (p.gender==='Female') bySch[short].girls++;
-    const ag = effectiveAgeGroup(r);
-    bySch[short].ags[ag] = (bySch[short].ags[ag]||0)+1;
-  });
-
-  const sorted = Object.entries(bySch).sort((a,b)=>b[1].count-a[1].count);
-  const max    = sorted[0]?.[1]?.count||1;
-
-  if (!sorted.length) {
-    document.getElementById('pl-body').innerHTML = '<div style="color:var(--text-dim);padding:20px;text-align:center;">No player data. Import players first.</div>';
-    return;
-  }
-
-  document.getElementById('pl-body').innerHTML = `
-    <div style="margin-bottom:16px;font-size:13px;color:var(--text-dim);">${rows.length} players across ${sorted.length} schools · ${plSeason}</div>
-    ${sorted.map(([sch,d])=>`
-      <div class="school-bar-row">
-        <div style="width:180px;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${sch}">${sch}</div>
-        <div class="school-bar-track"><div class="school-bar-fill" style="width:${Math.round(d.count/max*100)}%"></div></div>
-        <div style="width:36px;text-align:right;font-size:13px;font-weight:700;color:var(--green);">${d.count}</div>
-        <div style="width:80px;text-align:right;font-size:11px;color:var(--text-dim);">${d.boys}M · ${d.girls}F</div>
-      </div>`).join('')}
-  `;
-}
 
 // ── IMPORT TAB ────────────────────────────────────────────────────
 // ── IMPORT STATE ─────────────────────────────────────────────────
@@ -5203,8 +5216,12 @@ function renderPlTeams() {
           ${teams.map(t => {
             const count   = teamCount[t.id] || 0;
             const roster  = allRows.filter(s => s.assignedTeam === t.id).map(s => pm[s.profileId]).filter(Boolean);
-            const pct     = Math.min(100, Math.round(count / 24 * 100));
-            const colour  = count === 0 ? '#9ca3af' : count < 14 ? '#ca8a04' : '#16a34a';
+            const minP    = t.minPlayers || 0;
+            const pct     = minP > 0 ? Math.min(100, Math.round(count / minP * 100)) : 0;
+            const colour  = !minP ? '#9ca3af'
+                          : count >= minP ? '#16a34a'
+                          : count >= Math.ceil(minP * 0.8) ? '#ca8a04'
+                          : '#dc2626';
             return `
               <div onclick="openTeamSlide('${t.id}')"
                 style="background:#fff;border:2px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;transition:all .15s;"
@@ -5225,13 +5242,14 @@ function renderPlTeams() {
                 <div style="padding:12px 14px;">
                   ${t.coach ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">👤 ${t.coach}${t.assistantCoach?' · '+t.assistantCoach:''}</div>` : ''}
                   <!-- Count + bar -->
-                  <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px;">
-                    <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;color:${colour};">${count}</span>
-                    <span style="font-size:11px;color:var(--text-dim);">players assigned</span>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;">
+                    <div style="display:flex;align-items:baseline;gap:6px;">
+                      <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;color:${colour};">${count}</span>
+                      <span style="font-size:11px;color:var(--text-dim);">assigned</span>
+                    </div>
+                    ${minP > 0 ? '<span style="font-size:11px;font-weight:700;color:' + colour + ';">' + (count >= minP ? '✓ ' + count + '/' + minP + ' min' : count + '/' + minP + ' min · ' + (minP - count) + ' short') + '</span>' : ''}
                   </div>
-                  <div style="height:4px;background:#e5e7eb;border-radius:4px;margin-bottom:8px;">
-                    <div style="height:4px;border-radius:4px;background:${colour};width:${pct}%;transition:width .3s;"></div>
-                  </div>
+                  ${minP > 0 ? '<div style="height:5px;background:#e5e7eb;border-radius:4px;margin-bottom:8px;"><div style="height:5px;border-radius:4px;background:' + colour + ';width:' + pct + '%;transition:width .3s;"></div></div>' : '<div style="height:5px;margin-bottom:8px;"></div>'}
                   <!-- Mini roster -->
                   ${roster.length ? `
                     <div style="display:flex;flex-wrap:wrap;gap:3px;">
@@ -5280,6 +5298,13 @@ function renderPlTeams() {
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">ASSISTANT COACH</div>
             <input id="tm-acoach" type="text" placeholder="Assistant coach name" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">MINIMUM PLAYERS</div>
+              <input id="tm-min" type="number" min="1" max="50" placeholder="e.g. 14" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+            </div>
+            <div></div>
           </div>
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">NOTES</div>
@@ -5507,6 +5532,7 @@ function openTeamModal(teamId) {
   document.getElementById('tm-coach').value    = t?.coach || '';
   document.getElementById('tm-acoach').value   = t?.assistantCoach || '';
   document.getElementById('tm-notes').value    = t?.notes || '';
+  document.getElementById('tm-min').value      = t?.minPlayers || '';
   overlay.style.display = 'flex';
 }
 
@@ -5527,6 +5553,7 @@ async function saveTeamModal() {
     coach:          document.getElementById('tm-coach').value.trim(),
     assistantCoach: document.getElementById('tm-acoach').value.trim(),
     notes:          document.getElementById('tm-notes').value.trim(),
+    minPlayers:     parseInt(document.getElementById('tm-min').value) || 0,
   };
   const res = await api('saveTeam', payload);
   if (res.error) { showToast('Save failed: ' + res.error, 'err'); return; }
