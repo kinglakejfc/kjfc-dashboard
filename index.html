@@ -3923,29 +3923,14 @@ function _renderOverviewHTML() {
 
           const thisPct  = thisYr.total  ? Math.round(thisYr.girls  / thisYr.total  * 100) : 0;
           const lastPct  = lastYr && lastYr.total ? Math.round(lastYr.girls / lastYr.total * 100) : null;
+          // Positive = improvement (more female players this season vs last)
           const diffPct  = lastPct !== null ? thisPct - lastPct : null;
           const diffNum  = lastYr ? thisYr.girls - lastYr.girls : null;
           const arrowCol = diffPct === null ? '#9ca3af' : diffPct > 0 ? '#16a34a' : diffPct < 0 ? '#dc2626' : '#9ca3af';
           const arrowSym = diffPct === null ? '→' : diffPct > 0 ? '↑' : diffPct < 0 ? '↓' : '→';
           const diffLabel = diffPct !== null ? (diffPct > 0 ? '+' : '') + diffPct + 'pp' + (diffNum !== 0 ? ' (' + (diffNum > 0 ? '+' : '') + diffNum + ')' : '') : '';
 
-          const blockLast = lastYr
-            ? '<div style="flex:1;background:#f9fafb;border:1.5px solid var(--border);border-radius:12px;padding:16px 20px;">'
-            +   '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-dim);margin-bottom:10px;">' + lastYr.year + ' Season</div>'
-            +   '<div style="font-size:48px;font-weight:900;color:var(--text-dim);line-height:1;">' + lastYr.girls + '</div>'
-            +   '<div style="font-size:13px;color:var(--text-dim);margin-top:6px;">female players</div>'
-            +   '<div style="font-size:20px;font-weight:700;color:var(--text-dim);margin-top:8px;">' + lastPct + '%</div>'
-            +   '<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">of ' + lastYr.total + ' registered</div>'
-            + '</div>'
-            : '';
-
-          const blockArrow = lastYr
-            ? '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 16px;gap:6px;flex-shrink:0;">'
-            +   '<div style="font-size:40px;font-weight:900;color:' + arrowCol + ';line-height:1;">' + arrowSym + '</div>'
-            +   '<div style="font-size:12px;font-weight:800;color:' + arrowCol + ';text-align:center;">' + diffLabel + '</div>'
-            + '</div>'
-            : '';
-
+          // Current season on the LEFT (highlighted), previous on the RIGHT (muted)
           const blockThis = '<div style="flex:1;background:rgba(201,180,0,.08);border:2px solid #c9b400;border-radius:12px;padding:16px 20px;">'
             +   '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#a09000;margin-bottom:10px;">' + plSeason + ' Season</div>'
             +   '<div style="font-size:48px;font-weight:900;color:#c9b400;line-height:1;">' + thisYr.girls + '</div>'
@@ -3954,8 +3939,25 @@ function _renderOverviewHTML() {
             +   '<div style="font-size:11px;color:#a09000;margin-top:2px;">of ' + thisYr.total + ' registered</div>'
             + '</div>';
 
+          const blockArrow = lastYr
+            ? '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 16px;gap:6px;flex-shrink:0;">'
+            +   '<div style="font-size:40px;font-weight:900;color:' + arrowCol + ';line-height:1;">' + arrowSym + '</div>'
+            +   '<div style="font-size:12px;font-weight:800;color:' + arrowCol + ';text-align:center;">' + diffLabel + '</div>'
+            + '</div>'
+            : '';
+
+          const blockLast = lastYr
+            ? '<div style="flex:1;background:#f9fafb;border:1.5px solid var(--border);border-radius:12px;padding:16px 20px;">'
+            +   '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-dim);margin-bottom:10px;">Previous season (' + lastYr.year + ')</div>'
+            +   '<div style="font-size:48px;font-weight:900;color:var(--text-dim);line-height:1;">' + lastYr.girls + '</div>'
+            +   '<div style="font-size:13px;color:var(--text-dim);margin-top:6px;">female players</div>'
+            +   '<div style="font-size:20px;font-weight:700;color:var(--text-dim);margin-top:8px;">' + lastPct + '%</div>'
+            +   '<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">of ' + lastYr.total + ' registered</div>'
+            + '</div>'
+            : '';
+
           return '<div style="display:flex;align-items:center;margin-top:12px;min-height:140px;">'
-            + blockLast + blockArrow + blockThis
+            + blockThis + blockArrow + blockLast
             + '</div>';
         })()}
       </div>
