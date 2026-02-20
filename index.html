@@ -5575,10 +5575,11 @@ async function togglePlanPlayer(pid) {
   }
 
   _renderPlanningSlide();
+  // Refresh the planning tab cards behind the open slideover (updates "X planned" counts)
+  if (plTab === 'planning') _renderPlanningHTML();
   // Save this group async
   api('savePlanningTeam', { year: plSeason, ageGroup: ag, profileIds: _planningData[ag] });
-  // Refresh overview cards — skip while on planning tab to avoid replacing the
-  // tab DOM behind the open slideover (which makes the background flip to overview)
+  // Refresh overview cards when on a different tab
   if (plTab !== 'planning' && document.querySelector('.ag-card')) _renderOverviewHTML();
 }
 
