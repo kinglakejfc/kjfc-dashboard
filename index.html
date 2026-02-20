@@ -3610,6 +3610,17 @@ function plPlayerMap() {
 // data backwards, as it will be wrong (e.g. current high school vs primary school).
 // Only fall back to the Players profile for the current active season where
 // the season row and player profile are effectively the same import.
+// Title-case normalisation for display — mirrors the backend toTitleCase logic.
+// Applied to suburb/address/school to handle legacy ALL-CAPS data from PlayHQ exports.
+function toTitleCaseJS(str) {
+  if (!str) return str;
+  return str.replace(/[^\s\-]+/g, function(word) {
+    if (/^[Mm][Cc][A-Za-z]/.test(word))
+      return word[0].toUpperCase() + word[1].toLowerCase() + word[2].toUpperCase() + word.slice(3).toLowerCase();
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+}
+
 const _currentSeasonYear = new Date().getFullYear();
 // Determine if a season row has had its demographic snapshot captured.
 // We use registrationDate as the sentinel — the backfill tool writes all snapshot
@@ -3623,20 +3634,20 @@ function _snapshotCaptured(sr) {
 }
 function seasonSchool(sr, pm) {
   if (!sr) return '';
-  if (_snapshotCaptured(sr)) return sr.school || ''; // snapshot ran — honour it (blank = blank)
-  if (+sr.year >= _currentSeasonYear) return (pm && (pm[sr.profileId]||{}).school) || '';
-  return ''; // historical, no snapshot — show blank
+  if (_snapshotCaptured(sr)) return toTitleCaseJS(sr.school || '');
+  if (+sr.year >= _currentSeasonYear) return toTitleCaseJS((pm && (pm[sr.profileId]||{}).school) || '');
+  return '';
 }
 function seasonSuburb(sr, pm) {
   if (!sr) return '';
-  if (_snapshotCaptured(sr)) return sr.suburb || '';
-  if (+sr.year >= _currentSeasonYear) return (pm && (pm[sr.profileId]||{}).suburb) || '';
+  if (_snapshotCaptured(sr)) return toTitleCaseJS(sr.suburb || '');
+  if (+sr.year >= _currentSeasonYear) return toTitleCaseJS((pm && (pm[sr.profileId]||{}).suburb) || '');
   return '';
 }
 function seasonAddr(sr, pm) {
   if (!sr) return '';
-  if (_snapshotCaptured(sr)) return sr.address || '';
-  if (+sr.year >= _currentSeasonYear) return (pm && (pm[sr.profileId]||{}).address) || '';
+  if (_snapshotCaptured(sr)) return toTitleCaseJS(sr.address || '');
+  if (+sr.year >= _currentSeasonYear) return toTitleCaseJS((pm && (pm[sr.profileId]||{}).address) || '');
   return '';
 }
 
@@ -6369,10 +6380,10 @@ async function runDateBackfill() {
         profileId,
         season,
         registrationDate: (r[dateCol]||'').trim(),
-        school:    (r['School Details']||'').trim(),
+        school:    toTitleCaseJS((r['School Details']||'').trim()),
         schoolYear:(r['School Year']||'').trim(),
-        address:   (r['Participant Address']||'').trim(),
-        suburb:    (r['Participant Suburb/Town']||'').trim(),
+        address:   toTitleCaseJS((r['Participant Address']||'').trim()),
+        suburb:    toTitleCaseJS((r['Participant Suburb/Town']||'').trim()),
         postcode:  (r['Participant Postcode']||'').trim(),
       };
       if (patch.registrationDate || patch.school || patch.suburb) patches.push(patch);
