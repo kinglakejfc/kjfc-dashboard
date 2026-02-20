@@ -3923,13 +3923,23 @@ function _renderOverviewHTML() {
           <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;color:var(--yellow-dark);line-height:1;">${girls}</span>
           <span style="font-size:11px;font-weight:700;color:var(--yellow-dark);text-transform:uppercase;letter-spacing:.5px;">Female</span>
         </div>
-        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-          <div class="pl-kpi-sub" style="margin:0;">${total ? Math.round(boys/total*100) : 0}% male · ${total ? Math.round(girls/total*100) : 0}% female</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            ${yoyData.slice().reverse().map(d => {
-              const malePct = d.total ? Math.round(d.boys/d.total*100) : 0;
-              return '<span style="font-size:10px;color:var(--text-dim);"><strong style="color:var(--text);">' + d.year + '</strong> ' + malePct + '%M / ' + (100-malePct) + '%F</span>';
-            }).join('<span style="color:var(--border);padding:0 2px;">·</span>')}
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px;">
+          <div class="pl-kpi-sub" style="margin:0;min-width:140px;">${total ? Math.round(boys/total*100) : 0}% male · ${total ? Math.round(girls/total*100) : 0}% female</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+            ${(()=>{
+              const yoy = yoyData.slice().reverse();
+              return yoy.map((d,i) => {
+                const malePct = d.total ? Math.round(d.boys/d.total*100) : 0;
+                const prev = yoy[i-1];
+                const prevPct = prev && prev.total ? Math.round(prev.boys/prev.total*100) : null;
+                const arrow = prevPct === null ? '' : malePct > prevPct
+                  ? '<span style="color:#16a34a;font-size:11px;" title="Male % up">↑</span>'
+                  : malePct < prevPct
+                    ? '<span style="color:#dc2626;font-size:11px;" title="Male % down">↓</span>'
+                    : '<span style="color:var(--text-dim);font-size:11px;">–</span>';
+                return '<span style="font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:2px;"><strong style="color:var(--text);">' + d.year + '</strong> ' + malePct + '%M' + arrow + '</span>';
+              }).join('<span style="color:var(--border);">·</span>');
+            })()}
           </div>
         </div>
       </div>
@@ -3983,7 +3993,7 @@ function _renderOverviewHTML() {
         <!-- Row 4: Schools (full width) -->
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;grid-column:1/-1;">
           <div class="chart-label">Schools — ${plSeason} <span style="font-weight:400;text-transform:none;font-size:10px;">· click to view players</span></div>
-          <div class="chart-wrap chart-wrap-wide"><canvas id="chart-schools"></canvas></div>
+          <div class="chart-wrap" style="height:300px;"><canvas id="chart-schools"></canvas></div>
         </div>
       </div>
 
@@ -4446,9 +4456,7 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
   var ageEl = document.getElementById('chart-age');
   if (ageEl) {
     var ageRows = (plData.seasons||[]).filter(function(s){return +s.year===+plSeason;});
-    // Group into 2-year natural age bands (7-8, 9-10, 11-12 etc.)
-    var bandCounts = {};
-    var bandPids   = {};
+    var bandMale = {}, bandFemale = {}, bandPids = {};
     var jan1 = new Date(+plSeason, 0, 1);
     ageRows.forEach(function(r) {
       var p = (plData.players||[]).find(function(pp){return pp.profileId===r.profileId;});
@@ -4462,33 +4470,43 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
       if (age<5||age>20) return;
       var lo   = age%2===0 ? age-1 : age;
       var band = lo+'-'+(lo+1);
-      bandCounts[band] = (bandCounts[band]||0)+1;
+      if (p.gender === 'Female') bandFemale[band] = (bandFemale[band]||0)+1;
+      else                       bandMale[band]   = (bandMale[band]||0)+1;
       if (!bandPids[band]) bandPids[band]=[];
       bandPids[band].push(r.profileId);
     });
-    var bands = Object.keys(bandCounts).sort(function(a,b){return parseInt(a)-parseInt(b);});
+    var allBands = new Set(Object.keys(bandMale).concat(Object.keys(bandFemale)));
+    var bands = Array.from(allBands).sort(function(a,b){return parseInt(a)-parseInt(b);});
     ageEl._chart = new Chart(ageEl, {
       type: 'bar',
       data: { labels: bands,
-        datasets: [{ label:'Players', data:bands.map(function(b){return bandCounts[b];}),
-          backgroundColor:bands.map(function(_,i){return AGE_COLORS[i%AGE_COLORS.length]+'bb';}),
-          borderColor:bands.map(function(_,i){return AGE_COLORS[i%AGE_COLORS.length];}),
-          borderWidth:1.5, borderRadius:3 }]
+        datasets: [
+          { label:'Male',   data:bands.map(function(b){return bandMale[b]||0;}),
+            backgroundColor: GREEN+'cc', borderColor: GREEN, borderWidth:1.5, borderRadius:3, stack:'g' },
+          { label:'Female', data:bands.map(function(b){return bandFemale[b]||0;}),
+            backgroundColor: '#c9b400cc', borderColor: '#c9b400', borderWidth:1.5, borderRadius:3, stack:'g' }
+        ]
       },
       options: Object.assign({}, compact, {
-        plugins: { legend:{display:false},
-          tooltip:{callbacks:{ title:function(i){return 'Ages '+i[0].label+' ('+plSeason+')';}, label:function(c){return c.parsed.y+' players \u00b7 click for detail';} }} },
+        plugins: {
+          legend:{display:true,position:'bottom',labels:{boxWidth:10,font:{size:9},color:'#6b7280',padding:8}},
+          tooltip:{callbacks:{
+            title:function(i){return 'Ages '+i[0].label+' ('+plSeason+')';},
+            label:function(c){return c.dataset.label+': '+c.parsed.y+' · click for detail';}
+          }}
+        },
         onClick: function(e,els) {
           if (!els.length) return;
           var band = bands[els[0].index];
           var pids = bandPids[band]||[];
           var pm2  = plPlayerMap();
           _openSimpleSlideover(
-            'Ages ' + band + ' \u2014 ' + plSeason,
+            'Ages ' + band + ' — ' + plSeason,
             pids.length + ' players',
             pids.map(function(pid){
+              var p2 = pm2[pid]||{};
               var sr=(plData.seasons||[]).find(function(s){return s.profileId===pid&&+s.year===+plSeason;})||{};
-              return {pid:pid,label:ageLabel(sr),sub:(pm2[pid]||{}).school||'\u2014'};
+              return {pid:pid,label:ageLabel(sr),sub:(p2.gender||'—')};
             })
           );
         }
@@ -4531,10 +4549,10 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
               label: function(c) { return c.parsed.x + ' players · click for list'; }
             }}
           },
-          scales: Object.assign({}, compact.scales||{}, {
-            x: { ticks:{font:{size:9}}, grid:{display:false} },
-            y: { ticks:{font:{size:9}}, grid:{display:false} }
-          }),
+          scales: {
+            x: { ticks:{font:{size:9},maxRotation:0}, grid:{display:false}, beginAtZero:true },
+            y: { ticks:{font:{size:10},padding:4}, grid:{display:false} }
+          },
           onClick: function(e,els) {
             if (els.length) openSchoolPlayersSlideover(schFull[els[0].index]);
           }
@@ -4546,13 +4564,15 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
 
 
 // ── OVERVIEW SLIDEVERS ────────────────────────────────────────────
-function _openSimpleSlideover(title, sub, players) {
+function _openSimpleSlideover(title, sub, players, backFn) {
   const pm = plPlayerMap();
   const overlay = document.getElementById('player-slideover-overlay');
   const panel   = document.getElementById('player-slideover');
   document.getElementById('pso-name').textContent  = title;
   document.getElementById('pso-meta').textContent  = sub;
-  document.getElementById('pso-avatar').innerHTML  = '<span style="font-size:20px;">👥</span>';
+  document.getElementById('pso-avatar').innerHTML  = backFn
+    ? '<button onclick="('+backFn.toString()+')()" style="background:none;border:none;cursor:pointer;font-size:20px;padding:0;line-height:1;" title="Back">‹ Back</button>'
+    : '<span style="font-size:20px;">👥</span>';
 
   document.getElementById('pso-body').innerHTML = players.length
     ? players.map(({ pid, label, sub: rowSub }) => `
@@ -4678,7 +4698,7 @@ function openSchoolsOverviewSlideover() {
   document.getElementById('pso-footer').style.display = 'none';
 
   document.getElementById('pso-body').innerHTML = sorted.map(([school, srows]) => `
-    <div onclick="openSchoolPlayersSlideover(${JSON.stringify(school)})"
+    <div data-school="${school.replace(/"/g,'&quot;')}" onclick="openSchoolPlayersSlideover(this.dataset.school)"
       style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;cursor:pointer;margin-bottom:5px;border:1.5px solid var(--border);background:#fff;"
       onmouseenter="this.style.background='var(--green-light)'" onmouseleave="this.style.background='#fff'">
       <div style="width:34px;height:34px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🏫</div>
@@ -4698,7 +4718,8 @@ function openSchoolPlayersSlideover(school) {
   const pm   = plPlayerMap();
   const matching = rows.filter(r => (seasonSchool(r, pm)||'Unknown') === school);
   _openSimpleSlideover(school, matching.length + ' player' + (matching.length!==1?'s':'') + ' · ' + plSeason,
-    matching.map(r => ({ pid: r.profileId, label: ageLabel(r), sub: (pm[r.profileId]||{}).gender||'—' })));
+    matching.map(r => ({ pid: r.profileId, label: ageLabel(r), sub: (pm[r.profileId]||{}).gender||'—' })),
+    openSchoolsOverviewSlideover);
 }
 
 function openTeamsOverviewSlideover() {
@@ -4750,7 +4771,8 @@ function openTeamPlayersSlideover(teamId) {
   const rows = plSeasonRows().filter(r => r.assignedTeam === teamId);
   const pm   = plPlayerMap();
   _openSimpleSlideover(team.name, rows.length + ' player' + (rows.length!==1?'s':'') + ' · ' + plSeason,
-    rows.map(r => ({ pid: r.profileId, label: ageLabel(r), sub: (pm[r.profileId]||{}).gender||'—' })));
+    rows.map(r => ({ pid: r.profileId, label: ageLabel(r), sub: (pm[r.profileId]||{}).gender||'—' })),
+    openTeamsOverviewSlideover);
 }
 
 function openRegisteredSlideover() {
@@ -5608,23 +5630,38 @@ function showAgeGroup(ag) {
 function renderPlPlayers() {
   const rows = plSeasonRows();
   const pm   = plPlayerMap();
-  const ags  = [...new Set(rows.map(r=>effectiveAgeGroup(r)))].sort();
 
-  document.getElementById('pl-body').innerHTML = `
-    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
-      <input class="pl-search" id="pl-search" placeholder="Search name, school, suburb…" oninput="renderFilteredPlayers()" style="flex:1;min-width:180px;">
-      <select id="pl-filter-ag" onchange="renderFilteredPlayers()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--card);">
-        <option value="">All age groups</option>
-        ${ags.map(a=>`<option value="${a}">${a}</option>`).join('')}
-      </select>
-      <select id="pl-filter-gender" onchange="renderFilteredPlayers()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--card);">
-        <option value="">All genders</option>
-        <option value="Male">Boys</option>
-        <option value="Female">Girls</option>
-      </select>
-    </div>
-    <div id="pl-table-wrap"></div>
-  `;
+  // Age group dropdown: prefer teams entered for this season (teams tab or planning tab),
+  // fall back to age groups present in registered players.
+  // Selecting a group shows players AT OR UNDER that age (e.g. U12 shows 11 and under).
+  const seasonTeams = plSeasonTeams().filter(t => t.name && t.ageGroup);
+  // Get unique age groups from teams, sorted numerically
+  const teamAgs = [...new Set(seasonTeams.map(t => t.ageGroup))]
+    .sort((a,b) => parseInt(a.replace(/\D/g,'')) - parseInt(b.replace(/\D/g,'')));
+  // If no teams, fall back to age groups in registrations
+  const fallbackAgs = [...new Set(rows.map(r=>effectiveAgeGroup(r)))].sort();
+  const ags = teamAgs.length ? teamAgs : fallbackAgs;
+  const usingTeams = teamAgs.length > 0;
+
+  const optionsHtml = ags.map(a => {
+    const num = (parseInt(a.replace(/\D/g,''))||0) - 1;
+    const label = usingTeams ? a + ' (≤ ' + num + ')' : a;
+    return '<option value="' + a + '">' + label + '</option>';
+  }).join('');
+
+  document.getElementById('pl-body').innerHTML =
+    '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">' +
+      '<input class="pl-search" id="pl-search" placeholder="Search name, school, suburb…" oninput="renderFilteredPlayers()" style="flex:1;min-width:180px;">' +
+      '<select id="pl-filter-ag" onchange="renderFilteredPlayers()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--card);" title="' + (usingTeams ? 'Filter by team age group — shows players at or under this age' : 'Filter by age group') + '">' +
+        '<option value="">All age groups</option>' + optionsHtml +
+      '</select>' +
+      '<select id="pl-filter-gender" onchange="renderFilteredPlayers()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--card);">' +
+        '<option value="">All genders</option>' +
+        '<option value="Male">Boys</option>' +
+        '<option value="Female">Girls</option>' +
+      '</select>' +
+    '</div>' +
+    '<div id="pl-table-wrap"></div>';
   renderFilteredPlayers();
 }
 
@@ -5635,10 +5672,24 @@ function renderFilteredPlayers() {
   const agF    = document.getElementById('pl-filter-ag')?.value||'';
   const genF   = document.getElementById('pl-filter-gender')?.value||'';
 
+  // Determine if we're using team-sourced age groups (≤ age filtering)
+  const seasonTeams = plSeasonTeams().filter(t => t.name && t.ageGroup);
+  const usingTeams  = seasonTeams.length > 0;
+  // Max age for ≤ filter: U12 → age 11 (calcAge-1 is the natural age = U-group number - 1)
+  const agFNum = agF ? parseInt(agF.replace(/\D/g,'')) : 0;
+
   let filtered = rows.map(r => ({ ps: r, p: pm[r.profileId]||{} }))
     .filter(({ps,p}) => {
-      if (agF  && effectiveAgeGroup(ps) !== agF)  return false;
-      if (genF && p.gender !== genF)               return false;
+      if (agF) {
+        if (usingTeams) {
+          // Show players whose natural age (Jan 1) is <= agFNum - 1
+          const natAge = playerNaturalAge(ps);
+          if (natAge === null || natAge > agFNum - 1) return false;
+        } else {
+          if (effectiveAgeGroup(ps) !== agF) return false;
+        }
+      }
+      if (genF && p.gender !== genF) return false;
       if (q) {
         const hay = [p.firstName,p.lastName,seasonSchool(ps,{[p.profileId]:p}),seasonSuburb(ps,{[p.profileId]:p}),effectiveAgeGroup(ps)].join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
