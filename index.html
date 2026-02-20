@@ -1630,6 +1630,23 @@ async function api(action, body = {}) {
   });
 }
 
+// Like api() but splits a large patches array into URL-safe batches and
+// merges the results — keeps everything within JSONP GET URL limits.
+// Matches the chunked-upload pattern used by the CSV importer.
+async function apiBatched(action, body, batchSize) {
+  const patches = body.patches || [];
+  if (!patches.length) return api(action, body);
+  const results = { ok: true, patched: 0, notFound: 0 };
+  for (let i = 0; i < patches.length; i += batchSize) {
+    const batch = patches.slice(i, i + batchSize);
+    const res   = await api(action, Object.assign({}, body, { patches: batch }));
+    if (res.error) return res; // abort on first error
+    results.patched   += res.patched   || 0;
+    results.notFound  += res.notFound  || 0;
+  }
+  return results;
+}
+
 
 
 // ════════════════════════════════════════════════════════
@@ -6296,9 +6313,9 @@ async function runDateBackfill() {
       statusEl.innerHTML = '<span style="color:#dc2626;">⚠️ No patchable rows found.</span>'; return;
     }
 
-    statusEl.innerHTML = `<span style="color:#78350f;">Patching ${patches.length} records (date + school + suburb)…</span>`;
+    statusEl.innerHTML = `<span style="color:#78350f;">Patching ${patches.length} records in batches…</span>`;
     try {
-      const res = await api('patchRegistrationDates', { patches });
+      const res = await apiBatched('patchRegistrationDates', { patches }, 5);
       if (res.error) throw new Error(res.error);
       statusEl.innerHTML = `<span style="color:#16a34a;">✅ Patched ${res.patched||patches.length} records for ${season}. Refresh to see updated charts and school data.</span>`;
     } catch(e) {
