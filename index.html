@@ -1015,7 +1015,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div style="position:absolute;top:0;right:0;width:200px;height:100%;background:linear-gradient(135deg,transparent 55%,rgba(251,226,1,.05));pointer-events:none;"></div>
       <div style="display:flex;align-items:flex-start;gap:12px;">
         <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;flex-shrink:0;margin-top:2px;">AI Summary</div>
-        <div id="sponsor-ai-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.95;"><span style="opacity:.4;font-size:12px;">Generating insight…</span></div>
+        <div id="sponsor-ai-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.95;"></div>
       </div>
     </div>
     </div><!-- /sponsor-content -->
@@ -1918,15 +1918,17 @@ async function _loadSponsorAI(s, season, prevYr, prev) {
   // Fingerprint: key figures that signal data has changed
   const _spFP = [season, s.total, s.count, s.recv, s.outCount, s.ikCount].join('|');
 
-  // Fetch stored insight + fingerprint from backend
-  el.innerHTML = '<span style="opacity:.4;font-size:12px;">Generating insight\u2026</span>';
+  // Check backend first — show cached content instantly if fingerprint matches
   try {
     const stored = await api('getAIInsight', { type: 'sponsor', season });
     if (!stored.error && stored.html && stored.fingerprint === _spFP) {
-      el.innerHTML = stored.html; // data unchanged — use shared insight
+      el.innerHTML = stored.html; // data unchanged — show immediately, no loading state
       return;
     }
   } catch(e) { /* proceed to generate */ }
+
+  // Only show loading state if we actually need to generate new content
+  el.innerHTML = '<span style="opacity:.4;font-size:12px;">Generating insight\u2026</span>';
 
   const today   = new Date();
   const pct     = s.total > 0 ? Math.round(s.recv / s.total * 100) : 0;
@@ -3934,7 +3936,7 @@ function _renderOverviewHTML() {
         <div style="position:absolute;top:0;right:0;width:200px;height:100%;background:linear-gradient(135deg,transparent 55%,rgba(251,226,1,.05));pointer-events:none;"></div>
         <div style="display:flex;align-items:flex-start;gap:12px;">
           <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;flex-shrink:0;margin-top:2px;">AI Summary</div>
-          <div id="ai-overview-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.95;"><span style="opacity:.4;font-size:12px;">Generating insight…</span></div>
+          <div id="ai-overview-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.95;"></div>
         </div>
       </div>
     </div>
@@ -4064,14 +4066,16 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
   // so it refreshes as registrations come in each month
   const _ovFP = [plSeason, total, prevTotal, lapsed, _seasonComplete ? 'done' : currentMonthBucket].join('|');
 
-  // Check backend for shared insight — all committee members see the same one
-  el.innerHTML = '<span style="opacity:.4;font-size:12px;">Generating insight\u2026</span>';
+  // Check backend first — show cached content instantly if fingerprint matches
   try {
     const stored = await api('getAIInsight', { type: 'overview', season: plSeason });
     if (!stored.error && stored.html && stored.fingerprint === _ovFP) {
-      el.innerHTML = stored.html; return; // data unchanged — use shared insight
+      el.innerHTML = stored.html; return; // data unchanged — show immediately, no loading state
     }
   } catch(e) { /* proceed to generate */ }
+
+  // Only show loading state if we actually need to generate new content
+  el.innerHTML = '<span style="opacity:.4;font-size:12px;">Generating insight\u2026</span>';
 
   // Prompt branches on _seasonComplete (already defined above)
 
