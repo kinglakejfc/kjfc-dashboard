@@ -4091,7 +4091,9 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
   try {
     const stored = await api('getAIInsight', { type: 'overview', season: plSeason });
     if (!stored.error && stored.html && stored.fingerprint === _ovFP) {
-      el.innerHTML = stored.html; return; // data unchanged — show immediately, no loading state
+      el.innerHTML = stored.html;
+      _overviewAIFetching[plSeason] = false; // allow future refreshes
+      return; // data unchanged — show immediately, no loading state
     }
   } catch(e) { /* proceed to generate */ }
 
@@ -4165,6 +4167,7 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
     // Save to backend so all committee members see the same insight
     const saveOvRes = await api('saveAIInsight', { type: 'overview', season: plSeason, html: _ovHtml, fingerprint: _ovFP });
     if (saveOvRes.error) console.warn('[AI] overview save failed:', saveOvRes.error);
+    _overviewAIFetching[plSeason] = false; // allow future refreshes
   } catch(e) {
     _overviewAIFetching[plSeason] = false; // allow retry
     el.innerHTML = '<span style="opacity:.5;font-size:12px;">AI summary unavailable</span>';
@@ -4643,7 +4646,7 @@ function openAvgAgeSlideover() {
         if (mo < 0 || (mo===0 && jan1.getDate() < d.getDate())) age--;
       }
     }
-    return { pid:r.profileId, label: age !== null ? 'Age ' + age : '—', sub:(p.school||'—'), _age: age||999 };
+    return { pid:r.profileId, label: age !== null ? 'Age ' + age : '—', sub:(seasonSchool(r,pm)||'—'), _age: age||999 };
   }).sort((a,b) => a._age - b._age);
   _openSimpleSlideover('Ages — ' + plSeason, 'Age at 1 Jan ' + plSeason, withAge);
 }
@@ -5538,8 +5541,8 @@ function renderFilteredPlayers() {
             <td><strong>${plName(p)}</strong></td>
             <td>${agDisplay} ${dispTag}</td>
             <td>${p.gender||'—'}</td>
-            <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.school||'—'}</td>
-            <td style="font-size:11px;">${p.suburb||'—'}</td>
+            <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${seasonSchool(r,pm)||'—'}</td>
+            <td style="font-size:11px;">${seasonSuburb(r,pm)||'—'}</td>
             <td>${ps.newToClub==='Yes'?'<span style="color:var(--green);font-weight:700;font-size:11px;">✓ New</span>':'—'}</td>
             <td style="text-align:center;">${p.photoConsent==='No'?'<span style="color:#dc2626;font-size:11px;" title="Opted out">✗</span>':'<span style="color:var(--green);font-size:13px;" title="Consent given (or assumed by default)">✓</span>'}</td>
             <td><button class="actbtn" onclick="event.stopPropagation();openPlayerDetail('${p.profileId}')">View</button></td>
@@ -5678,8 +5681,8 @@ function openPlayerDetail(profileId) {
 
     <!-- School + Suburb + ATSI -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
-      <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">School</div><div style="font-size:13px;">${p.school||'—'}</div><div style="font-size:11px;color:var(--text-dim);">Year ${p.schoolYear||'—'}</div></div>
-      <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">Address</div>${p.address?`<div style="font-size:12px;">${p.address}</div>`:''}${[p.suburb,p.postcode,p.state].filter(Boolean).length?`<div style="font-size:12px;">${[p.suburb,p.postcode,p.state].filter(Boolean).join(' ')}</div>`:''}<div style="font-size:12px;">${(!p.address&&!p.suburb&&!p.postcode)?'—':''}</div>${p.atsi&&p.atsi!=='No'?`<div style="font-size:10px;color:#7c3aed;margin-top:2px;">ATSI: ${p.atsi}</div>`:''}</div>
+      <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">School</div><div style="font-size:13px;">${seasonSchool(ps,{[ps.profileId]:p})||'—'}</div><div style="font-size:11px;color:var(--text-dim);">Year ${ps.schoolYear||p.schoolYear||'—'}</div></div>
+      <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">Address</div>${(()=>{const _a=seasonAddr(ps,{[ps.profileId]:p})||p.address;const _s=seasonSuburb(ps,{[ps.profileId]:p})||p.suburb;const _pc=ps.postcode||p.postcode;return (_a?`<div style="font-size:12px;">${_a}</div>`:'')+([_s,_pc,p.state].filter(Boolean).length?`<div style="font-size:12px;">${[_s,_pc,p.state].filter(Boolean).join(' ')}</div>`:'')+(!_a&&!_s&&!_pc?'<div style="font-size:12px;">—</div>':'');})()} ${p.atsi&&p.atsi!=='No'?`<div style="font-size:10px;color:#7c3aed;margin-top:2px;">ATSI: ${p.atsi}</div>`:''}</div>
     </div>
 
     <!-- Notes -->
@@ -5759,7 +5762,7 @@ async function renderPlLapsed() {
           <div style="font-weight:700;font-size:13px;">${plName(p)}
             <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:6px;">${p.lastAgeGroup||''} · ${p.gender||''}</span>
           </div>
-          <div style="font-size:11px;color:var(--text-dim);">Age ${calcCurAge(p)||'?'} in ${res.year} · ${p.school||'—'} · ${p.suburb||'—'}</div>
+          <div style="font-size:11px;color:var(--text-dim);">Age ${calcCurAge(p)||'?'} in ${res.year} · ${seasonSchool(res,{[res.profileId]:p})||'—'} · ${seasonSuburb(res,{[res.profileId]:p})||'—'}</div>
         </div>
         <div style="flex-shrink:0;min-width:180px;">
           ${p.parent1Name||p.parent1Phone ? `
