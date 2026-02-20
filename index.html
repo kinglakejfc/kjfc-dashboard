@@ -870,7 +870,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       </div>
       <!-- Last loaded timestamp (quiet) + Sign Out -->
       <div class="hnav-sync">
-        <span id="sync-state" style="font-size:10px;color:rgba(255,255,255,.65);white-space:nowrap;letter-spacing:0.1px;"></span>
+        <span id="sync-state"></span>
         <button class="lobtn hnav-signout" onclick="doLogout()" id="signout-btn">Sign Out</button>
       </div>
       <!-- Hamburger (mobile only) -->
@@ -3733,24 +3733,23 @@ function _renderOverviewHTML() {
   const avgAge   = _ageVals.length ? _ageVals.reduce((a,b)=>a+b,0)/_ageVals.length : 0;
 
 
-  // Data freshness — parse robustly (ISO string, Sheets serial, or DD/MM/YYYY)
+  // Data freshness — only show for the current active season (Oct–Sep window)
+  // Active season: if today is Oct–Dec → season = this year + 1; Jan–Sep → season = this year
   let freshnessHTML = '';
-  if (_lastImportDate) {
+  const _now = new Date();
+  const _activeSeasonYear = _now.getMonth() >= 9 ? _now.getFullYear() + 1 : _now.getFullYear();
+  if (+plSeason === _activeSeasonYear && _lastImportDate) {
     let imp = new Date(_lastImportDate);
-    // Sheets may return a date serial (number of days since 1899-12-30)
     if (isNaN(imp.getTime()) && !isNaN(Number(_lastImportDate))) {
       imp = new Date((Number(_lastImportDate) - 25569) * 86400000);
     }
-    // Try DD/MM/YYYY format
     if (isNaN(imp.getTime()) && typeof _lastImportDate === 'string') {
       const m = _lastImportDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
       if (m) imp = new Date(+m[3], +m[2]-1, +m[1]);
     }
     if (!isNaN(imp.getTime())) {
-      // Compare calendar dates (not timestamps) to avoid timezone "today" mismatch
-      const now  = new Date();
       const impDay = new Date(imp.getFullYear(), imp.getMonth(), imp.getDate());
-      const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const nowDay = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate());
       const days = Math.round((nowDay - impDay) / 86400000);
       const fmt  = imp.toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
       const col  = days > 30 ? '#dc2626' : days > 7 ? '#ca8a04' : '#16a34a';
@@ -3759,7 +3758,6 @@ function _renderOverviewHTML() {
         <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></span>
         <span>Data current as of <strong>${fmt}</strong></span>
         <span style="color:${col};font-weight:700;">(${daysLabel})</span>
-        <button onclick="switchDashboard('recruitment');switchPlTab(document.querySelector('#dash-sub-recruitment .dtab[data-tab=\'import\']'),'import');buildHamburgerMenu();" style="margin-left:auto;font-size:10px;background:none;border:1px solid var(--border);border-radius:5px;padding:2px 8px;cursor:pointer;color:var(--text-dim);">Import new data →</button>
       </div>`;
     }
   }
