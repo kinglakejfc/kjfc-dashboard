@@ -908,7 +908,6 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button class="dtab"     data-tab="teams"     onclick="switchPlTab(this,'teams')"><span class="dtab-icon">🏉</span><span class="dtab-lbl">Teams</span></button>
       <button class="dtab"     data-tab="schools"   onclick="switchPlTab(this,'schools')"><span class="dtab-icon">🏫</span><span class="dtab-lbl">Schools</span></button>
       <button class="dtab"     data-tab="import"    onclick="switchPlTab(this,'import')"><span class="dtab-icon">📥</span><span class="dtab-lbl">Import</span></button>
-      <button class="dtab"     data-tab="settings"  onclick="switchPlTab(this,'settings')"><span class="dtab-icon">⚙️</span><span class="dtab-lbl">Settings</span></button>
     </div>
   </div>
 
@@ -3322,7 +3321,6 @@ function buildHamburgerMenu() {
       { tab:'teams',    icon:'🏉', lbl:'Teams'     },
       { tab:'schools',  icon:'🏫', lbl:'Schools'   },
       { tab:'import',   icon:'📥', lbl:'Import'    },
-      { tab:'settings', icon:'⚙', lbl:'Settings'  },
     ];
     plTabs.forEach(t => {
       const isAct = dash==='recruitment' && document.querySelector(`#dash-sub-recruitment .dtab[data-tab="${t.tab}"]`)?.classList.contains('act');
@@ -3535,7 +3533,6 @@ function renderPlTab() {
     schools:  renderPlSchools,
     teams:    renderPlTeams,
     import:   renderPlImport,
-    settings: renderPlSettings,
   };
   (fns[plTab] || renderPlOverview)();
 }
@@ -3627,19 +3624,6 @@ function ageLabel(ps) {
   return '?';
 }
 
-// Get settings map: ageGroup → setting
-function settingsMap() {
-  const m = {};
-  (plData.settings||[]).forEach(s => m[s.ageGroup] = s);
-  return m;
-}
-
-function agColour(count, min, max) {
-  if (!min) return 'grey';
-  if (count >= min) return 'green';
-  if (count >= Math.ceil(min * 0.7)) return 'amber';
-  return 'red';
-}
 
 function plInitials(p) {
   return ((p.firstName||'?')[0] + (p.lastName||'?')[0]).toUpperCase();
@@ -4801,86 +4785,60 @@ function openRetentionSlideover() {
 }
 
 // ── PLAYERS TAB ───────────────────────────────────────────────────
+let _plSort = { col: 'name', dir: 'asc' };
+
 function renderPlPlayers() {
-  const rows = plSeasonRows();
-  const pm   = plPlayerMap();
-
-  // Age group dropdown: prefer teams entered for this season (teams tab or planning tab),
-  // fall back to age groups present in registered players.
-  // Selecting a group shows players AT OR UNDER that age (e.g. U12 shows 11 and under).
-  const seasonTeams = plSeasonTeams().filter(t => t.name && t.ageGroup);
-  // Get unique age groups from teams, sorted numerically
-  const teamAgs = [...new Set(seasonTeams.map(t => t.ageGroup))]
-    .sort((a,b) => parseInt(a.replace(/\D/g,'')) - parseInt(b.replace(/\D/g,'')));
-  // If no teams, fall back to age groups in registrations
-  const fallbackAgs = [...new Set(rows.map(r=>effectiveAgeGroup(r)))].sort();
-  const ags = teamAgs.length ? teamAgs : fallbackAgs;
-  const usingTeams = teamAgs.length > 0;
-
-  // Pre-count eligible players per age group for dropdown labels
-  const eligibleCountByAg = {};
-  if (usingTeams) {
-    ags.forEach(ag => {
-      eligibleCountByAg[ag] = rows.filter(r => {
-        const p = pm[r.profileId] || {};
-        return playerEligibleGroups(r, p).includes(ag);
-      }).length;
-    });
-  }
-
-  const optionsHtml = ags.map(a => {
-    const label = usingTeams
-      ? a + ' (' + (eligibleCountByAg[a] || 0) + ' eligible)'
-      : a;
-    return '<option value="' + a + '">' + label + '</option>';
-  }).join('');
-
   document.getElementById('pl-body').innerHTML =
-    '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">' +
+    '<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">' +
       '<input class="pl-search" id="pl-search" placeholder="Search name, school, suburb…" oninput="renderFilteredPlayers()" style="flex:1;min-width:180px;">' +
-      '<select id="pl-filter-ag" onchange="renderFilteredPlayers()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--card);" title="' + (usingTeams ? 'Filter by team age group — shows players at or under this age' : 'Filter by age group') + '">' +
-        '<option value="">All age groups</option>' + optionsHtml +
-      '</select>' +
-      '<select id="pl-filter-gender" onchange="renderFilteredPlayers()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--card);">' +
-        '<option value="">All genders</option>' +
-        '<option value="Male">Boys</option>' +
-        '<option value="Female">Girls</option>' +
-      '</select>' +
     '</div>' +
     '<div id="pl-table-wrap"></div>';
   renderFilteredPlayers();
 }
 
-function renderFilteredPlayers() {
-  const rows   = plSeasonRows();
-  const pm     = plPlayerMap();
-  const q      = (document.getElementById('pl-search')?.value||'').toLowerCase();
-  const agF    = document.getElementById('pl-filter-ag')?.value||'';
-  const genF   = document.getElementById('pl-filter-gender')?.value||'';
+function _plSortIcon(col) {
+  if (_plSort.col !== col) return '<span style="color:#d1d5db;margin-left:3px;">↕</span>';
+  return _plSort.dir === 'asc'
+    ? '<span style="color:var(--green);margin-left:3px;">↑</span>'
+    : '<span style="color:var(--green);margin-left:3px;">↓</span>';
+}
 
-  // Determine if we're using team-sourced age groups (eligible-group filtering)
-  const seasonTeams = plSeasonTeams().filter(t => t.name && t.ageGroup);
-  const usingTeams  = seasonTeams.length > 0;
+function plSortBy(col) {
+  if (_plSort.col === col) {
+    _plSort.dir = _plSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    _plSort.col = col;
+    _plSort.dir = 'asc';
+  }
+  renderFilteredPlayers();
+}
+
+function renderFilteredPlayers() {
+  const rows = plSeasonRows();
+  const pm   = plPlayerMap();
+  const q    = (document.getElementById('pl-search')?.value||'').toLowerCase();
 
   let filtered = rows.map(r => ({ ps: r, p: pm[r.profileId]||{} }))
-    .filter(({ps,p}) => {
-      if (agF) {
-        if (usingTeams) {
-          // Show players whose eligible groups include this group (AFL eligibility rules)
-          const el = playerEligibleGroups(ps, p);
-          if (!el.includes(agF)) return false;
-        } else {
-          if (effectiveAgeGroup(ps) !== agF) return false;
-        }
-      }
-      if (genF && p.gender !== genF) return false;
-      if (q) {
-        const hay = [p.firstName,p.lastName,seasonSchool(ps,{[p.profileId]:p}),seasonSuburb(ps,{[p.profileId]:p}),effectiveAgeGroup(ps)].join(' ').toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    })
-    .sort((a,b) => (a.p.lastName||'').localeCompare(b.p.lastName||''));
+    .filter(({ps, p}) => {
+      if (!q) return true;
+      const hay = [p.firstName, p.lastName, seasonSchool(ps, {[p.profileId]:p}), seasonSuburb(ps, {[p.profileId]:p}), effectiveAgeGroup(ps)].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+
+  // Sort by active column
+  filtered.sort((a, b) => {
+    let va, vb;
+    switch (_plSort.col) {
+      case 'name':   va = (a.p.lastName||'') + (a.p.firstName||''); vb = (b.p.lastName||'') + (b.p.firstName||''); break;
+      case 'age':    va = playerNaturalAge(a.ps) ?? 999;             vb = playerNaturalAge(b.ps) ?? 999;             break;
+      case 'gender': va = a.p.gender||'';                            vb = b.p.gender||'';                            break;
+      case 'school': va = seasonSchool(a.ps, pm)||'';                vb = seasonSchool(b.ps, pm)||'';                break;
+      case 'suburb': va = seasonSuburb(a.ps, pm)||'';                vb = seasonSuburb(b.ps, pm)||'';                break;
+      default:       va = ''; vb = '';
+    }
+    const cmp = typeof va === 'number' ? va - vb : va.localeCompare(vb);
+    return _plSort.dir === 'asc' ? cmp : -cmp;
+  });
 
   const wrap = document.getElementById('pl-table-wrap');
   if (!wrap) return;
@@ -4889,35 +4847,38 @@ function renderFilteredPlayers() {
     return;
   }
 
-  wrap.innerHTML = `
-    <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">${filtered.length} player${filtered.length!==1?'s':''}</div>
-    <div style="overflow-x:auto;">
-    <table class="pl-table">
-      <thead><tr>
-        <th></th><th>Name</th><th>Age at Jan 1</th><th>Gender</th><th>School</th><th>Suburb</th><th>New</th><th>📸</th><th></th>
-      </tr></thead>
-      <tbody>
-        ${filtered.map(({ps,p}) => {
-          const ag   = effectiveAgeGroup(ps);
-          const agDisplay = playerNaturalAge(ps) !== null ? playerNaturalAge(ps) : (ps.calcAge ? ps.calcAge - 1 : '—');
-          const init = plInitials(p);
-          const photo = p.photoUrl ? `<img src="${p.photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : init;
-          const dispTag = (ps.dispensation===true||ps.dispensation==='true') ? '<span class="disp-tag">disp.</span>' : '';
-          return `<tr onclick="openPlayerDetail('${p.profileId}')">
-            <td><div class="pl-avatar">${photo}</div></td>
-            <td><strong>${plName(p)}</strong></td>
-            <td>${agDisplay} ${dispTag}</td>
-            <td>${p.gender||'—'}</td>
-            <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${seasonSchool(ps,pm)||'—'}</td>
-            <td style="font-size:11px;">${seasonSuburb(ps,pm)||'—'}</td>
-            <td>${ps.newToClub==='Yes'?'<span style="color:var(--green);font-weight:700;font-size:11px;">✓ New</span>':'—'}</td>
-            <td style="text-align:center;">${p.photoConsent==='No'?'<span style="color:#dc2626;font-size:11px;" title="Opted out">✗</span>':'<span style="color:var(--green);font-size:13px;" title="Consent given (or assumed by default)">✓</span>'}</td>
-            <td><button class="actbtn" onclick="event.stopPropagation();openPlayerDetail('${p.profileId}')">View</button></td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table></div>
-  `;
+  const thStyle = 'cursor:pointer;user-select:none;white-space:nowrap;';
+
+  wrap.innerHTML =
+    '<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">' + filtered.length + ' player' + (filtered.length!==1?'s':'') + '</div>'
+    + '<div style="overflow-x:auto;">'
+    + '<table class="pl-table"><thead><tr>'
+    + '<th></th>'
+    + '<th onclick="plSortBy(&quot;name&quot;)" style="' + thStyle + '">Name' + _plSortIcon('name') + '</th>'
+    + '<th onclick="plSortBy(&quot;age&quot;)" style="' + thStyle + '">Age' + _plSortIcon('age') + '</th>'
+    + '<th onclick="plSortBy(&quot;gender&quot;)" style="' + thStyle + '">Gender' + _plSortIcon('gender') + '</th>'
+    + '<th onclick="plSortBy(&quot;school&quot;)" style="' + thStyle + '">School' + _plSortIcon('school') + '</th>'
+    + '<th onclick="plSortBy(&quot;suburb&quot;)" style="' + thStyle + '">Suburb' + _plSortIcon('suburb') + '</th>'
+    + '<th>New</th><th>📸</th><th></th>'
+    + '</tr></thead><tbody>'
+    + filtered.map(({ps, p}) => {
+        const agDisplay = playerNaturalAge(ps) !== null ? playerNaturalAge(ps) : (ps.calcAge ? ps.calcAge - 1 : '—');
+        const init  = plInitials(p);
+        const photo = p.photoUrl ? '<img src="' + p.photoUrl + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">' : init;
+        const dispTag = (ps.dispensation===true||ps.dispensation==='true') ? '<span class="disp-tag">disp.</span>' : '';
+        return '<tr onclick="openPlayerDetail(&quot;' + p.profileId + '&quot;)">'
+          + '<td><div class="pl-avatar">' + photo + '</div></td>'
+          + '<td><strong>' + plName(p) + '</strong></td>'
+          + '<td>' + agDisplay + ' ' + dispTag + '</td>'
+          + '<td>' + (p.gender||'—') + '</td>'
+          + '<td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (seasonSchool(ps,pm)||'—') + '</td>'
+          + '<td style="font-size:11px;">' + (seasonSuburb(ps,pm)||'—') + '</td>'
+          + '<td>' + (ps.newToClub==='Yes' ? '<span style="color:var(--green);font-weight:700;font-size:11px;">✓ New</span>' : '—') + '</td>'
+          + '<td style="text-align:center;">' + (p.photoConsent==='No' ? '<span style="color:#dc2626;font-size:11px;" title="Opted out">✗</span>' : '<span style="color:var(--green);font-size:13px;" title="Consent given">✓</span>') + '</td>'
+          + '<td><button class="actbtn" onclick="event.stopPropagation();openPlayerDetail(&quot;' + p.profileId + '&quot;)">View</button></td>'
+          + '</tr>';
+      }).join('')
+    + '</tbody></table></div>';
 }
 
 // ── PLAYER DETAIL MODAL ───────────────────────────────────────────
@@ -5224,11 +5185,9 @@ function renderPlTeams() {
 
   body.innerHTML = `
     <div style="padding:16px 20px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-        <div>
-          <div style="font-size:14px;font-weight:700;">${plSeason} Teams</div>
-          <div style="font-size:12px;color:var(--text-dim);">${teams.length} team${teams.length!==1?'s':''} · ${allRows.length} registered · ${unassigned} unassigned</div>
-        </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px;">${plSeason} Teams</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">${teams.length} team${teams.length!==1?'s':''} · ${allRows.length} registered · ${unassigned} unassigned</div>
         <button class="mprimary" onclick="openTeamModal(null)" style="font-size:12px;padding:7px 14px;">+ Add Team</button>
       </div>
 
@@ -6176,82 +6135,6 @@ function parseCSVLine(line) {
 }
 
 // ── SETTINGS TAB ─────────────────────────────────────────────────
-function renderPlSettings() {
-  const settings = plData.settings || [];
-
-  document.getElementById('pl-body').innerHTML = `
-    <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:17px;text-transform:uppercase;margin-bottom:8px;">Age Group Settings</h3>
-    <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
-      Configure minimum and maximum player numbers per age group based on NFNL rules. These thresholds determine the colour coding on the overview (green/amber/red).
-    </p>
-    <div style="overflow-x:auto;">
-    <table class="pl-table" id="settings-table">
-      <thead><tr>
-        <th>Age Group</th><th>Gender</th><th>Phase</th><th>Min Players</th><th>Max Players</th><th></th>
-      </tr></thead>
-      <tbody id="settings-tbody">
-        ${settings.map((s,i)=>`
-          <tr id="sg-row-${i}">
-            <td><strong>${s.ageGroup}</strong></td>
-            <td><select data-field="gender" style="padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;">
-              ${['Mixed','Male','Female'].map(g=>`<option ${s.gender===g?'selected':''}>${g}</option>`).join('')}
-            </select></td>
-            <td><select data-field="phase" style="padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;">
-              ${['Development','Competition'].map(p=>`<option ${s.phase===p?'selected':''}>${p}</option>`).join('')}
-            </select></td>
-            <td><input type="number" data-field="minPlayers" value="${s.minPlayers}" min="1" max="30"
-              style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:13px;"></td>
-            <td><input type="number" data-field="maxPlayers" value="${s.maxPlayers}" min="1" max="50"
-              style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:13px;"></td>
-            <td><button class="actbtn" style="color:var(--red)" onclick="removeSettingRow(${i})">Remove</button></td>
-          </tr>`).join('')}
-      </tbody>
-    </table></div>
-    <div style="display:flex;gap:8px;margin-top:14px;">
-      <button class="msecondary" onclick="addSettingRow()">+ Add Age Group</button>
-      <button class="mprimary" onclick="saveSettings()">Save Settings</button>
-    </div>
-  `;
-}
-
-function addSettingRow() {
-  const tbody = document.getElementById('settings-tbody');
-  const i = tbody.rows.length;
-  const tr = document.createElement('tr');
-  tr.id = 'sg-row-' + i;
-  tr.innerHTML = `
-    <td><input type="text" data-field="ageGroup" value="U" placeholder="U12"
-      style="width:55px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-weight:700;"></td>
-    <td><select data-field="gender" style="padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;">
-      <option>Mixed</option><option>Male</option><option>Female</option>
-    </select></td>
-    <td><select data-field="phase" style="padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;">
-      <option>Competition</option><option>Development</option>
-    </select></td>
-    <td><input type="number" data-field="minPlayers" value="14" min="1" max="30"
-      style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:13px;"></td>
-    <td><input type="number" data-field="maxPlayers" value="24" min="1" max="50"
-      style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:13px;"></td>
-    <td><button class="actbtn" style="color:var(--red)" onclick="this.closest('tr').remove()">Remove</button></td>
-  `;
-  tbody.appendChild(tr);
-}
-
-function removeSettingRow(i) {
-  document.getElementById('sg-row-' + i)?.remove();
-}
-
-async function saveSettings() {
-  const rows = [...document.querySelectorAll('#settings-tbody tr')].map(tr => {
-    const get = f => tr.querySelector(`[data-field="${f}"]`)?.value?.trim()||'';
-    return { ageGroup: get('ageGroup'), gender: get('gender'), phase: get('phase'),
-             minPlayers: +get('minPlayers')||14, maxPlayers: +get('maxPlayers')||24 };
-  }).filter(r => r.ageGroup);
-  const res = await api('saveAgeSettings', { settings: rows });
-  if (res.error) { showToast('Save failed: '+res.error, 'err'); return; }
-  plData.settings = rows;
-  showToast('Settings saved ✓');
-}
 
 document.addEventListener('DOMContentLoaded', init);
 </script>
