@@ -194,6 +194,10 @@ header{
 .dbar-row1 .dtab.act{background:#fff;border-bottom-color:var(--green);}
 .dtab-icon{font-size:14px;line-height:1;flex-shrink:0;}
 .dtab-lbl{font-size:11px;}
+.fgl{display:block;font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;}
+.fginput{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box;background:#fff;}
+.fginput:focus{outline:none;border-color:var(--green);}
+textarea.fginput{resize:vertical;}
 /* Hamburger menu */
 .hamburger-btn{
   display:none;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
@@ -2412,38 +2416,78 @@ document.getElementById('of-physaddr').addEventListener('input', function() {
 function openAddOrg() {
   if (!me?.edit) return;
   editOrgId = null;
-  resetOrgModal();
-  document.getElementById('org-m-title').textContent = 'Add Sponsor';
-  document.getElementById('org-m-save').textContent  = 'Add Sponsor';
-  document.getElementById('org-m-del').style.display = 'none';
-  document.getElementById('org-m-sub').textContent   = 'New sponsor organisation.';
-  const _btf_org_modal = document.getElementById('org-modal'); bringToFront(_btf_org_modal); _btf_org_modal.classList.add('open');
+  _renderOrgPanel(false);
+}
+
+function _renderOrgPanel(isEdit) {
+  // Mark Add Sponsor sub-tab active
+  document.querySelectorAll('#dash-sub-sponsors .dtab').forEach(b => b.classList.remove('act'));
+  const addBtn = document.getElementById('dsub-add-sponsor');
+  if (addBtn) addBtn.classList.add('act');
+  _currentDashboard = 'sponsors';
+  document.getElementById('dash-tab-sponsors').classList.add('act');
+  document.getElementById('dash-tab-recruitment').classList.remove('act');
+  const at = document.getElementById('dash-tab-admin'); if (at) at.classList.remove('act');
+  document.getElementById('dash-sub-sponsors').style.display    = 'flex';
+  document.getElementById('dash-sub-recruitment').style.display = 'none';
+  document.getElementById('dash-sub-admin').style.display       = 'none';
+  document.getElementById('sponsor-content').style.display      = 'block';
+  document.getElementById('recruitment-content').style.display  = 'none';
+  const ap = document.getElementById('admin-panel-content'); if (ap) ap.style.display = 'none';
+
+  const org = isEdit ? orgs.find(o => o.id === editOrgId) : null;
+  const title = isEdit ? 'Edit Sponsor' : 'Add Sponsor';
+
+  const sc = document.getElementById('sponsor-content');
+  sc.innerHTML = `
+    <div class="section-head" style="align-items:center;gap:10px;">
+      <button onclick="switchDashboard('sponsors')" style="background:none;border:none;color:var(--green);font-size:13px;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px;">← Overview</button>
+      <h2 class="section-title" style="flex:1;">${title}</h2>
+    </div>
+    <div style="max-width:600px;">
+      <div style="display:grid;gap:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label class="fgl">Business Name *</label><input type="text" id="of-name" placeholder="Business name" class="fginput" autocomplete="organization" value="${org?.name||''}"></div>
+          <div><label class="fgl">Status</label><select id="of-orgstatus" class="fginput">
+            <option value="prospect" ${(!org||org.orgStatus==='prospect')?'selected':''}>Prospect</option>
+            <option value="active" ${org?.orgStatus==='active'?'selected':''}>Active Sponsor</option>
+            <option value="lapsed" ${org?.orgStatus==='lapsed'?'selected':''}>Lapsed</option>
+          </select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label class="fgl">Primary Contact</label><input type="text" id="of-contact" class="fginput" placeholder="Contact name" value="${org?.primaryContact||''}"></div>
+          <div><label class="fgl">Email</label><input type="email" id="of-email" class="fginput" placeholder="email@biz.com.au" value="${org?.email||''}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label class="fgl">Phone</label><input type="text" id="of-phone" class="fginput" placeholder="04xx xxx xxx" value="${org?.phone||''}"></div>
+          <div><label class="fgl">Website</label><input type="text" id="of-website" class="fginput" placeholder="www.example.com.au" value="${org?.website||''}"></div>
+        </div>
+        <div><label class="fgl">Physical Address</label><input type="text" id="of-physaddr" class="fginput" placeholder="123 Main St…" value="${org?.physAddr||''}"></div>
+        <div>
+          <label class="fgl">Postal Address</label>
+          <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;color:var(--text-dim);cursor:pointer;">
+            <input type="checkbox" id="of-postsame" onchange="togglePostalSame()" ${org?.postSameAsPhys?'checked':''}>
+            Same as physical address
+          </label>
+          <input type="text" id="of-postaddr" class="fginput" placeholder="PO Box or postal address" value="${org?.postAddr||''}" ${org?.postSameAsPhys?'disabled':''}>
+        </div>
+        <div><label class="fgl">Notes</label><textarea id="of-notes" class="fginput" rows="3" placeholder="General notes…">${org?.notes||''}</textarea></div>
+        <div style="display:flex;gap:8px;padding-top:4px;">
+          <button class="mprimary" onclick="saveOrg()" style="flex:2;">${isEdit ? 'Save Changes' : 'Add Sponsor'}</button>
+          <button class="msecondary" onclick="switchDashboard('sponsors')" style="flex:1;">Cancel</button>
+          ${isEdit ? '<button class="mdanger" onclick="deleteOrg()" style="flex:1;">Delete</button>' : ''}
+        </div>
+      </div>
+    </div>`;
 }
 
 function openEditOrg(orgId) {
   if (!me?.edit) return;
-  const org = orgs.find(o => o.id===orgId); if (!org) return;
   editOrgId = orgId;
-  resetOrgModal();
-  document.getElementById('org-m-title').textContent    = 'Edit Sponsor';
-  document.getElementById('org-m-save').textContent     = 'Save Changes';
-  document.getElementById('org-m-del').style.display    = 'block';
-  document.getElementById('org-m-sub').textContent      = org.name;
-  document.getElementById('of-name').value              = org.name;
-  document.getElementById('of-orgstatus').value         = org.orgStatus || 'prospect';
-  document.getElementById('of-contact').value           = org.primaryContact || '';
-  document.getElementById('of-email').value             = org.email || '';
-  document.getElementById('of-phone').value             = org.phone || '';
-  document.getElementById('of-website').value           = org.website || '';
-  document.getElementById('of-physaddr').value          = org.physAddr || '';
-  document.getElementById('of-postaddr').value          = org.postAddr || '';
-  document.getElementById('of-notes').value             = org.notes || '';
-  document.getElementById('of-postsame').checked        = !!org.postSameAsPhys;
-  document.getElementById('of-postaddr').disabled       = !!org.postSameAsPhys;
-  const _btf_org_modal = document.getElementById('org-modal'); bringToFront(_btf_org_modal); _btf_org_modal.classList.add('open');
+  _renderOrgPanel(true);
 }
 
-function closeOrgModal() { document.getElementById('org-modal').classList.remove('open'); editOrgId=null; }
+function closeOrgModal() { editOrgId=null; switchDashboard('sponsors'); }
 
 async function saveOrg() {
   const name = document.getElementById('of-name').value.trim();
@@ -2470,22 +2514,16 @@ async function saveOrg() {
   const isNew = !editOrgId;
   if (!editOrgId) { data.id = res.id; orgs.push(data); }
   else { const idx=orgs.findIndex(o=>o.id===editOrgId); if(idx>=0) orgs[idx]={...orgs[idx],...data}; }
-  closeOrgModal();
+  editOrgId = null;
   render();
   setSyncState('ok', 'Saved');
   if (isNew) {
-    showToast('Sponsor added ✓ — add their season sponsorship below', '');
-    // Prompt to add season entry for the new org
-    setTimeout(() => {
-      const newOrgId = data.id;
-      if (me?.edit && confirm('Sponsor "' + data.name + '" saved!\n\nWould you like to add their ' + activeSeason + ' season sponsorship package now?')) {
-        openAddSS(newOrgId);
-      } else {
-        openOrgDetail(newOrgId);
-      }
-    }, 100);
+    showToast('Sponsor added ✓');
+    switchDashboard('sponsors');
+    setTimeout(() => { openOrgDetail(data.id); }, 150);
   } else {
     showToast('Sponsor updated ✓');
+    switchDashboard('sponsors');
   }
   loadAll();
 }
@@ -3043,7 +3081,10 @@ function openPackagesPanel() {
   // Render packages into sponsor-content area
   const sponsorContent = document.getElementById('sponsor-content');
   sponsorContent.innerHTML =
-    '<div class="section-head"><h2 class="section-title">Sponsorship Packages</h2></div>'
+    '<div class="section-head" style="align-items:center;gap:10px;">'
+    + '<button onclick="switchDashboard(&quot;sponsors&quot;)" style="background:none;border:none;color:var(--green);font-size:13px;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px;">&#8592; Overview</button>'
+    + '<h2 class="section-title" style="flex:1;">Sponsorship Packages</h2>'
+    + '</div>'
     + '<div id="adm-body" style="max-width:900px;"></div>';
   renderPackageManager();
 }
@@ -3943,8 +3984,12 @@ function _renderOverviewHTML() {
         <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">${totalShort} player${totalShort!==1?'s':''} needed across ${shortTeams.length} team${shortTeams.length!==1?'s':''} to reach minimum numbers</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           ${shortTeams.map(({t, count, short}) => {
-            const pct = Math.min(100, Math.round(count / t.minPlayers * 100));
-            const col = count >= Math.ceil(t.minPlayers * 0.8) ? '#ca8a04' : '#dc2626';
+            const pct    = Math.min(100, Math.round(count / t.minPlayers * 100));
+            const trainP = t.trainingCount || 0;
+            const intP   = t.interestCount || 0;
+            const estTot = count + trainP + intP;
+            const estPct = Math.min(100, Math.round(estTot / t.minPlayers * 100));
+            const col    = count >= Math.ceil(t.minPlayers * 0.8) ? '#ca8a04' : '#dc2626';
             const schoolYr = t.ageGroup ? agRecruitTarget(t.ageGroup) : '';
             return '<div style="background:#fafafa;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;">'
               + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:4px;">'
@@ -3954,12 +3999,17 @@ function _renderOverviewHTML() {
               +   '</div>'
               +   '<span style="font-size:12px;font-weight:700;color:' + col + ';">Need ' + short + ' more</span>'
               + '</div>'
-              + '<div style="display:flex;align-items:center;gap:8px;">'
-              +   '<div style="flex:1;height:5px;background:#e5e7eb;border-radius:4px;">'
-              +     '<div style="height:5px;border-radius:4px;background:' + col + ';width:' + pct + '%;"></div>'
+              + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:' + ((trainP||intP)?'5':'0') + 'px;">'
+              +   '<div style="flex:1;position:relative;height:6px;background:#e5e7eb;border-radius:4px;">'
+              +     (estPct > pct ? '<div style="position:absolute;height:6px;border-radius:4px;background:#bfdbfe;width:' + estPct + '%;"></div>' : '')
+              +     '<div style="position:absolute;height:6px;border-radius:4px;background:' + col + ';width:' + pct + '%;"></div>'
               +   '</div>'
-              +   '<span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">' + count + ' / ' + t.minPlayers + '</span>'
+              +   '<span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">' + count + '/' + t.minPlayers + '</span>'
               + '</div>'
+              + ((trainP||intP) ? '<div style="display:flex;gap:10px;">'
+                + (trainP ? '<span style="font-size:10px;color:#1d4ed8;font-weight:600;">🏃 ' + trainP + ' training</span>' : '')
+                + (intP   ? '<span style="font-size:10px;color:#7c3aed;font-weight:600;">✋ ' + intP + ' interested</span>' : '')
+                + '</div>' : '')
               + '</div>';
           }).join('')}
         </div>
@@ -5280,14 +5330,18 @@ function renderPlTeams() {
       ` : `
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;">
           ${[...teams].sort((a,b) => (parseInt((a.ageGroup||'').replace(/\D/g,''))||99) - (parseInt((b.ageGroup||'').replace(/\D/g,''))||99) || (a.name||'').localeCompare(b.name||'')).map(t => {
-            const count   = teamCount[t.id] || 0;
-            const roster  = allRows.filter(s => s.assignedTeam === t.id).map(s => pm[s.profileId]).filter(Boolean);
-            const minP    = t.minPlayers || 0;
-            const pct     = minP > 0 ? Math.min(100, Math.round(count / minP * 100)) : 0;
-            const colour  = !minP ? '#9ca3af'
-                          : count >= minP ? '#16a34a'
-                          : count >= Math.ceil(minP * 0.8) ? '#ca8a04'
-                          : '#dc2626';
+            const count    = teamCount[t.id] || 0;
+            const roster   = allRows.filter(s => s.assignedTeam === t.id).map(s => pm[s.profileId]).filter(Boolean);
+            const minP     = t.minPlayers || 0;
+            const trainP   = t.trainingCount || 0;
+            const intP     = t.interestCount || 0;
+            const estimated = trainP + intP; // combined interest indicator
+            const pct      = minP > 0 ? Math.min(100, Math.round(count / minP * 100)) : 0;
+            const estPct   = (minP > 0 && estimated > count) ? Math.min(100, Math.round(estimated / minP * 100)) : 0;
+            const colour   = !minP ? '#9ca3af'
+                           : count >= minP ? '#16a34a'
+                           : count >= Math.ceil(minP * 0.8) ? '#ca8a04'
+                           : '#dc2626';
             return `
               <div onclick="openTeamSlide('${t.id}')"
                 style="background:#fff;border:2px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;transition:all .15s;"
@@ -5311,11 +5365,18 @@ function renderPlTeams() {
                   <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;">
                     <div style="display:flex;align-items:baseline;gap:6px;">
                       <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;color:${colour};">${count}</span>
-                      <span style="font-size:11px;color:var(--text-dim);">assigned</span>
+                      <span style="font-size:11px;color:var(--text-dim);">registered</span>
                     </div>
-                    ${minP > 0 ? '<span style="font-size:11px;font-weight:700;color:' + colour + ';">' + (count >= minP ? '✓ ' + count + '/' + minP + ' min' : count + '/' + minP + ' min · ' + (minP - count) + ' short') + '</span>' : ''}
+                    ${minP > 0 ? '<span style="font-size:11px;font-weight:700;color:' + colour + ';">' + (count >= minP ? '✓ ' + count + '/' + minP : count + '/' + minP + ' · ' + (minP-count) + ' short') + '</span>' : ''}
                   </div>
-                  ${minP > 0 ? '<div style="height:5px;background:#e5e7eb;border-radius:4px;margin-bottom:8px;"><div style="height:5px;border-radius:4px;background:' + colour + ';width:' + pct + '%;transition:width .3s;"></div></div>' : '<div style="height:5px;margin-bottom:8px;"></div>'}
+                  ${minP > 0 ? `<div style="position:relative;height:7px;background:#e5e7eb;border-radius:4px;margin-bottom:${(trainP||intP)?'4':'8'}px;">
+                    ${estPct > pct ? '<div style="position:absolute;height:7px;border-radius:4px;background:#bfdbfe;width:' + estPct + '%;"></div>' : ''}
+                    <div style="position:absolute;height:7px;border-radius:4px;background:' + colour + ';width:' + pct + '%;transition:width .3s;"></div>
+                  </div>` : '<div style="height:7px;margin-bottom:8px;"></div>'}
+                  ${(trainP || intP) ? '<div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;">'
+                    + (trainP ? '<span style="font-size:10px;color:#1d4ed8;font-weight:600;">🏃 ' + trainP + ' training</span>' : '')
+                    + (intP  ? '<span style="font-size:10px;color:#7c3aed;font-weight:600;">✋ ' + intP + ' interested</span>' : '')
+                    + '</div>' : ''}
                   <!-- Mini roster -->
                   ${roster.length ? `
                     <div style="display:flex;flex-wrap:wrap;gap:3px;">
@@ -5365,12 +5426,19 @@ function renderPlTeams() {
             <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">ASSISTANT COACH</div>
             <input id="tm-acoach" type="text" placeholder="Assistant coach name" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
             <div>
               <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">MINIMUM PLAYERS</div>
               <input id="tm-min" type="number" min="1" max="50" placeholder="e.g. 14" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
             </div>
-            <div></div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">TRAINING TURNOUT</div>
+              <input id="tm-training" type="number" min="0" max="100" placeholder="e.g. 18" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">INTEREST / WAITLIST</div>
+              <input id="tm-interest" type="number" min="0" max="100" placeholder="e.g. 5" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+            </div>
           </div>
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">NOTES</div>
@@ -5599,6 +5667,8 @@ function openTeamModal(teamId) {
   document.getElementById('tm-acoach').value   = t?.assistantCoach || '';
   document.getElementById('tm-notes').value    = t?.notes || '';
   document.getElementById('tm-min').value      = t?.minPlayers || '';
+  document.getElementById('tm-training').value = t?.trainingCount || '';
+  document.getElementById('tm-interest').value = t?.interestCount || '';
   overlay.style.display = 'flex';
 }
 
@@ -5620,6 +5690,8 @@ async function saveTeamModal() {
     assistantCoach: document.getElementById('tm-acoach').value.trim(),
     notes:          document.getElementById('tm-notes').value.trim(),
     minPlayers:     parseInt(document.getElementById('tm-min').value) || 0,
+    trainingCount:  parseInt(document.getElementById('tm-training').value) || 0,
+    interestCount:  parseInt(document.getElementById('tm-interest').value) || 0,
   };
   const res = await api('saveTeam', payload);
   if (res.error) { showToast('Save failed: ' + res.error, 'err'); return; }
