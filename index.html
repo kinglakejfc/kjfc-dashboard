@@ -951,15 +951,6 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       </div>
     </div>
 
-    <!-- AI OVERVIEW CARD sponsors -->
-    <div id="sponsor-ai-card" style="background:rgba(1,60,30,0.72);color:#fff;border-radius:12px;padding:18px 22px;margin-bottom:16px;position:relative;overflow:hidden;backdrop-filter:blur(2px);">
-      <div style="position:absolute;top:0;right:0;width:200px;height:100%;background:linear-gradient(135deg,transparent 55%,rgba(251,226,1,.05));pointer-events:none;"></div>
-      <div style="display:flex;align-items:flex-start;gap:12px;">
-        <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;flex-shrink:0;margin-top:2px;">AI Summary</div>
-        <div id="sponsor-ai-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.95;"><span style="opacity:.4;font-size:12px;">Generating insight…</span></div>
-      </div>
-    </div>
-
     <!-- IN-KIND STRIP -->
     <div id="inkind-strip" onclick="drillInKind()" style="display:none;background:var(--card);border:1.5px solid #e9d5ff;border-radius:11px;padding:12px 16px;margin-bottom:16px;align-items:center;gap:12px;cursor:pointer;transition:background .15s;" onmouseenter="this.style.background='#f5f0ff'" onmouseleave="this.style.background='var(--card)'">
       <span style="font-size:18px;">🤝</span>
@@ -1018,6 +1009,14 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     <div class="panel" id="prospect-panel" style="display:none;">
       <div class="panel-title">🎯 Prospect Pipeline</div>
       <div id="prospect-list" style="margin-top:10px;"></div>
+    </div>
+    <!-- AI OVERVIEW CARD sponsors — bottom of page -->
+    <div id="sponsor-ai-card" style="background:rgba(1,60,30,0.72);color:#fff;border-radius:12px;padding:18px 22px;margin-top:8px;position:relative;overflow:hidden;backdrop-filter:blur(2px);">
+      <div style="position:absolute;top:0;right:0;width:200px;height:100%;background:linear-gradient(135deg,transparent 55%,rgba(251,226,1,.05));pointer-events:none;"></div>
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;flex-shrink:0;margin-top:2px;">AI Summary</div>
+        <div id="sponsor-ai-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.95;"><span style="opacity:.4;font-size:12px;">Generating insight…</span></div>
+      </div>
     </div>
     </div><!-- /sponsor-content -->
 
@@ -1916,12 +1915,14 @@ async function _loadSponsorAI(s, season, prevYr, prev) {
     return y + ': $' + fmt(ys.total) + ' (' + ys.count + ' sponsors)';
   }).join(', ');
 
-  const prompt = 'You are a junior football club treasurer reviewing sponsorship data. Today is '
-    + today.toLocaleDateString('en-AU', {day:'numeric', month:'long', year:'numeric'}) + '. '
-    + 'Write 3-5 concise bullet points. Each point starts with a relevant emoji. '
-    + 'Use **bold** for key numbers and important terms. Be direct and specific. '
-    + 'Focus on: collection progress, outstanding invoices, tier health, year-on-year comparison, and one key action. '
-    + 'No headers or sub-headings. Each bullet 1-2 sentences max.\n\n'
+  const prompt = 'You are helping volunteers at a community junior football club understand their sponsorship season. '
+    + 'This club has no paid staff — everyone involved is a volunteer giving their time. '
+    + 'Today is ' + today.toLocaleDateString('en-AU', {day:'numeric', month:'long', year:'numeric'}) + '. '
+    + 'IMPORTANT: Sponsorship payments are not due until the season starts, so any outstanding amounts are completely normal and expected — do not frame them as a problem. '
+    + 'Your tone should be warm, encouraging, and data-driven. Celebrate what has been achieved. Be specific with numbers. '
+    + 'Write 3-5 concise bullet points. Each starts with a relevant emoji. Use **bold** for key figures. '
+    + 'Focus on: pipeline strength, year-on-year progress, tier mix, and one practical next step the team can feel good about. '
+    + 'No headers. Each bullet 1-2 sentences max.\n\n'
     + 'Season: ' + season + '\n'
     + 'Total committed: $' + fmt(s.total) + ' across ' + s.count + ' sponsors\n'
     + 'Collected: $' + fmt(s.recv) + ' (' + pct + '%)'
@@ -3979,14 +3980,15 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
   }).length))/prevTotal*100):null;
   const schoolCount=new Set(rows.map(r=>(pm[r.profileId]||{}).school).filter(Boolean)).size;
 
-  const prompt = 'You are an AFL junior football club administrator reviewing registration data for the '
-    + plSeason + ' season. Today is ' + today.toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'}) + '. '
-    + 'Write a single plain-text paragraph of 3-4 sentences. Consider: where we are in the recruiting cycle, '
-    + 'whether current registrations are tracking ahead or behind the same point last season, '
-    + 'any groups needing urgent attention, and one key action to take now. '
-    + 'Format your response as 3-5 concise bullet points. Each point should start with a relevant emoji. '
-    + 'Use **bold** for key numbers and important terms. Be direct and specific with numbers. '
-    + 'Do NOT use headers or sub-headings. Each bullet should be 1-2 sentences max.\n\n'
+  const prompt = 'You are helping volunteers at a community junior football club understand their player registrations. '
+    + 'This club has no paid staff — everyone involved is a volunteer giving their time. '
+    + 'Today is ' + today.toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'}) + '. '
+    + 'Your tone should be warm, encouraging, and data-driven. Acknowledge the effort the team is putting in. Be specific with numbers. '
+    + 'Write 3-5 concise bullet points. Each starts with a relevant emoji. Use **bold** for key figures. '
+    + 'Consider: where registrations are at in the season window, how they compare to the same point last year, '
+    + 'which age groups are looking healthy, and one practical next step the team can feel good about taking. '
+    + 'Do not use language like "urgent attention" or "concern" — frame everything constructively. '
+    + 'No headers. Each bullet 1-2 sentences max.\n\n'
     + 'Season: ' + plSeason + ' (planning window: Oct ' + (+plSeason-1) + ' to Sep ' + plSeason + ')\n'
     + 'Current date: ' + currentMonthName + ' (month ' + (currentMonthBucket+1) + ' of 12 in the season window)\n'
     + 'Total registered: ' + total + ' (' + boys + 'M / ' + girls + 'F)'
