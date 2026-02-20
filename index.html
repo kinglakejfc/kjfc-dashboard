@@ -3570,6 +3570,9 @@ function switchPlTab(btn, tab) {
 
 function renderPlTab() {
   if (!plData) { loadPlayerData(); return; }
+  // Always keep the section heading in sync with the active season
+  const plSpanEl = document.getElementById('pl-season-span');
+  if (plSpanEl) plSpanEl.textContent = 'Recruitment ' + plSeason + ' Season';
   const fns = {
     overview: renderPlOverview,
     players:  renderPlPlayers,
@@ -3608,18 +3611,31 @@ function plPlayerMap() {
 // Only fall back to the Players profile for the current active season where
 // the season row and player profile are effectively the same import.
 const _currentSeasonYear = new Date().getFullYear();
+// Determine if a season row has had its demographic snapshot captured.
+// We use registrationDate as the sentinel — the backfill tool writes all snapshot
+// fields (school, suburb, address, registrationDate) together. If registrationDate
+// is present, the snapshot ran and we should honour all snapshot fields as-is,
+// even if blank (blank means blank in that year's CSV).
+// If registrationDate is absent, the backfill hasn't run yet — fall back to the
+// current player profile only for the current season.
+function _snapshotCaptured(sr) {
+  return sr && sr.registrationDate && String(sr.registrationDate).trim() !== '';
+}
 function seasonSchool(sr, pm) {
-  if (sr && sr.school) return sr.school;
+  if (!sr) return '';
+  if (_snapshotCaptured(sr)) return sr.school || ''; // snapshot ran — honour it (blank = blank)
   if (+sr.year >= _currentSeasonYear) return (pm && (pm[sr.profileId]||{}).school) || '';
-  return ''; // historical season, no snapshot — show blank
+  return ''; // historical, no snapshot — show blank
 }
 function seasonSuburb(sr, pm) {
-  if (sr && sr.suburb) return sr.suburb;
+  if (!sr) return '';
+  if (_snapshotCaptured(sr)) return sr.suburb || '';
   if (+sr.year >= _currentSeasonYear) return (pm && (pm[sr.profileId]||{}).suburb) || '';
   return '';
 }
 function seasonAddr(sr, pm) {
-  if (sr && sr.address) return sr.address;
+  if (!sr) return '';
+  if (_snapshotCaptured(sr)) return sr.address || '';
   if (+sr.year >= _currentSeasonYear) return (pm && (pm[sr.profileId]||{}).address) || '';
   return '';
 }
@@ -3852,9 +3868,7 @@ function _renderOverviewHTML() {
     .map(([s,d]) => ({ school:s, total: Object.values(d).reduce((a,b)=>a+b,0), data:d }))
     .sort((a,b)=>b.total-a.total).slice(0,6);
 
-  // Update section heading with season
-  const plSpanEl = document.getElementById('pl-season-span');
-  if (plSpanEl) plSpanEl.textContent = 'Recruitment ' + plSeason + ' Season';
+  // Update section heading with season — now handled centrally in renderPlTab
 
   document.getElementById('pl-body').innerHTML = `
     <div style="padding:0 0 24px;">
