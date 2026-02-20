@@ -4085,7 +4085,7 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
 
   // Fingerprint: for past seasons use fixed 'done'; for active season include month bucket
   // so it refreshes as registrations come in each month
-  const _ovFP = [plSeason, total, prevTotal, lapsed, _seasonComplete ? 'done' : currentMonthBucket].join('|');
+  const _ovFP = [plSeason, total, prevTotal, lapsed, _seasonComplete ? 'done' : currentMonthBucket, 'v2'].join('|');
 
   // Check backend first — show cached content instantly if fingerprint matches
   try {
@@ -4121,17 +4121,31 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
       + 'Schools represented: ' + schoolCount;
   } else {
     // Active/upcoming season — forward-looking prompt
+    // Registration window: Oct (prior year) → ~April (season start). Players must be registered to play.
+    const _regDeadline = 'April ' + plSeason;
+    const _monthsToDeadline = (() => {
+      const apr = new Date(+plSeason, 3, 1); // April 1
+      const diff = (apr - today) / (1000 * 60 * 60 * 24 * 30.5);
+      return diff > 0 ? Math.round(diff) : 0;
+    })();
+    const _windowContext = _monthsToDeadline > 0
+      ? 'Registration window closes ~' + _regDeadline + ' (season start) — approximately ' + _monthsToDeadline + ' month' + (_monthsToDeadline !== 1 ? 's' : '') + ' remaining to recruit'
+      : 'Season has started — registration window has closed';
+
     prompt = 'You are helping volunteers at a community junior football club understand their player registrations. '
       + 'This club has no paid staff — everyone involved is a volunteer giving their time. '
       + 'Today is ' + today.toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'}) + '. '
+      + 'IMPORTANT CONTEXT: The registration window runs Oct–April (season start). Players must be registered before the season starts to be eligible to play. '
+      + 'This is NOT a 12-month window — April is the real deadline. Frame urgency and progress relative to April, not the end of the year. '
       + 'Your tone should be warm, encouraging, and data-driven. Acknowledge the effort the team is putting in. Be specific with numbers. '
       + 'Write 3-5 concise bullet points. Each starts with a relevant emoji. Use **bold** for key figures. '
-      + 'Consider: where registrations are at in the season window, how they compare to the same point last year, '
+      + 'Consider: where registrations are at relative to the April deadline, how they compare to the same point last year, '
       + 'which age groups are looking healthy, and one practical next step the team can feel good about taking. '
       + 'Do not use language like "urgent attention" or "concern" — frame everything constructively. '
       + 'No headers. Each bullet 1-2 sentences max.\n\n'
-      + 'Season: ' + plSeason + ' (planning window: Oct ' + (+plSeason-1) + ' to Sep ' + plSeason + ')\n'
-      + 'Current date: ' + currentMonthName + ' (month ' + (currentMonthBucket+1) + ' of 12 in the season window)\n'
+      + 'Season: ' + plSeason + ' (registration window: Oct ' + (+plSeason-1) + ' to ~April ' + plSeason + ')\n'
+      + _windowContext + '\n'
+      + 'Current date: ' + currentMonthName + ' (month ' + (currentMonthBucket+1) + ' of season window)\n'
       + 'Total registered: ' + total + ' (' + boys + 'M / ' + girls + 'F)'
       + (prevTotal ? ', cf. ' + prevTotal + ' all of ' + prevYr : '') + '\n'
       + monthContext + '\n'
