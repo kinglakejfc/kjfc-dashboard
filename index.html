@@ -4201,7 +4201,8 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
 
   // Fingerprint: for past seasons use fixed 'done'; for active season include month bucket
   // so it refreshes as registrations come in each month
-  const _ovFP = [plSeason, total, prevTotal, lapsed, _seasonComplete ? 'done' : currentMonthBucket, 'v2'].join('|');
+  const _estSum = (plData.teams||[]).filter(t=>+t.season===+plSeason&&t.estimateCount>0).reduce((s,t)=>s+(t.estimateCount||0),0);
+  const _ovFP = [plSeason, total, prevTotal, lapsed, _seasonComplete ? 'done' : currentMonthBucket, _estSum, 'v3'].join('|');
 
   // Check backend first — show cached content instantly if fingerprint matches
   try {
@@ -4267,7 +4268,8 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
       + monthContext + '\n'
       + 'Age distribution: ' + (ageStr||'insufficient DOB data') + '\n'
       + 'Not returned from ' + prevYr + ': ' + lapsed + (retPct!==null?', retention '+retPct+'%':'') + '\n'
-      + 'Schools: ' + schoolCount;
+      + 'Schools: ' + schoolCount + '\n'
+      + (_estSum > 0 ? 'Club estimates (team demand before full registration): ' + JSON.stringify((plData.teams||[]).filter(t=>+t.season===+plSeason&&t.estimateCount>0).map(t=>({team:t.name,estimate:t.estimateCount,registered:((plData.seasons||[]).filter(s=>+s.year===+plSeason&&s.assignedTeam===t.id).length)}))) : 'No club estimates recorded yet');
   }
 
   try {
@@ -4657,7 +4659,6 @@ function _openSimpleSlideover(title, sub, players, backFn) {
         return '<div onclick="openPlayerDetailFromSlideover(\'' + pid + '\')"'
           + ' style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;cursor:pointer;margin-bottom:5px;border:1.5px solid var(--border);background:#fff;"'
           + ' onmouseenter="this.style.background=\'var(--green-light)\'" onmouseleave="this.style.background=\'#fff\'">'
-          + '<div class="pl-kpi-val" style="font-size:36px;color:#c9b400;line-height:1;margin:0;">' + d.girls + '</div>'
           + '<div style="flex:1;min-width:0;">'
           + '<div style="font-weight:700;font-size:13px;">' + plName(p) + '</div>'
           + (label  ? '<div style="font-size:11px;color:var(--text-dim);">' + label  + '</div>' : '')
