@@ -1012,8 +1012,12 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     <div id="sponsor-ai-card" style="background:rgba(1,60,30,0.72);color:#fff;border-radius:12px;padding:18px 22px;margin-top:8px;position:relative;overflow:hidden;backdrop-filter:blur(2px);">
       <div style="position:absolute;top:0;right:0;width:200px;height:100%;background:linear-gradient(135deg,transparent 55%,rgba(251,226,1,.05));pointer-events:none;"></div>
       <div style="display:flex;align-items:flex-start;gap:12px;">
-        <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;flex-shrink:0;margin-top:2px;">AI Summary</div>
-        <div id="sponsor-ai-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.95;"></div>
+        <div style="flex-shrink:0;margin-top:2px;">
+          <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;">AI Summary</div>
+          <div id="sponsor-ai-season" style="font-size:9px;opacity:.5;margin-top:3px;text-align:center;font-weight:700;"></div>
+          <div id="sponsor-ai-ts" style="font-size:9px;opacity:.5;margin-top:2px;text-align:center;"></div>
+        </div>
+        <div id="sponsor-ai-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.95;"><span style="opacity:.4;font-size:12px;">Loading…</span></div>
       </div>
     </div>
     </div><!-- /sponsor-content -->
@@ -1044,7 +1048,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     <div class="msub" id="org-m-sub">New sponsor organisation.</div>
 
     <div class="frow two">
-      <div class="fg"><label>Business Name *</label><input type="text" id="of-name" placeholder="Business name" autocomplete="organization" oninput="const w=document.getElementById('org-dup-warning');if(w){w.style.display='none';w.dataset.acknowledgedFor='';}"></div>
+      <div class="fg"><label>Business Name *</label><input type="text" id="of-name" placeholder="Business name" autocomplete="organization" oninput="_onOrgNameInput(this.value)"></div>
       <div class="fg"><label>Status</label>
         <select id="of-orgstatus">
           <option value="prospect">Prospect</option>
@@ -1862,7 +1866,16 @@ function render() {
   renderTableHeaders();
   renderTable();
 
-  // AI summary — load async, don't block render
+  // AI summary: blank immediately on season change so stale content never lingers,
+  // then load from cache → regenerate if fingerprint changed
+  const _spAiEl = document.getElementById('sponsor-ai-text');
+  const _spSeasonEl = document.getElementById('sponsor-ai-season');
+  const _spTsEl = document.getElementById('sponsor-ai-ts');
+  if (_spAiEl) _spAiEl.innerHTML = '<span style="opacity:.4;font-size:12px;">Loading…</span>';
+  if (_spSeasonEl) _spSeasonEl.textContent = '';
+  if (_spTsEl) _spTsEl.textContent = '';
+  // Clear the in-memory guard for this season so we always re-evaluate on switch
+  _sponsorAICache[cy] = false;
   _loadSponsorAI(s, cy, prevYr, prev);
 }
 
@@ -1880,23 +1893,45 @@ async function _loadSponsorAI(s, season, prevYr, prev) {
   const el = document.getElementById('sponsor-ai-text');
   if (!el) return;
 
-  if (_sponsorAICache[season]) return; // already fetching this session
+  if (_sponsorAICache[season]) return; // already fetching this season
   _sponsorAICache[season] = true; // mark in-flight
+  const _spSeason = season; // capture for stale-callback detection
 
   // Fingerprint: key figures that signal data has changed
   const _spFP = [season, s.total, s.count, s.recv, s.outCount, s.ikCount].join('|');
 
-  // Check backend first — show cached content instantly if fingerprint matches
+  const _spTsEl = document.getElementById('sponsor-ai-ts');
+  const _spSnEl = document.getElementById('sponsor-ai-season');
+
+  // Step 1: Load cached insight from sheet immediately — show without delay
+  let _spCached = null;
   try {
-    const stored = await api('getAIInsight', { type: 'sponsor', season });
-    if (!stored.error && stored.html && stored.fingerprint === _spFP) {
-      el.innerHTML = stored.html; // data unchanged — show immediately, no loading state
+    _spCached = await api('getAIInsight', { type: 'sponsor', season });
+  } catch(e) { /* network issue — proceed to generate */ }
+
+  // Abort if season changed while fetching
+  if (activeSeason !== _spSeason) { _sponsorAICache[_spSeason] = false; return; }
+
+  if (_spCached && !_spCached.error && _spCached.html) {
+    // Show cached content immediately
+    el.innerHTML = _spCached.html;
+    if (_spSnEl) _spSnEl.textContent = String(season);
+    if (_spTsEl && _spCached.updatedAt) {
+      try {
+        const d = new Date(_spCached.updatedAt);
+        _spTsEl.textContent = 'Generated ' + d.toLocaleDateString('en-AU',{day:'numeric',month:'short'}) + ' ' + d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});
+      } catch(e) {}
+    }
+    // Fingerprint matches — data unchanged, we're done
+    if (_spCached.fingerprint === _spFP) {
+      _sponsorAICache[season] = false;
       return;
     }
-  } catch(e) { /* proceed to generate */ }
+    // Fingerprint changed — keep cached visible, show updating indicator
+    if (_spTsEl) _spTsEl.textContent = 'Updating…';
+  }
 
-  // Only show loading state if we actually need to generate new content
-  el.innerHTML = '<span style="opacity:.4;font-size:12px;">Generating insight\u2026</span>';
+  // Step 2: Generate fresh insight (cache miss or stale)
 
   const today   = new Date();
   const pct     = s.total > 0 ? Math.round(s.recv / s.total * 100) : 0;
@@ -1976,13 +2011,20 @@ async function _loadSponsorAI(s, season, prevYr, prev) {
         + '</div>';
     });
     const html = htmlParts.join('');
+    // Abort if season changed while generating
+    if (activeSeason !== _spSeason) { _sponsorAICache[_spSeason] = false; return; }
     el.innerHTML = html;
+    if (_spSnEl) _spSnEl.textContent = String(season);
+    if (_spTsEl) _spTsEl.textContent = 'Generated just now';
     // Save to backend so all committee members see the same insight
     const saveRes = await api('saveAIInsight', { type: 'sponsor', season, html, fingerprint: _spFP });
     if (saveRes.error) console.warn('[AI] sponsor save failed:', saveRes.error);
+    _sponsorAICache[season] = false;
   } catch(e) {
-    _sponsorAICache[season] = false; // allow retry
-    el.innerHTML = '<span style="opacity:.5;font-size:12px;">AI summary unavailable</span>';
+    _sponsorAICache[_spSeason] = false; // allow retry
+    if (activeSeason === _spSeason && !el.innerHTML.includes('●')) {
+      el.innerHTML = '<span style="opacity:.5;font-size:12px;">AI summary unavailable — will retry next load</span>';
+    }
   }
 }
 
@@ -2431,6 +2473,12 @@ function _normOrgName(s) {
     .trim();
 }
 
+// Extract initials from a normalised org name: "melbourne food distributors" → "mfd"
+function _orgInitials(norm) {
+  const SKIP_INIT = new Set(['pty','ltd','the','and','of','for','in','at','by','co','inc']);
+  return norm.split(' ').filter(w => w.length >= 2 && !SKIP_INIT.has(w)).map(w => w[0]).join('');
+}
+
 // Levenshtein distance (edit distance) between two strings
 function _editDist(a, b) {
   const m = a.length, n = b.length;
@@ -2441,7 +2489,7 @@ function _editDist(a, b) {
 }
 
 // Returns true if two org names are likely the same business
-// Uses full-string + token-level matching with edit distance
+// Uses full-string + acronym + token-level matching with edit distance
 function _orgSimilar(rawA, rawB) {
   const a = _normOrgName(rawA), b = _normOrgName(rawB);
   if (!a || !b) return false;
@@ -2456,6 +2504,18 @@ function _orgSimilar(rawA, rawB) {
   const fullThreshold = maxLen <= 6 ? 1 : maxLen <= 12 ? 2 : Math.floor(maxLen * 0.3);
   if (fullDist <= fullThreshold) return true;
 
+  // Acronym matching: "MFD" vs "Melbourne Food Distributors"
+  // Check if one side is an acronym that matches the other's initials
+  const initA = _orgInitials(a), initB = _orgInitials(b);
+  if (initA && initB) {
+    // One is short enough to be an acronym (2-5 chars), the other is multi-word
+    if (a.length <= 5 && b.split(' ').length >= 2 && initB === a) return true;
+    if (b.length <= 5 && a.split(' ').length >= 2 && initA === b) return true;
+    // Also allow 1-char edit distance on initials for slight typos
+    if (a.length <= 5 && b.split(' ').length >= 2 && _editDist(initB, a) <= 1) return true;
+    if (b.length <= 5 && a.split(' ').length >= 2 && _editDist(initA, b) <= 1) return true;
+  }
+
   // Token-level matching: check each significant word from one name against
   // each significant word from the other. Catches "Matador" vs "Mattador Building"
   const SKIP = new Set(['building','construction','services','group','australia','enterprises','solutions',
@@ -2464,7 +2524,6 @@ function _orgSimilar(rawA, rawB) {
   const tokensA = a.split(' ').filter(t => t.length >= 4 && !SKIP.has(t));
   const tokensB = b.split(' ').filter(t => t.length >= 4 && !SKIP.has(t));
 
-  // If either side normalises to nothing meaningful, skip token check
   if (!tokensA.length || !tokensB.length) return false;
 
   for (const ta of tokensA) {
@@ -2483,27 +2542,63 @@ function findSimilarOrgs(name) {
   return orgs.filter(o => o.id !== editOrgId && _orgSimilar(name, o.name));
 }
 
+// Debounce timer for live duplicate check
+let _orgNameDebounce = null;
+
+// Called on every keystroke in the business name field
+function _onOrgNameInput(val) {
+  // Reset acknowledgement whenever the name changes
+  const w = document.getElementById('org-dup-warning');
+  if (w) w.dataset.acknowledgedFor = '';
+
+  clearTimeout(_orgNameDebounce);
+  const trimmed = val.trim();
+
+  // Hide immediately if field is too short to meaningfully match
+  if (trimmed.length < 2) {
+    if (w) w.style.display = 'none';
+    return;
+  }
+
+  // Debounce: wait 350ms after last keystroke before checking
+  _orgNameDebounce = setTimeout(function() {
+    // Only run on new sponsors (not edits — duplicates don't apply there)
+    if (editOrgId) return;
+    const similar = findSimilarOrgs(trimmed);
+    if (similar.length > 0) {
+      _showOrgDupWarning(trimmed, similar);
+    } else {
+      if (w) w.style.display = 'none';
+    }
+  }, 350);
+}
+
 function _showOrgDupWarning(name, similar) {
   let el = document.getElementById('org-dup-warning');
   if (!el) {
     el = document.createElement('div');
     el.id = 'org-dup-warning';
-    el.style.cssText = 'border-radius:8px;padding:12px 14px;margin:10px 0;background:#fffbeb;border:1.5px solid #f59e0b;font-size:12px;line-height:1.5;';
-    // Insert before the save button row
-    const saveRow = document.querySelector('#org-modal .modal-btns') || document.getElementById('org-m-save')?.parentElement;
-    if (saveRow) saveRow.parentElement.insertBefore(el, saveRow);
+    el.style.cssText = 'border-radius:8px;padding:10px 14px;margin:8px 0;background:#fffbeb;border:1.5px solid #f59e0b;font-size:12px;line-height:1.5;';
+    const nameField = document.getElementById('of-name');
+    if (nameField && nameField.parentElement) {
+      nameField.parentElement.appendChild(el);
+    }
   }
-  el.dataset.acknowledgedFor = ''; // reset acknowledgement
-  el.innerHTML = '<div style="font-weight:700;color:#92400e;margin-bottom:6px;">⚠️ Possible duplicate — similar sponsors already exist:</div>'
-    + similar.slice(0,3).map(o => '<div style="color:#78350f;padding:2px 0;">• ' + o.name + '</div>').join('')
-    + '<div style="margin-top:8px;color:#92400e;">Is this a new sponsor, or did you mean one of the above?</div>'
-    + '<div style="display:flex;gap:8px;margin-top:10px;">'
-    + '<button onclick="var _dw=document.getElementById(\'org-dup-warning\');_dw.dataset.acknowledgedFor=document.getElementById(\'of-name\').value.trim();saveOrg();" style="flex:1;background:#f59e0b;color:#fff;border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">Add Anyway &#8212; it\'s different</button>'
-    + '<button onclick="document.getElementById(\'org-dup-warning\').style.display=\'none\'" style="flex:1;background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">&#8592; Go Back</button>'
-    + '</div>';
+  el.innerHTML = '<div style="display:flex;align-items:flex-start;gap:8px;">'
+    + '<span style="font-size:14px;flex-shrink:0;margin-top:1px;">⚠️</span>'
+    + '<div style="flex:1;">'
+    + '<div style="font-weight:700;color:#92400e;margin-bottom:4px;">Similar sponsor already exists:</div>'
+    + similar.slice(0,3).map(o =>
+        '<div style="color:#78350f;padding:1px 0;display:flex;align-items:center;gap:6px;">'
+        + '<span style="color:#f59e0b;">•</span>'
+        + '<span style="font-weight:600;">' + o.name + '</span>'
+        + '</div>'
+      ).join('')
+    + '<div style="margin-top:6px;color:#92400e;font-size:11px;">Did you mean one of these? If this is genuinely a different sponsor, click below.</div>'
+    + '<button onclick="var _dw=document.getElementById(\'org-dup-warning\');_dw.dataset.acknowledgedFor=document.getElementById(\'of-name\').value.trim();saveOrg();" '
+    +   'style="margin-top:8px;background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">Add Anyway &#8212; it\'s a different business</button>'
+    + '</div></div>';
   el.style.display = 'block';
-  // Scroll warning into view
-  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function openAddOrg() {
@@ -2547,15 +2642,16 @@ async function saveOrg() {
   if (!name) { showToast('Enter a business name', 'warn'); return; }
 
   // Duplicate detection — only on new sponsors, not edits
+  // The warning is shown live as they type; on submit we check if it's visible and unacknowledged
   if (!editOrgId) {
     const similar = findSimilarOrgs(name);
     if (similar.length > 0) {
-      // Check if user already acknowledged this specific warning
       const _dupWarnEl = document.getElementById('org-dup-warning');
       const _acknowledged = _dupWarnEl && _dupWarnEl.dataset.acknowledgedFor === name;
       if (!_acknowledged) {
-        // Show inline warning and stop — user must click "Add Anyway" or fix the name
         _showOrgDupWarning(name, similar);
+        // Scroll the warning into view so user sees they need to act
+        _dupWarnEl && _dupWarnEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return;
       }
     }
