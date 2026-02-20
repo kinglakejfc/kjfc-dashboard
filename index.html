@@ -908,6 +908,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     <div class="dbar-row2 dbar-row2-sponsor" id="dash-sub-admin" style="display:none;">
       <button class="dtab act" data-admintab="users" onclick="switchAdminTab(this,'users')"><span class="dtab-icon">👤</span><span class="dtab-lbl">Manage Users</span></button>
       <button class="dtab" data-admintab="log" onclick="switchAdminTab(this,'log')"><span class="dtab-icon">📋</span><span class="dtab-lbl">Activity Log</span></button>
+      <button class="dtab" data-admintab="about" onclick="switchAdminTab(this,'about')"><span class="dtab-icon">ℹ️</span><span class="dtab-lbl">About</span></button>
     </div>
   </div>
 
@@ -2901,6 +2902,54 @@ async function loadAdminTab(tab, containerId) {
     </table></div>`;
     return;
   }
+  if (tab==='about') {
+    body.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;">Loading…</div>';
+    const usageRes = await api('getAIUsage');
+    const today = new Date();
+    const todayKey = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+    const ydayDate = new Date(today); ydayDate.setDate(ydayDate.getDate()-1);
+    const ydayKey  = ydayDate.getFullYear() + '-' + String(ydayDate.getMonth()+1).padStart(2,'0') + '-' + String(ydayDate.getDate()).padStart(2,'0');
+    const todayUsage = (usageRes.usage||{})[todayKey] || {calls:0, inputTokens:0, outputTokens:0};
+    const ydayUsage  = (usageRes.usage||{})[ydayKey]  || {calls:0, inputTokens:0, outputTokens:0};
+    const creditUSD  = usageRes.creditUSD != null ? usageRes.creditUSD : null;
+    const creditInfo = creditUSD != null
+      ? '<span style="font-family:var(--font-cond),sans-serif;font-size:28px;font-weight:900;color:var(--green);">$' + creditUSD.toFixed(2) + '</span><span style="font-size:11px;color:var(--text-dim);margin-left:6px;">USD remaining</span>'
+      : '<span style="font-size:13px;color:var(--text-dim);">Credit balance not available via API — check <a href="https://console.anthropic.com" target="_blank" style="color:var(--green);">console.anthropic.com</a></span>';
+    const tc = todayUsage.calls, yc = ydayUsage.calls;
+    const tiIn = (todayUsage.inputTokens||0).toLocaleString(), tiOut = (todayUsage.outputTokens||0).toLocaleString();
+    const yiIn = (ydayUsage.inputTokens||0).toLocaleString(),  yiOut = (ydayUsage.outputTokens||0).toLocaleString();
+    body.innerHTML =
+      '<div style="max-width:680px;">'
+      + '<div style="background:var(--green);color:#fff;border-radius:12px;padding:20px 22px;margin-bottom:20px;">'
+      +   '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:22px;font-weight:900;letter-spacing:.5px;margin-bottom:4px;">KJFC Executive Dashboard</div>'
+      +   '<div style="font-size:12px;opacity:.8;">Community junior football club management tool</div>'
+      +   '<div style="margin-top:12px;font-size:11px;opacity:.7;line-height:1.6;">Sponsorship tracking · Player registrations · Team management · AI-powered insights<br>Built for volunteer committees — all data stored in Google Sheets.</div>'
+      + '</div>'
+      + '<div style="background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px;">'
+      +   '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-dim);margin-bottom:12px;">🤖 Anthropic API — AI Insights</div>'
+      +   '<div style="margin-bottom:14px;">' + creditInfo + '</div>'
+      +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+      +     '<div style="background:var(--bg);border-radius:9px;padding:12px 14px;">'
+      +       '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-dim);margin-bottom:6px;">Today</div>'
+      +       '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:26px;font-weight:900;color:var(--green);">' + tc + '</div>'
+      +       '<div style="font-size:11px;color:var(--text-dim);">API call' + (tc !== 1 ? 's' : '') + '</div>'
+      +       '<div style="font-size:11px;color:var(--text-dim);margin-top:3px;">' + tiIn + ' in · ' + tiOut + ' out tokens</div>'
+      +     '</div>'
+      +     '<div style="background:var(--bg);border-radius:9px;padding:12px 14px;">'
+      +       '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-dim);margin-bottom:6px;">Yesterday</div>'
+      +       '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:26px;font-weight:900;color:#6b7280;">' + yc + '</div>'
+      +       '<div style="font-size:11px;color:var(--text-dim);">API call' + (yc !== 1 ? 's' : '') + '</div>'
+      +       '<div style="font-size:11px;color:var(--text-dim);margin-top:3px;">' + yiIn + ' in · ' + yiOut + ' out tokens</div>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div style="font-size:11px;color:var(--text-dim);margin-top:10px;line-height:1.5;">'
+      +     'AI insights are cached and shared across all committee members — they only regenerate when your data changes, minimising API calls. '
+      +     'Usage data updates every 24 hours. Credit balance requires manual check at <a href="https://console.anthropic.com" target="_blank" style="color:var(--green);">console.anthropic.com</a>.'
+      +   '</div>'
+      + '</div>'
+      + '</div>';
+    return;
+  }
   if (tab==='users') {
     body.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;">Loading…</div>';
     const res = await api('getUsers');
@@ -3324,7 +3373,7 @@ function renderAdminPanel(tab) {
     b.classList.toggle('act', b.dataset.admintab === activetab);
   });
   el.innerHTML = '<div class="section-head" style="max-width:1440px;margin:0 auto;padding:0 16px;">'
-    + '<h2 class="section-title">' + (activetab === 'users' ? 'Manage Users' : 'Activity Log') + '</h2>'
+    + '<h2 class="section-title">' + (activetab === 'users' ? 'Manage Users' : activetab === 'log' ? 'Activity Log' : 'About') + '</h2>'
     + '</div>'
     + '<div style="max-width:1440px;margin:0 auto;padding:0 16px 24px;" id="admin-panel-body"></div>';
   loadAdminTab(activetab, 'admin-panel-body');
@@ -3366,6 +3415,7 @@ function buildHamburgerMenu() {
     html += `<div class="hmenu-divider"></div>`;
     html += `<div class="hmenu-section-lbl">⚙️ Admin</div>`;
     html += `<button class="hmenu-item" onclick="openAdminModal('log');toggleHamburger()">📋 Access Log</button>`;
+    html += `<button class="hmenu-item" onclick="switchDashboard('admin-panel');switchAdminTab(document.querySelector('#dash-sub-admin .dtab[data-admintab=\'about\']'),'about');toggleHamburger()">ℹ️ About</button>`;
     html += `<button class="hmenu-item" onclick="openAdminModal('users');toggleHamburger()">👤 Users</button>`;
   }
 
@@ -4824,7 +4874,11 @@ function openTeamsOverviewSlideover() {
   const teamData = teams.map(t => {
     const players = plSeasonRows().filter(r => r.assignedTeam === t.id);
     return { team: t, players };
-  }).sort((a,b) => b.players.length - a.players.length);
+  }).sort((a,b) => {
+    // Sort youngest to oldest by ageGroup number (U8 < U9 … U18)
+    const ag = t => parseInt((t.ageGroup||'').replace(/\D/g,'')) || 99;
+    return ag(a.team) - ag(b.team) || (a.team.name||'').localeCompare(b.team.name||'');
+  });
   const totalAssigned = teamData.reduce((s,d) => s + d.players.length, 0);
 
   document.getElementById('pso-meta').textContent  = teams.length + ' team' + (teams.length!==1?'s':'') + ' · ' + totalAssigned + ' players assigned';
