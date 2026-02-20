@@ -3561,6 +3561,23 @@ function plPlayerMap() {
   return m;
 }
 
+// ── Demographic snapshot helpers ──────────────────────────────────────────────
+// Season rows now carry school/suburb/address as they were at time of registration.
+// Use these instead of reading from the Players profile (which reflects current data).
+// Falls back to the Players profile for seasons imported before the snapshot feature.
+function seasonSchool(sr, pm) {
+  if (sr && sr.school) return sr.school;
+  return (pm && pm[sr && sr.profileId] || {}).school || '';
+}
+function seasonSuburb(sr, pm) {
+  if (sr && sr.suburb) return sr.suburb;
+  return (pm && pm[sr && sr.profileId] || {}).suburb || '';
+}
+function seasonAddr(sr, pm) {
+  if (sr && sr.address) return sr.address;
+  return (pm && pm[sr && sr.profileId] || {}).address || '';
+}
+
 // Effective age group for a player in a season row:
 // dispensation overrides to assignedTeam, else calcAge → U-group
 function effectiveAgeGroup(ps) {
@@ -3740,7 +3757,7 @@ function _renderOverviewHTML() {
   }
 
   // Schools count
-  const schools = new Set(rows.map(r => (pm[r.profileId]||{}).school).filter(Boolean)).size;
+  const schools = new Set(rows.map(r => seasonSchool(r, pm)).filter(Boolean)).size;
 
   // Active teams this season
   const activeTeams = plSeasonTeams().filter(t => t.name).length;
@@ -3779,7 +3796,7 @@ function _renderOverviewHTML() {
   // Per-school year-on-year (top 5)
   const schoolYOY = {};
   allSea.forEach(r => {
-    const sch = ((plData.players||[]).find(p=>p.profileId===r.profileId)||{}).school;
+    const sch = seasonSchool(r, plPlayerMap());
     if (!sch) return;
     const short = sch.replace(/,.*$/,'').trim();
     if (!schoolYOY[short]) schoolYOY[short] = {};
@@ -4013,7 +4030,7 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
     const pids=new Set((plData.seasons||[]).filter(s=>+s.year===prevYr).map(s=>s.profileId));
     return !pids.has(r.profileId);
   }).length))/prevTotal*100):null;
-  const schoolCount=new Set(rows.map(r=>(pm[r.profileId]||{}).school).filter(Boolean)).size;
+  const schoolCount=new Set(rows.map(r => seasonSchool(r, pm)).filter(Boolean)).size;
 
   // Is this a completed historical season or the active/upcoming one?
   const _currentCalYear = today.getFullYear();
@@ -4268,7 +4285,7 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
             pids.length + ' players registered this month',
             pids.map(function(pid) {
               var sr = (plData.seasons||[]).find(function(s){return s.profileId===pid&&+s.year===+plSeason;}) || {};
-              return { pid: pid, label: ageLabel(sr), sub: (pm[pid]||{}).school||'\u2014' };
+              return { pid: pid, label: ageLabel(sr), sub: seasonSchool(sr, pm)||'\u2014' };
             })
           );
         }
@@ -4436,7 +4453,7 @@ function openGenderSlideover() {
   const pm   = plPlayerMap();
   const list = rows.map(r => {
     const p = pm[r.profileId]||{};
-    return { pid:r.profileId, label: p.gender||'Unknown', sub: ageLabel(r) + ' · ' + (p.school||'—') };
+    return { pid:r.profileId, label: p.gender||'Unknown', sub: ageLabel(r) + ' · ' + (seasonSchool(r, pm)||'—') };
   }).sort((a,b)=>a.label.localeCompare(b.label)||(plName(pm[a.pid]||{})).localeCompare(plName(pm[b.pid]||{})));
   _openSimpleSlideover(`Gender Split — ${plSeason}`, `${list.filter(l=>l.label==='Male').length} male · ${list.filter(l=>l.label==='Female').length} female`, list);
 }
@@ -4445,7 +4462,7 @@ function openNewPlayersSlideover() {
   const rows = plSeasonRows().filter(r=>r.newToClub==='Yes');
   const pm   = plPlayerMap();
   _openSimpleSlideover(`New to Club — ${plSeason}`, `${rows.length} first-season players`,
-    rows.map(r=>({ pid:r.profileId, label: ageLabel(r), sub: (pm[r.profileId]||{}).school||'—' })));
+    rows.map(r=>({ pid:r.profileId, label: ageLabel(r), sub: seasonSchool(r,pm)||'—' })));
 }
 
 function openLapsedSlideover() {
@@ -4483,14 +4500,14 @@ function openDispSlideover() {
   const rows = plSeasonRows().filter(r=>r.dispensation===true||r.dispensation==='true');
   const pm   = plPlayerMap();
   _openSimpleSlideover(`Dispensations — ${plSeason}`, `${rows.length} players with age override`,
-    rows.map(r=>({ pid:r.profileId, label:'Dispensation active', sub: ageLabel(r)+' · '+(pm[r.profileId]||{}).school||'—' })));
+    rows.map(r=>({ pid:r.profileId, label:'Dispensation active', sub: ageLabel(r)+' · '+(seasonSchool(r,pm)||'—') })));
 }
 
 function showYearPlayersSlideover(year) {
   const yearRows = (plData.seasons||[]).filter(s=>+s.year===+year);
   const pm = plPlayerMap();
   _openSimpleSlideover(`${year} Registrations`, `${yearRows.length} players`,
-    yearRows.map(r=>({ pid:r.profileId, label:ageLabel(r), sub:(pm[r.profileId]||{}).school||'—' })));
+    yearRows.map(r=>({ pid:r.profileId, label:ageLabel(r), sub:seasonSchool(r,pm)||'—' })));
 }
 
 function openAgeGroupSlideover(ag) {
@@ -4499,7 +4516,7 @@ function openAgeGroupSlideover(ag) {
   const agNum= parseInt(ag.replace(/\D/g,''));
   const lbl  = isNaN(agNum)?ag:'Age '+(agNum-1);
   _openSimpleSlideover(`${lbl} — ${plSeason}`, `${rows.length} players`,
-    rows.map(r=>({ pid:r.profileId, label:(pm[r.profileId]||{}).gender||'—', sub:(pm[r.profileId]||{}).school||'—' })));
+    rows.map(r=>({ pid:r.profileId, label:(pm[r.profileId]||{}).gender||'—', sub:seasonSchool(r,pm)||'—' })));
 }
 
 function openSchoolYearSlideover(school, year) {
@@ -4507,7 +4524,7 @@ function openSchoolYearSlideover(school, year) {
   const pm = plPlayerMap();
   const matching = yearRows.filter(r => {
     const p = pm[r.profileId]||{};
-    return (p.school||'').replace(/,.*$/,'').trim() === school;
+    return (seasonSchool(ps, plPlayerMap())||'').replace(/,.*$/,'').trim() === school;
   });
   _openSimpleSlideover(`${school} — ${year}`, `${matching.length} players`,
     matching.map(r=>({ pid:r.profileId, label:ageLabel(r), sub:(pm[r.profileId]||{}).gender||'—' })));
@@ -4519,7 +4536,7 @@ function openSchoolsOverviewSlideover() {
   // Group by school
   const schoolMap = {};
   rows.forEach(r => {
-    const school = (pm[r.profileId]||{}).school || 'Unknown';
+    const school = seasonSchool(r, pm) || 'Unknown';
     const key    = school.replace(/,.*$/,'').trim();
     if (!schoolMap[key]) schoolMap[key] = [];
     schoolMap[key].push(r.profileId);
@@ -4541,7 +4558,7 @@ function openTeamsOverviewSlideover() {
   const pm = plPlayerMap();
   const entries = teams.flatMap(t => {
     const players = plSeasonRows().filter(r => r.assignedTeam === t.id);
-    return players.map(r => ({ pid: r.profileId, label: t.name, sub: (pm[r.profileId]||{}).school||'—' }));
+    return players.map(r => ({ pid: r.profileId, label: t.name, sub: seasonSchool(r,pm)||'—' }));
   });
   _openSimpleSlideover('Teams — ' + plSeason, teams.length + ' active teams · ' + entries.length + ' players assigned', entries);
 }
@@ -4552,7 +4569,7 @@ function openRegisteredSlideover() {
   _openSimpleSlideover(
     'Registered ' + plSeason,
     rows.length + ' players',
-    rows.map(r => ({ pid:r.profileId, label:ageLabel(r), sub:(pm[r.profileId]||{}).school||'—' }))
+    rows.map(r => ({ pid:r.profileId, label:ageLabel(r), sub:seasonSchool(r,pm)||'—' }))
   );
 }
 
@@ -4585,7 +4602,7 @@ function openRetentionSlideover() {
   _openSimpleSlideover(
     'Returned — ' + plSeason,
     returned.length + ' players returned from ' + prevYr,
-    returned.map(r => ({ pid:r.profileId, label:ageLabel(r), sub:(pm[r.profileId]||{}).school||'—' }))
+    returned.map(r => ({ pid:r.profileId, label:ageLabel(r), sub:seasonSchool(r,pm)||'—' }))
   );
 }
 
@@ -5433,7 +5450,7 @@ function renderFilteredPlayers() {
       if (agF  && effectiveAgeGroup(ps) !== agF)  return false;
       if (genF && p.gender !== genF)               return false;
       if (q) {
-        const hay = [p.firstName,p.lastName,p.school,p.suburb,effectiveAgeGroup(ps)].join(' ').toLowerCase();
+        const hay = [p.firstName,p.lastName,seasonSchool(ps,{[p.profileId]:p}),seasonSuburb(ps,{[p.profileId]:p}),effectiveAgeGroup(ps)].join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -5491,7 +5508,7 @@ function openPlayerDetail(profileId) {
 
   document.getElementById('pdm-avatar').innerHTML = init;
   document.getElementById('pdm-name').textContent  = plName(p);
-  document.getElementById('pdm-meta').textContent  = `${ageLabel(ps)} · ${p.gender||''} · DOB ${normaliseDob(p.dob)||''} · ${p.suburb||''}`;
+  document.getElementById('pdm-meta').textContent  = `${ageLabel(ps)} · ${p.gender||''} · DOB ${normaliseDob(p.dob)||''} · ${seasonSuburb(ps, {[ps.profileId]: p})||p.suburb||''}`;
 
   // photoUrl is stored as a data URL — use directly, no async fetch needed
 
@@ -5735,7 +5752,7 @@ function renderPlSchools() {
   const bySch = {};
   rows.forEach(r => {
     const p   = pm[r.profileId]||{};
-    const sch = p.school || 'Unknown';
+    const sch = seasonSchool(r, pm) || 'Unknown';
     // Shorten school name for display
     const short = sch.replace(/,.*$/,'').trim();
     if (!bySch[short]) bySch[short] = { count:0, boys:0, girls:0, ags:{} };
@@ -6181,14 +6198,15 @@ function renderPlImport() {
       <!-- ── ONE-OFF: Backfill registration dates ─────────────────── -->
         <details style="margin-top:28px;border:1.5px solid #fbbf24;border-radius:10px;overflow:hidden;">
         <summary style="cursor:pointer;padding:10px 14px;background:#fffbeb;font-size:12px;font-weight:700;color:#92400e;list-style:none;display:flex;align-items:center;gap:8px;">
-          <span>🛠️</span> <span>One-off: Backfill Registration Dates</span>
+          <span>🛠️</span> <span>One-off: Backfill Season Snapshot</span>
           <span style="margin-left:auto;font-size:10px;font-weight:400;color:#b45309;">Admin tool — run once per historical season</span>
         </summary>
         <div style="padding:14px 16px;background:#fffdf5;border-top:1px solid #fde68a;">
           <p style="font-size:12px;color:#78350f;margin:0 0 10px;line-height:1.6;">
-            Upload the original PlayHQ participants CSV for a historical season. This tool reads the
-            <strong>Registration Timestamp</strong> or <strong>Registration Date</strong> column and patches it into the Seasons sheet for existing players —
-            without creating new records or changing anything else. Run once per season that's missing dates.
+            Upload the original PlayHQ participants CSV for a historical season. This tool patches
+            <strong>registration date, school, suburb and address</strong> into the Seasons sheet for existing players —
+            so historical views show the correct data for that year, not current profile data.
+            Run once per historical season.
           </p>
           <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
             <label style="font-size:12px;font-weight:700;color:#78350f;">Season:</label>
@@ -6250,30 +6268,39 @@ async function runDateBackfill() {
       statusEl.innerHTML = '<span style="color:#dc2626;">⚠️ No rows found in CSV.</span>'; return;
     }
 
-    // Check if Registration Date column exists
     const sampleKeys = Object.keys(rows[0]);
     const dateCol = ['Registration Timestamp','Registration Date','Created Date','Registered Date'].find(c => sampleKeys.includes(c));
     if (!dateCol) {
-      statusEl.innerHTML = `<span style="color:#dc2626;">⚠️ No registration date column found. Available columns: ${sampleKeys.join(', ')}</span>`; return;
+      statusEl.innerHTML = `<span style="color:#dc2626;">⚠️ No registration date column found. Available: ${sampleKeys.join(', ')}</span>`; return;
     }
 
-    // Build patch list: profileId → registrationDate
+    // Build patches: registration date + demographic snapshot
     const patches = [];
     rows.forEach(r => {
       const profileId = (r['Profile ID']||'').trim();
-      const regDate   = (r[dateCol]||'').trim();
-      if (profileId && regDate) patches.push({ profileId, season, registrationDate: regDate });
+      if (!profileId) return;
+      const patch = {
+        profileId,
+        season,
+        registrationDate: (r[dateCol]||'').trim(),
+        school:    (r['School Details']||'').trim(),
+        schoolYear:(r['School Year']||'').trim(),
+        address:   (r['Participant Address']||'').trim(),
+        suburb:    (r['Participant Suburb/Town']||'').trim(),
+        postcode:  (r['Participant Postcode']||'').trim(),
+      };
+      if (patch.registrationDate || patch.school || patch.suburb) patches.push(patch);
     });
 
     if (!patches.length) {
-      statusEl.innerHTML = '<span style="color:#dc2626;">⚠️ No rows had both Profile ID and registration date.</span>'; return;
+      statusEl.innerHTML = '<span style="color:#dc2626;">⚠️ No patchable rows found.</span>'; return;
     }
 
-    statusEl.innerHTML = `<span style="color:#78350f;">Found ${patches.length} dates using column "<strong>${dateCol}</strong>". Patching…</span>`;
+    statusEl.innerHTML = `<span style="color:#78350f;">Patching ${patches.length} records (date + school + suburb)…</span>`;
     try {
       const res = await api('patchRegistrationDates', { patches });
       if (res.error) throw new Error(res.error);
-      statusEl.innerHTML = `<span style="color:#16a34a;">✅ Patched ${res.patched||patches.length} records for ${season}. Dates will appear in the monthly chart after next data refresh.</span>`;
+      statusEl.innerHTML = `<span style="color:#16a34a;">✅ Patched ${res.patched||patches.length} records for ${season}. Refresh to see updated charts and school data.</span>`;
     } catch(e) {
       statusEl.innerHTML = `<span style="color:#dc2626;">❌ Error: ${e.message}</span>`;
     }
@@ -6529,7 +6556,7 @@ function renderImportTab(tabId, rows) {
           ${item.excludeReason ? `<span style="background:#fee2e2;color:#dc2626;font-size:9px;font-weight:700;border-radius:4px;padding:1px 5px;margin-left:4px;">${item.excludeReason}</span>` : ''}
         </div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">
-          ${ageDisp} · ${item.gender||'—'} · DOB ${item.dob||'—'} · ${item.school||'—'} · ${item.suburb||'—'}
+          ${ageDisp} · ${item.gender||'—'} · DOB ${item.dob||'—'} · ${item.school||item.suburb||'—'}
         </div>
       </div>
     </div>`;
