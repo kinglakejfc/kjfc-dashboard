@@ -2440,17 +2440,43 @@ function _editDist(a, b) {
   return dp[m][n];
 }
 
-// Returns true if normA contains normB or vice versa, or edit dist is small relative to length
+// Returns true if two org names are likely the same business
+// Uses full-string + token-level matching with edit distance
 function _orgSimilar(rawA, rawB) {
   const a = _normOrgName(rawA), b = _normOrgName(rawB);
   if (!a || !b) return false;
   if (a === b) return true;
+
+  // Full-string substring match
   if (a.includes(b) || b.includes(a)) return true;
+
+  // Full-string edit distance (catches typos in short names)
   const maxLen = Math.max(a.length, b.length);
-  const dist = _editDist(a, b);
-  // Allow up to ~25% edit distance for longer names, stricter for short
-  const threshold = maxLen <= 6 ? 1 : maxLen <= 12 ? 2 : Math.floor(maxLen * 0.25);
-  return dist <= threshold;
+  const fullDist = _editDist(a, b);
+  const fullThreshold = maxLen <= 6 ? 1 : maxLen <= 12 ? 2 : Math.floor(maxLen * 0.3);
+  if (fullDist <= fullThreshold) return true;
+
+  // Token-level matching: check each significant word from one name against
+  // each significant word from the other. Catches "Matador" vs "Mattador Building"
+  const SKIP = new Set(['building','construction','services','group','australia','enterprises','solutions',
+                        'industries','management','properties','consulting','professional','international',
+                        'national','trading','holdings','investments','trust','aust']);
+  const tokensA = a.split(' ').filter(t => t.length >= 4 && !SKIP.has(t));
+  const tokensB = b.split(' ').filter(t => t.length >= 4 && !SKIP.has(t));
+
+  // If either side normalises to nothing meaningful, skip token check
+  if (!tokensA.length || !tokensB.length) return false;
+
+  for (const ta of tokensA) {
+    for (const tb of tokensB) {
+      if (ta === tb) return true;
+      if (ta.includes(tb) || tb.includes(ta)) return true;
+      const tMax = Math.max(ta.length, tb.length);
+      const tThresh = tMax <= 5 ? 1 : tMax <= 8 ? 1 : 2;
+      if (_editDist(ta, tb) <= tThresh) return true;
+    }
+  }
+  return false;
 }
 
 function findSimilarOrgs(name) {
@@ -2578,7 +2604,10 @@ async function saveOrg() {
 
 async function deleteOrg() {
   const org = orgs.find(o => o.id===editOrgId); if (!org) return;
-  if (!confirm(`Delete ${org.name} and all their season records? This cannot be undone.`)) return;
+  // Count how many season records will also be deleted
+  const ssCount = seasonEntries.filter(s => s.orgId === editOrgId).length;
+  const ssNote  = ssCount > 0 ? '\n\nThis will also permanently delete ' + ssCount + ' season record' + (ssCount!==1?'s':'') + ' for this sponsor.' : '';
+  if (!confirm('DELETE SPONSOR\n\n"' + org.name + '"\n' + ssNote + '\n\nType-check: are you viewing the correct sponsor record? This cannot be undone.')) return;
   btnLoading(document.getElementById('org-m-del'), true);
   const res = await api('deleteOrg', { id: editOrgId });
   btnLoading(document.getElementById('org-m-del'), false);
@@ -2811,7 +2840,10 @@ async function saveSS() {
 }
 
 async function deleteSS() {
-  if (!confirm('Remove this season entry?')) return;
+  const _ssOrg = orgs.find(o => o.id === editSSOrg);
+  const _ssEntry = seasonEntries.find(s => s.id === editSSId);
+  const _ssLabel = (_ssOrg ? '"' + _ssOrg.name + '"' : 'this sponsor') + (_ssEntry ? ' — ' + _ssEntry.year + ' ' + (_ssEntry.customPackage || TL[_ssEntry.tier] || _ssEntry.tier || '') : '');
+  if (!confirm('REMOVE SEASON RECORD\n\n' + _ssLabel + '\n\nThis removes this season entry only. The sponsor record is kept.\nThis cannot be undone.')) return;
   btnLoading(document.getElementById('ss-m-del'), true);
   const res = await api('deleteSeason', { id: editSSId });
   btnLoading(document.getElementById('ss-m-del'), false);
@@ -4064,39 +4096,6 @@ function _renderOverviewHTML() {
         </div>
       </div>
 
-      <!-- Recruitment Targets card — full width, only shown when teams have shortfalls -->
-      ${shortTeams.length > 0 ? `
-      <div class="pl-kpi" style="margin-bottom:16px;border-left:4px solid #dc2626;">
-        <div class="pl-kpi-label" style="color:#dc2626;">🎯 Recruitment Targets</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">${totalShort} player${totalShort!==1?'s':''} needed across ${shortTeams.length} team${shortTeams.length!==1?'s':''} to reach minimum numbers</div>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          ${shortTeams.map(({t, count, short}) => {
-            const pct    = Math.min(100, Math.round(count / t.minPlayers * 100));
-            const estTot = (t.estimateCount && t.estimateCount > count) ? t.estimateCount : 0;
-            const estPct = estTot > 0 ? Math.min(100, Math.round(estTot / t.minPlayers * 100)) : 0;
-            const col    = count >= Math.ceil(t.minPlayers * 0.8) ? '#ca8a04' : '#dc2626';
-            const schoolYr = t.ageGroup ? agRecruitTarget(t.ageGroup) : '';
-            return '<div style="background:#fafafa;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;">'
-              + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:4px;">'
-              +   '<div>'
-              +     '<span style="font-weight:800;font-size:13px;">' + t.name + '</span>'
-              +     (schoolYr ? ' <span style="font-size:10px;background:var(--green-light);color:var(--green);border-radius:5px;padding:1px 6px;font-weight:700;margin-left:4px;">Target: ' + schoolYr + '</span>' : '')
-              +   '</div>'
-              +   '<span style="font-size:12px;font-weight:700;color:' + col + ';">Need ' + short + ' more</span>'
-              + '</div>'
-              + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:' + (estTot>0?'5':'0') + 'px;">'
-              +   '<div style="flex:1;position:relative;height:6px;background:#e5e7eb;border-radius:4px;">'
-              +     (estPct > pct ? '<div style="position:absolute;height:6px;border-radius:4px;background:#bfdbfe;width:' + estPct + '%;"></div>' : '')
-              +     '<div style="position:absolute;height:6px;border-radius:4px;background:' + col + ';width:' + pct + '%;"></div>'
-              +   '</div>'
-              +   '<span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">' + count + '/' + t.minPlayers + '</span>'
-              + '</div>'
-              + (estTot > 0 ? '<div style="font-size:10px;color:#6b7280;margin-top:4px;">📊 Club estimate: <strong>' + estTot + '</strong>' + (estTot >= t.minPlayers ? ' <span style=\"color:#16a34a;font-weight:700;\">Est. viable ✓</span>' : '') + '</div>' : '')
-              + '</div>';
-          }).join('')}
-        </div>
-      </div>` : ''}
-
       <!-- CHARTS SECTION -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;" id="overview-charts-grid">
         <!-- Row 1: Monthly registrations this season (full width) -->
@@ -4105,6 +4104,39 @@ function _renderOverviewHTML() {
           <div id="chart-monthly-sub" style="font-size:10px;color:var(--text-dim);margin-bottom:6px;">Click bar to see players registered that month</div>
           <div class="chart-wrap" style="height:160px;"><canvas id="chart-monthly"></canvas></div>
         </div>
+        <!-- Recruitment Targets — below monthly chart -->
+        ${shortTeams.length > 0 ? `<div style="grid-column:1/-1;background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:4px;">
+            <div class="chart-label" style="margin-bottom:0;">🎯 Recruitment Targets</div>
+            <div style="font-size:10px;color:var(--text-dim);">${totalShort} needed across ${shortTeams.length} team${shortTeams.length!==1?'s':''}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${shortTeams.map(({t, count, short}) => {
+              const pct    = Math.min(100, Math.round(count / t.minPlayers * 100));
+              const estTot = (t.estimateCount && t.estimateCount > count) ? t.estimateCount : 0;
+              const estPct = estTot > 0 ? Math.min(100, Math.round(estTot / t.minPlayers * 100)) : 0;
+              const near   = count >= Math.ceil(t.minPlayers * 0.8);
+              const barCol = near ? '#4ead72' : '#9ca3af';
+              const schoolYr = t.ageGroup ? agRecruitTarget(t.ageGroup) : '';
+              return '<div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;">'
+                + '<div>'
+                +   '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">'
+                +     '<span style="font-size:12px;font-weight:700;">' + t.name + '</span>'
+                +     (schoolYr ? '<span style="font-size:10px;color:var(--green);background:var(--green-light);padding:1px 5px;border-radius:4px;">' + schoolYr + '</span>' : '')
+                +   '</div>'
+                +   '<div style="position:relative;height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden;">'
+                +     (estPct > pct ? '<div style="position:absolute;inset:0;width:' + estPct + '%;background:#d1fae5;"></div>' : '')
+                +     '<div style="position:absolute;inset:0;width:' + pct + '%;background:' + barCol + ';border-radius:3px;"></div>'
+                +   '</div>'
+                + '</div>'
+                + '<div style="text-align:right;white-space:nowrap;flex-shrink:0;">'
+                +   '<span style="font-size:12px;font-weight:700;color:var(--text);">' + count + '</span><span style="font-size:11px;color:#d1d5db;">/' + t.minPlayers + '</span>'
+                +   '<div style="font-size:10px;color:' + barCol + ';">need ' + short + ' more</div>'
+                + '</div>'
+                + '</div>';
+            }).join('')}
+          </div>
+        </div>` : ''}
         <!-- Row 2: YOY comparison + Gender -->
         <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
           <div class="chart-label">Year on Year Comparison</div>
