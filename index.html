@@ -3917,9 +3917,8 @@ function _renderOverviewHTML() {
       <div class="pl-kpi" onclick="openGenderSlideover()" style="cursor:pointer;margin-bottom:16px;">
         <div class="pl-kpi-label">Female Participation</div>
         ${(()=>{
-          const sorted  = yoyData.slice().sort((a,b) => b.year - a.year);
-          const thisYr  = sorted[0] || null;
-          const lastYr  = sorted[1] || null;
+          const thisYr  = yoyData.find(d => +d.year === +plSeason) || null;
+          const lastYr  = yoyData.find(d => +d.year === +plSeason - 1) || null;
           if (!thisYr) return '<div style="color:var(--text-dim);font-size:13px;">No data</div>';
 
           const thisPct  = thisYr.total  ? Math.round(thisYr.girls  / thisYr.total  * 100) : 0;
