@@ -870,10 +870,9 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
           <button class="hnav-btn" onclick="openAdminModal('users')">Users</button>
         </div>
       </div>
-      <!-- Sync + Refresh always visible -->
+      <!-- Last loaded timestamp (quiet) + Sign Out -->
       <div class="hnav-sync">
-        <div id="sync-state" class="sync-ok">●&nbsp;Synced</div>
-        <button class="sync-refresh desktop-only" onclick="loadAll()"><span class="refresh-icon">↻</span> Refresh</button>
+        <span id="sync-state" style="font-size:10px;color:rgba(255,255,255,.5);white-space:nowrap;"></span>
         <button class="lobtn hnav-signout" onclick="doLogout()" id="signout-btn">Sign Out</button>
       </div>
       <!-- Hamburger (mobile only) -->
@@ -949,6 +948,15 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="kcard" style="cursor:default;">
         <div class="klbl">By Tier</div>
         <div id="tier-mini" style="display:flex;flex-direction:column;gap:5px;margin-top:7px;"></div>
+      </div>
+    </div>
+
+    <!-- AI OVERVIEW CARD sponsors -->
+    <div id="sponsor-ai-card" style="background:rgba(1,60,30,0.72);color:#fff;border-radius:12px;padding:18px 22px;margin-bottom:16px;position:relative;overflow:hidden;backdrop-filter:blur(2px);">
+      <div style="position:absolute;top:0;right:0;width:200px;height:100%;background:linear-gradient(135deg,transparent 55%,rgba(251,226,1,.05));pointer-events:none;"></div>
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;flex-shrink:0;margin-top:2px;">AI Summary</div>
+        <div id="sponsor-ai-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.95;"><span style="opacity:.4;font-size:12px;">Generating insight…</span></div>
       </div>
     </div>
 
@@ -1869,6 +1877,85 @@ function render() {
   renderFilterTabs();
   renderTableHeaders();
   renderTable();
+
+  // AI summary — load async, don't block render
+  _loadSponsorAI(s, cy, prevYr, prev);
+}
+
+// ════════════════════════════════════════════════════════
+//  SPONSOR AI SUMMARY
+// ════════════════════════════════════════════════════════
+let _sponsorAICache = {}; // keyed by season so we don't re-fetch on re-render
+
+async function _loadSponsorAI(s, season, prevYr, prev) {
+  const el = document.getElementById('sponsor-ai-text');
+  if (!el) return;
+
+  // Don't re-generate if we already have it for this season
+  if (_sponsorAICache[season]) { el.innerHTML = _sponsorAICache[season]; return; }
+
+  el.innerHTML = '<span style="opacity:.4;font-size:12px;">Generating insight\u2026</span>';
+
+  const today   = new Date();
+  const pct     = s.total > 0 ? Math.round(s.recv / s.total * 100) : 0;
+  const prevPct = prev.total > 0 ? Math.round((prev.recv||0) / prev.total * 100) : null;
+
+  // Tier breakdown string
+  const tierStr = Object.entries(s.byTier)
+    .filter(([,d]) => d.count > 0)
+    .sort((a,b) => (TO[a[0]]||9) - (TO[b[0]]||9))
+    .map(([t,d]) => (TL[t]||t) + ': ' + d.count + (d.ikCount ? ' (' + d.ikCount + ' in-kind)' : '') + ' · $' + fmt(d.amount))
+    .join('; ');
+
+  // Prospect count
+  const prospects = orgs.filter(o => o.orgStatus === 'prospect').length;
+
+  // Multi-year context
+  const yoyStr = years.slice(0,4).map(y => {
+    const ys = calcStats(y);
+    return y + ': $' + fmt(ys.total) + ' (' + ys.count + ' sponsors)';
+  }).join(', ');
+
+  const prompt = 'You are a junior football club treasurer reviewing sponsorship data. Today is '
+    + today.toLocaleDateString('en-AU', {day:'numeric', month:'long', year:'numeric'}) + '. '
+    + 'Write 3-5 concise bullet points. Each point starts with a relevant emoji. '
+    + 'Use **bold** for key numbers and important terms. Be direct and specific. '
+    + 'Focus on: collection progress, outstanding invoices, tier health, year-on-year comparison, and one key action. '
+    + 'No headers or sub-headings. Each bullet 1-2 sentences max.\n\n'
+    + 'Season: ' + season + '\n'
+    + 'Total committed: $' + fmt(s.total) + ' across ' + s.count + ' sponsors\n'
+    + 'Collected: $' + fmt(s.recv) + ' (' + pct + '%)'
+    + (prevPct !== null ? ', vs ' + prevPct + '% collected all of ' + prevYr : '') + '\n'
+    + 'Outstanding: $' + fmt(s.outstanding) + ' across ' + s.outCount + ' invoices\n'
+    + (s.ikCount ? 'In-kind: ' + s.ikCount + ' sponsors\n' : '')
+    + 'By tier: ' + (tierStr || 'no sponsors yet') + '\n'
+    + (prospects ? 'Prospects in pipeline: ' + prospects + '\n' : '')
+    + 'Historical: ' + yoyStr;
+
+  try {
+    const res = await api('getAIInsights', { prompt });
+    if (res.error) throw new Error(res.error);
+    const raw = (res.text || '').trim();
+    if (!raw) { el.textContent = 'No summary available.'; return; }
+
+    const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const htmlParts = lines.map(line => {
+      const cleaned = line.replace(/^[\-\*\u2022]\s*/, '');
+      const bolded  = cleaned.replace(/\*\*(.+?)\*\*/g, '<strong style="color:#fff;font-weight:800;">$1</strong>');
+      const isWarn  = /\b(outstanding|overdue|behind|risk|unpaid|low|concern|missing|not paid)\b/i.test(cleaned);
+      const isGood  = /\b(ahead|strong|great|on track|excellent|above|collected|received)\b/i.test(cleaned);
+      const dotCol  = isWarn ? '#fbbf24' : isGood ? '#86efac' : 'rgba(255,255,255,.5)';
+      return '<div style="display:flex;gap:10px;margin-bottom:8px;align-items:flex-start;">'
+        + '<span style="color:' + dotCol + ';flex-shrink:0;font-size:15px;line-height:1.4;">\u25cf</span>'
+        + '<span style="flex:1;">' + bolded + '</span>'
+        + '</div>';
+    });
+    const html = htmlParts.join('');
+    _sponsorAICache[season] = html;
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<span style="opacity:.5;font-size:12px;">AI summary unavailable</span>';
+  }
 }
 
 // ════════════════════════════════════════════════════════
@@ -3060,7 +3147,18 @@ function btnLoading(el, isLoading) {
 // ════════════════════════════════════════════════════════
 function setSyncState(state, text) {
   const el = document.getElementById('sync-state'); if (!el) return;
-  el.textContent = (state==='loading'?'⟳ ':state==='err'?'✕ ':'● ') + text;
+  if (state === 'ok') {
+    el.textContent = 'Loaded ' + fmtTime(new Date());
+    el.style.color = 'rgba(255,255,255,.45)';
+  } else if (state === 'loading') {
+    el.textContent = 'Loading…';
+    el.style.color = 'rgba(255,255,255,.35)';
+  } else if (state === 'err') {
+    el.textContent = '⚠ ' + text;
+    el.style.color = '#fca5a5';
+  } else {
+    el.textContent = text || '';
+  }
   el.className = 'sync-' + state;
 }
 
