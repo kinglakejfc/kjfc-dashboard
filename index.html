@@ -187,8 +187,11 @@ header{
   display:flex;align-items:center;gap:4px;
 }
 .dtab:hover{color:var(--text);background:var(--green-light);}
-.dtab.act{color:var(--green);border-bottom-color:var(--green);background:#fff;}
+/* Row 1 (dashboard selector): keep green underline indicator */
 .dtab.dashboard-tab.act{color:var(--green-dark,var(--green));background:#fff;border-bottom-color:var(--green);}
+/* Row 2/3 (sub-tabs): no underline — use background tint instead */
+.dtab.act{color:var(--green);border-bottom-color:transparent;background:var(--green-light);}
+.dbar-row1 .dtab.act{background:#fff;border-bottom-color:var(--green);}
 .dtab-icon{font-size:14px;line-height:1;flex-shrink:0;}
 .dtab-lbl{font-size:11px;}
 /* Hamburger menu */
@@ -887,7 +890,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     <!-- Row 2a: Sponsor sub-tabs -->
     <div class="dbar-row2 dbar-row2-sponsor" id="dash-sub-sponsors">
       <button class="dtab act" id="dsub-add-sponsor" onclick="openAddOrg()"><span class="dtab-icon">➕</span><span class="dtab-lbl">Add Sponsor</span></button>
-      <button class="dtab" id="dsub-packages" onclick="openAdminModal('packages')"><span class="dtab-icon">📦</span><span class="dtab-lbl" id="packages-lbl">Packages</span></button>
+      <button class="dtab" id="dsub-packages" onclick="openPackagesPanel()"><span class="dtab-icon">📦</span><span class="dtab-lbl" id="packages-lbl">Packages</span></button>
     </div>
     <!-- Row 2b: Recruitment sub-tabs -->
     <div class="dbar-row2 dbar-row2-recruit" id="dash-sub-recruitment" style="display:none;">
@@ -3021,6 +3024,30 @@ async function deleteUserConfirm() {
 // ════════════════════════════════════════════════════════
 let editPkgId = null;
 
+function openPackagesPanel() {
+  // Mark packages sub-tab as active
+  document.querySelectorAll('#dash-sub-sponsors .dtab').forEach(b => b.classList.remove('act'));
+  const pkgBtn = document.getElementById('dsub-packages');
+  if (pkgBtn) pkgBtn.classList.add('act');
+  // Show sponsor content area
+  _currentDashboard = 'sponsors';
+  document.getElementById('dash-tab-sponsors').classList.add('act');
+  document.getElementById('dash-tab-recruitment').classList.remove('act');
+  const at = document.getElementById('dash-tab-admin'); if (at) at.classList.remove('act');
+  document.getElementById('dash-sub-sponsors').style.display    = 'flex';
+  document.getElementById('dash-sub-recruitment').style.display = 'none';
+  document.getElementById('dash-sub-admin').style.display       = 'none';
+  document.getElementById('sponsor-content').style.display      = 'block';
+  document.getElementById('recruitment-content').style.display  = 'none';
+  const ap = document.getElementById('admin-panel-content'); if (ap) ap.style.display = 'none';
+  // Render packages into sponsor-content area
+  const sponsorContent = document.getElementById('sponsor-content');
+  sponsorContent.innerHTML =
+    '<div class="section-head"><h2 class="section-title">Sponsorship Packages</h2></div>'
+    + '<div id="adm-body" style="max-width:900px;"></div>';
+  renderPackageManager();
+}
+
 function renderPackageManager() {
   const body = document.getElementById('adm-body');
   const tierLabel = { gold:'🥇 Gold', silver:'🥈 Silver', bronze:'🥉 Bronze', community:'🤝 Community', custom:'⭐ Custom' };
@@ -3310,9 +3337,10 @@ function renderAdminPanel(tab) {
   document.querySelectorAll('#dash-sub-admin .dtab').forEach(b => {
     b.classList.toggle('act', b.dataset.admintab === activetab);
   });
-  el.innerHTML = '<div style="padding:20px;max-width:900px;">' +
-    '<div class="section-head"><h2 class="section-title">' + (activetab === 'users' ? 'Manage Users' : 'Activity Log') + '</h2></div>' +
-    '<div id="admin-panel-body"></div></div>';
+  el.innerHTML = '<div class="section-head" style="max-width:1440px;margin:0 auto;padding:0 16px;">'
+    + '<h2 class="section-title">' + (activetab === 'users' ? 'Manage Users' : 'Activity Log') + '</h2>'
+    + '</div>'
+    + '<div style="max-width:1440px;margin:0 auto;padding:0 16px 24px;" id="admin-panel-body"></div>';
   loadAdminTab(activetab, 'admin-panel-body');
 }
 
@@ -3329,7 +3357,7 @@ function buildHamburgerMenu() {
   if (canEdit) {
     html += `<button class="hmenu-item" onclick="switchDashboard('sponsors');openAddOrg();toggleHamburger()">➕ Add Sponsor</button>`;
   }
-  html += `<button class="hmenu-item" onclick="switchDashboard('sponsors');openAdminModal('packages');toggleHamburger()">📦 ${canEdit ? 'View/Edit Packages' : 'View Packages'}</button>`;
+  html += `<button class="hmenu-item" onclick="openPackagesPanel();toggleHamburger()">📦 ${canEdit ? 'View/Edit Packages' : 'View Packages'}</button>`;
 
   // ── Recruitment — always visible for admins ───────────────
   if (isAdmin) {
@@ -3423,6 +3451,15 @@ function switchDashboard(which) {
   document.getElementById('recruitment-content').style.display = which === 'recruitment' ? 'block' : 'none';
   const adminContent = document.getElementById('admin-panel-content');
   if (adminContent) adminContent.style.display = which === 'admin-panel' ? 'block' : 'none';
+
+  // If returning to sponsors overview, restore sponsor-content if packages panel replaced it
+  if (which === 'sponsors') {
+    if (!document.getElementById('season-span')) {
+      // sponsor-content was replaced — reload the page data into it
+      loadAll();
+    }
+    document.querySelectorAll('#dash-sub-sponsors .dtab').forEach(b => b.classList.remove('act'));
+  }
 
   if (which === 'recruitment') {
     const activeTab = document.querySelector('.stab.act');
