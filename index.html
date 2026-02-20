@@ -1884,16 +1884,32 @@ function render() {
 // ════════════════════════════════════════════════════════
 //  SPONSOR AI SUMMARY
 // ════════════════════════════════════════════════════════
-let _sponsorAICache = {}; // keyed by season so we don't re-fetch on re-render
+// ── AI INSIGHT CACHE (backend-persisted, fingerprint-based) ─────────────────
+// Insights are stored in the AppSettings sheet and shared across all users.
+// Regenerated only when the data fingerprint changes (new import, sponsor update etc.)
+// In-memory guards prevent duplicate in-flight requests within a session.
+let _sponsorAICache    = {}; // season → true (in-flight guard)
+let _overviewAIFetching = {}; // season → true (in-flight guard)
 
 async function _loadSponsorAI(s, season, prevYr, prev) {
   const el = document.getElementById('sponsor-ai-text');
   if (!el) return;
 
-  // Don't re-generate if we already have it for this season
-  if (_sponsorAICache[season]) { el.innerHTML = _sponsorAICache[season]; return; }
+  if (_sponsorAICache[season]) return; // already fetching this session
+  _sponsorAICache[season] = true; // mark in-flight
 
+  // Fingerprint: key figures that signal data has changed
+  const _spFP = [season, s.total, s.count, s.recv, s.outCount, s.ikCount].join('|');
+
+  // Fetch stored insight + fingerprint from backend
   el.innerHTML = '<span style="opacity:.4;font-size:12px;">Generating insight\u2026</span>';
+  try {
+    const stored = await api('getAIInsight', { type: 'sponsor', season });
+    if (!stored.error && stored.html && stored.fingerprint === _spFP) {
+      el.innerHTML = stored.html; // data unchanged — use shared insight
+      return;
+    }
+  } catch(e) { /* proceed to generate */ }
 
   const today   = new Date();
   const pct     = s.total > 0 ? Math.round(s.recv / s.total * 100) : 0;
@@ -1952,9 +1968,11 @@ async function _loadSponsorAI(s, season, prevYr, prev) {
         + '</div>';
     });
     const html = htmlParts.join('');
-    _sponsorAICache[season] = html;
     el.innerHTML = html;
+    // Save to backend — fire and forget, don't block UI
+    api('saveAIInsight', { type: 'sponsor', season, html, fingerprint: _spFP }).catch(() => {});
   } catch(e) {
+    _sponsorAICache[season] = false; // allow retry
     el.innerHTML = '<span style="opacity:.5;font-size:12px;">AI summary unavailable</span>';
   }
 }
@@ -3891,6 +3909,9 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
   const el = document.getElementById('ai-overview-text');
   if (!el) return;
 
+  if (_overviewAIFetching[plSeason]) return; // already fetching
+  _overviewAIFetching[plSeason] = true;
+
   const today    = new Date();
   const total    = rows.length;
   const boys     = rows.filter(r => (pm[r.profileId]||{}).gender === 'Male').length;
@@ -3980,6 +4001,18 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
   }).length))/prevTotal*100):null;
   const schoolCount=new Set(rows.map(r=>(pm[r.profileId]||{}).school).filter(Boolean)).size;
 
+  // Fingerprint: total + lapsed + season + month bucket (changes with each import or time window shift)
+  const _ovFP = [plSeason, total, prevTotal, lapsed, currentMonthBucket].join('|');
+
+  // Check backend for shared insight — all committee members see the same one
+  el.innerHTML = '<span style="opacity:.4;font-size:12px;">Generating insight\u2026</span>';
+  try {
+    const stored = await api('getAIInsight', { type: 'overview', season: plSeason });
+    if (!stored.error && stored.html && stored.fingerprint === _ovFP) {
+      el.innerHTML = stored.html; return; // data unchanged — use shared insight
+    }
+  } catch(e) { /* proceed to generate */ }
+
   const prompt = 'You are helping volunteers at a community junior football club understand their player registrations. '
     + 'This club has no paid staff — everyone involved is a volunteer giving their time. '
     + 'Today is ' + today.toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'}) + '. '
@@ -4020,8 +4053,12 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
         + '<span style="flex:1;">' + bolded + '</span>'
         + '</div>';
     });
-    el.innerHTML = htmlParts.join('');
+    const _ovHtml = htmlParts.join('');
+    el.innerHTML = _ovHtml;
+    // Save to backend — fire and forget
+    api('saveAIInsight', { type: 'overview', season: plSeason, html: _ovHtml, fingerprint: _ovFP }).catch(() => {});
   } catch(e) {
+    _overviewAIFetching[plSeason] = false; // allow retry
     el.innerHTML = '<span style="opacity:.5;font-size:12px;">AI summary unavailable</span>';
   }
 }
