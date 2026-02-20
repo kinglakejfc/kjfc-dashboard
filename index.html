@@ -5321,12 +5321,14 @@ function computeGroupRecommendations() {
     prevNatByAG[ag] = (prevNatByAG[ag] || 0) + 1;
   });
 
-  // Last year's configured groups (fallback: any with >=3 natural players)
-  const prevCfgGroups = ALL_AGE_GROUPS.filter(ag =>
-    (_seasonCfg && _seasonCfg._prevConfig)
-      ? _seasonCfg._prevConfig[ag] && _seasonCfg._prevConfig[ag].active
-      : (prevNatByAG[ag] || 0) >= 3
-  );
+  // Last year's actual age groups — read from real teams created for that season.
+  // This is the ground truth: if a team existed with ageGroup U11, U11 ran last year.
+  // Fallback to natural-player count only if no teams were recorded.
+  const prevTeams = (plData.teams || []).filter(t => +t.season === prevYear && t.ageGroup);
+  const prevTeamAGs = [...new Set(prevTeams.map(t => t.ageGroup))].filter(ag => ALL_AGE_GROUPS.includes(ag));
+  const prevCfgGroups = prevTeamAGs.length > 0
+    ? prevTeamAGs.sort((a,b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
+    : ALL_AGE_GROUPS.filter(ag => (prevNatByAG[ag] || 0) >= 3);
 
   // Natural progression: U12 last year → U13 this year
   const progressionGroups = new Set(
