@@ -3913,35 +3913,64 @@ function _renderOverviewHTML() {
         </div>
       </div>
 
-      <!-- Gender Split — full-width card with YOY trend -->
+      <!-- Gender Split — full-width card with 3-point female comparison -->
       <div class="pl-kpi" style="margin-bottom:16px;">
-        <div class="pl-kpi-label">Gender Split</div>
-        <div style="display:flex;align-items:baseline;gap:14px;margin:6px 0 4px;flex-wrap:wrap;">
-          <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;color:var(--green);line-height:1;">${boys}</span>
-          <span style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;">Male</span>
-          <span style="font-size:22px;color:var(--border);font-weight:300;line-height:1;padding:0 4px;">|</span>
-          <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;color:var(--yellow-dark);line-height:1;">${girls}</span>
-          <span style="font-size:11px;font-weight:700;color:var(--yellow-dark);text-transform:uppercase;letter-spacing:.5px;">Female</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:6px;">
-          <div class="pl-kpi-sub" style="margin:0;min-width:160px;font-size:13px;">${total ? Math.round(girls/total*100) : 0}% female · ${total ? Math.round(boys/total*100) : 0}% male</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            ${(()=>{
-              const yoy = yoyData.slice().reverse().slice(0,5);
-              return yoy.map((d,i) => {
-                const femalePct = d.total ? Math.round(d.girls/d.total*100) : 0;
-                const prev = yoy[i-1];
-                const prevPct = prev && prev.total ? Math.round(prev.girls/prev.total*100) : null;
-                const arrow = prevPct === null ? '' : femalePct > prevPct
-                  ? '<span style="color:#16a34a;font-size:13px;" title="Female % up">↑</span>'
-                  : femalePct < prevPct
-                    ? '<span style="color:#dc2626;font-size:13px;" title="Female % down">↓</span>'
-                    : '<span style="color:var(--text-dim);font-size:13px;">–</span>';
-                return '<span style="font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:2px;"><strong style="color:var(--text);font-size:13px;">' + d.year + '</strong> ' + femalePct + '%F' + arrow + '</span>';
-              }).join('<span style="color:var(--border);padding:0 2px;">·</span>');
-            })()}
-          </div>
-        </div>
+        <div class="pl-kpi-label">Female Participation</div>
+        ${(()=>{
+          // Build 3 comparison points: this year, last year, 5 years ago (or earliest available)
+          const sorted = yoyData.slice().sort((a,b) => b.year - a.year); // newest first
+          const thisYr  = sorted[0] || null;
+          const lastYr  = sorted[1] || null;
+          const fiveAgo = sorted.find(d => d.year <= +plSeason - 5) || sorted[sorted.length-1] || null;
+
+          function col(d, label, prevD) {
+            if (!d) return '';
+            const femalePct = d.total ? Math.round(d.girls / d.total * 100) : 0;
+            const malePct   = 100 - femalePct;
+            const prevPct   = prevD && prevD.total ? Math.round(prevD.girls / prevD.total * 100) : null;
+            const diff      = prevPct !== null ? femalePct - prevPct : null;
+            const arrowCol  = diff === null ? 'transparent' : diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : '#9ca3af';
+            const arrowSym  = diff === null ? '' : diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
+            const diffTxt   = diff === null ? '' : (diff > 0 ? '+' : '') + diff + 'pp';
+            // Stacked bar: female (yellow) + male (green)
+            const barHtml   = '<div style="height:6px;border-radius:3px;overflow:hidden;background:#e5e7eb;margin:6px 0;">'
+              + '<div style="height:100%;width:' + femalePct + '%;background:#c9b400;border-radius:3px 0 0 3px;"></div>'
+              + '</div>';
+            return '<div style="flex:1;min-width:120px;padding:12px 16px;background:#f9fafb;border-radius:10px;border:1.5px solid var(--border);">'
+              + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-dim);margin-bottom:6px;">' + label + '</div>'
+              + '<div class="pl-kpi-val" style="font-size:36px;color:#c9b400;line-height:1;margin:0;">' + d.girls + '</div>'
+              + '<div style="font-size:12px;color:var(--text-dim);margin-top:2px;">female players</div>'
+              + barHtml
+              + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:2px;">'
+              +   '<div style="font-size:13px;font-weight:700;color:#c9b400;">' + femalePct + '% female</div>'
+              +   (diff !== null ? '<div style="font-size:12px;font-weight:700;color:' + arrowCol + ';">' + arrowSym + ' ' + diffTxt + '</div>' : '')
+              + '</div>'
+              + '<div style="font-size:11px;color:var(--text-dim);margin-top:1px;">' + d.total + ' total · ' + malePct + '% male</div>'
+              + '<div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-weight:600;">' + d.year + '</div>'
+              + '</div>';
+          }
+
+          // Arrow connector between columns
+          function connector(fromD, toD) {
+            if (!fromD || !toD) return '';
+            const f = fromD.total ? Math.round(fromD.girls/fromD.total*100) : 0;
+            const t = toD.total   ? Math.round(toD.girls/toD.total*100)    : 0;
+            const diff = t - f;
+            const col  = diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : '#9ca3af';
+            const sym  = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
+            return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 6px;color:' + col + ';font-size:20px;align-self:center;">'
+              + sym
+              + '</div>';
+          }
+
+          return '<div style="display:flex;gap:6px;margin-top:10px;align-items:stretch;">'
+            + col(fiveAgo, fiveAgo && fiveAgo.year < +plSeason - 1 ? fiveAgo.year + ' (earliest)' : fiveAgo ? fiveAgo.year + '' : '5 yrs ago', null)
+            + connector(fiveAgo, lastYr)
+            + col(lastYr, 'Last year', fiveAgo)
+            + connector(lastYr, thisYr)
+            + col(thisYr, 'This year', lastYr)
+            + '</div>';
+        })()}
       </div>
 
       <!-- Schools + Avg Age + Teams + Retention row -->
@@ -4586,7 +4615,7 @@ function _openSimpleSlideover(title, sub, players, backFn) {
         return '<div onclick="openPlayerDetailFromSlideover(\'' + pid + '\')"'
           + ' style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;cursor:pointer;margin-bottom:5px;border:1.5px solid var(--border);background:#fff;"'
           + ' onmouseenter="this.style.background=\'var(--green-light)\'" onmouseleave="this.style.background=\'#fff\'">'
-          + '<div style="width:34px;height:34px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--green);font-family:\'Barlow Condensed\',sans-serif;flex-shrink:0;">' + plInitials(p) + '</div>'
+          + '<div class="pl-kpi-val" style="font-size:36px;color:#c9b400;line-height:1;margin:0;">' + d.girls + '</div>'
           + '<div style="flex:1;min-width:0;">'
           + '<div style="font-weight:700;font-size:13px;">' + plName(p) + '</div>'
           + (label  ? '<div style="font-size:11px;color:var(--text-dim);">' + label  + '</div>' : '')
@@ -4982,7 +5011,6 @@ function _renderPlanningHTML() {
           <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Select age groups to field. Eligibility includes players who can slot up.</div>
         </div>
         <div style="display:flex;gap:8px;">
-          <button class="msecondary" onclick="getAIInsights()" style="font-size:12px;padding:6px 12px;">🤖 AI Insights</button>
           <button class="msecondary" onclick="triggerManualAutoPlan()" style="font-size:12px;padding:6px 12px;">⚡ Auto-Plan</button>
           <button class="mprimary" onclick="saveSeasonCfg()" id="cfg-save-btn" style="font-size:12px;padding:6px 14px;">Save Configuration</button>
         </div>
@@ -5039,13 +5067,6 @@ function _renderPlanningHTML() {
       <div style="background:var(--bg);border-radius:10px;padding:12px;">${alerts.join('')}</div>
     ` : ''}
 
-    <div id="ai-insights-panel" style="display:none;margin-top:20px;background:#fff;border:1.5px solid #a78bfa;border-radius:12px;padding:16px 20px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed;">🤖 AI Insights</div>
-        <button onclick="document.getElementById('ai-insights-panel').style.display='none'" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:16px;">✕</button>
-      </div>
-      <div id="ai-insights-content" style="font-size:13px;line-height:1.6;color:var(--text);">Loading…</div>
-    </div>
   `;
 }
 
@@ -5217,7 +5238,7 @@ function showAutoPlanPreview(activeGroups) {
 
     return `<div style="margin-bottom:12px;padding:12px;border-radius:8px;border:1.5px solid var(--border);background:#fafafa;">
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
-        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:15px;text-transform:uppercase;">${ag}</span>
+        <span style="font-weight:900;font-weight:900;font-size:15px;text-transform:uppercase;">${ag}</span>
         <span style="font-size:13px;font-weight:700;color:${statusColor};">${pids.length} players</span>
         <span style="font-size:11px;color:var(--text-dim);">min ${min} · max ${max}</span>
         ${prev !== pids.length ? `<span style="font-size:11px;color:var(--text-dim);">(was ${prev})</span>` : ''}
@@ -5246,7 +5267,7 @@ function showAutoPlanPreview(activeGroups) {
     <div style="background:#fff;border-radius:14px;width:520px;max-width:96vw;max-height:85vh;
                 display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.2);">
       <div style="padding:18px 20px;border-bottom:1px solid var(--border);">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;
+        <div style="font-weight:900;font-weight:900;font-size:18px;
                     text-transform:uppercase;letter-spacing:.5px;">Auto-Plan Preview</div>
         <div style="font-size:12px;color:var(--text-dim);margin-top:3px;">
           Based on your selected age groups, here's how players would be distributed.
@@ -5274,14 +5295,265 @@ function showAutoPlanPreview(activeGroups) {
 }
 
 function triggerManualAutoPlan() {
-  const activeGroups = ALL_AGE_GROUPS.filter(ag => _seasonCfg && _seasonCfg[ag] && _seasonCfg[ag].active);
-  if (!activeGroups.length) { showToast('Select at least one age group first', 'err'); return; }
-  // Read current UI state in case not yet saved
+  // Read current UI checkbox state (may not be saved yet)
   const uiActive = ALL_AGE_GROUPS.filter(ag => {
     const cb = document.getElementById('cfg-on-' + ag);
     return cb ? cb.checked : (_seasonCfg && _seasonCfg[ag] && _seasonCfg[ag].active);
   });
-  showAutoPlanPreview(uiActive.length ? uiActive : activeGroups);
+
+  if (uiActive.length === 0) {
+    // No age groups selected — run recommendation engine
+    showGroupRecommendation();
+  } else {
+    // Age groups selected — fill players into them
+    showAutoPlanPreview(uiActive);
+  }
+}
+
+// ── GROUP RECOMMENDATION ENGINE ───────────────────────────────────────────────
+// Called when no age groups are manually selected.
+// Scores every possible combination of age groups, finds the top two by
+// minimising unplaced players, factoring in history and projected registrations.
+//
+// Scoring per combination:
+//   - Unplaced players (lower = better, primary sort)
+//   - Continuity bonus: age groups that follow naturally from last season
+//     (e.g. U12 last year → U13 this year gets a bonus)
+//   - Projection: each group's eligible pool is compared to last year's
+//     natural count to flag shortfalls vs expected registrations
+//
+// Returns top 2 distinct combinations for user to choose.
+
+function computeGroupRecommendations() {
+  const rows   = plSeasonRows();
+  const pm     = plPlayerMap();
+  const cfg    = _seasonCfg || {};
+  const allSea = plData.seasons || [];
+
+  // Last season's active age groups (those that had players assigned or were configured)
+  const prevYear = +plSeason - 1;
+  const prevSeason = allSea.filter(s => +s.year === prevYear);
+  const prevNatByAG = {};
+  prevSeason.forEach(r => {
+    const ag = 'U' + (r.calcAge > 1 ? r.calcAge - 1 : r.calcAge); // natural age group
+    prevNatByAG[ag] = (prevNatByAG[ag] || 0) + 1;
+  });
+  // Last year's active configured groups
+  const prevCfgGroups = ALL_AGE_GROUPS.filter(ag => {
+    const prevCfg = _seasonCfg && _seasonCfg._prevConfig;
+    if (prevCfg) return prevCfg[ag] && prevCfg[ag].active;
+    // Fallback: any group with > 0 natural players last year
+    return (prevNatByAG[ag] || 0) >= 3;
+  });
+  // Groups that naturally progress from last year (U12 last year → U13 this year)
+  const progressionGroups = new Set(
+    prevCfgGroups.map(ag => {
+      const n = parseInt(ag.slice(1));
+      return n < 17 ? 'U' + (n + 1) : 'U17';
+    })
+  );
+
+  // Current eligible pool per age group
+  const eligiblePool = {};
+  ALL_AGE_GROUPS.forEach(ag => {
+    eligiblePool[ag] = rows.filter(r => {
+      const p = pm[r.profileId] || {};
+      return playerEligibleGroups(r, p).includes(ag);
+    }).length;
+  });
+
+  // Last year's natural count per group (as registration baseline)
+  // We use last year's nat count as the floor for "expected" — we hope to grow
+  const expectedBaseline = {};
+  ALL_AGE_GROUPS.forEach(ag => {
+    // Age group that fed into this year's natural group = one year younger
+    const feederAg = 'U' + (parseInt(ag.slice(1)) - 1);
+    expectedBaseline[ag] = prevNatByAG[feederAg] || prevNatByAG[ag] || 0;
+  });
+
+  // Groups worth considering: must have at least 3 eligible players
+  const candidateGroups = ALL_AGE_GROUPS.filter(ag => eligiblePool[ag] >= 3);
+
+  // Enumerate combinations of 2–6 groups and score each
+  // Use a greedy combinator for efficiency (max 9 groups → C(9,2..6) is manageable)
+  function combinations(arr, k) {
+    if (k === 0) return [[]];
+    if (arr.length < k) return [];
+    const [first, ...rest] = arr;
+    return [
+      ...combinations(rest, k - 1).map(c => [first, ...c]),
+      ...combinations(rest, k)
+    ];
+  }
+
+  const scored = [];
+  for (let k = 2; k <= Math.min(6, candidateGroups.length); k++) {
+    for (const combo of combinations(candidateGroups, k)) {
+      const { plan, unplanned } = computeAutoPlan(combo);
+
+      // Continuity score: how many groups in this combo are natural progressions from last year
+      const continuityScore = combo.filter(ag => progressionGroups.has(ag)).length;
+
+      // Shortfall analysis per group
+      const groupDetails = combo.map(ag => {
+        const placed   = (plan[ag] || []).length;
+        const eligible = eligiblePool[ag];
+        const min      = +(cfg[ag] || {}).min || 14;
+        const max      = +(cfg[ag] || {}).max || 24;
+        const expected = expectedBaseline[ag];
+        const shortVsMin      = Math.max(0, min - placed);
+        const shortVsExpected = Math.max(0, expected - eligible);
+        return { ag, placed, eligible, min, max, expected, shortVsMin, shortVsExpected,
+                 isProgression: progressionGroups.has(ag) };
+      });
+
+      // Primary score: unplaced count (lower = better)
+      // Secondary: continuity (higher = better, so negate for sorting)
+      // Tertiary: total shortfall vs minimums
+      const totalShortfall = groupDetails.reduce((s, d) => s + d.shortVsMin, 0);
+      scored.push({
+        combo, plan, unplanned, continuityScore, groupDetails, totalShortfall,
+        score: unplanned.length * 1000 - continuityScore * 10 + totalShortfall
+      });
+    }
+  }
+
+  // Sort by score ascending, deduplicate by unplanned count + combo string
+  scored.sort((a, b) => a.score - b.score);
+
+  // Return top 2 that are meaningfully different (different unplaced count OR different groups)
+  const top2 = [];
+  for (const s of scored) {
+    if (top2.length >= 2) break;
+    const isDupe = top2.some(t =>
+      t.unplanned.length === s.unplanned.length &&
+      t.combo.join(',') === s.combo.join(',')
+    );
+    if (!isDupe) top2.push(s);
+  }
+
+  return { top2, eligiblePool, expectedBaseline, progressionGroups: [...progressionGroups] };
+}
+
+function showGroupRecommendation() {
+  const { top2, eligiblePool, expectedBaseline, progressionGroups } = computeGroupRecommendations();
+
+  if (!top2.length) {
+    showToast('Not enough registered players to recommend age groups.', 'err');
+    return;
+  }
+
+  const pm = plPlayerMap();
+
+  function renderOption(result, idx) {
+    const letter = idx === 0 ? 'A' : 'B';
+    const badgeCol = idx === 0 ? 'var(--green)' : '#7c3aed';
+    const badgeBg  = idx === 0 ? 'rgba(46,125,79,.1)' : 'rgba(124,58,237,.1)';
+
+    const groupRows = result.groupDetails.map(d => {
+      const viableCol = d.placed >= d.min ? '#16a34a' : d.placed >= Math.ceil(d.min * .7) ? '#ca8a04' : '#dc2626';
+      const progTag   = d.isProgression
+        ? '<span style="font-size:9px;background:rgba(22,163,74,.15);color:#16a34a;border-radius:5px;padding:1px 6px;font-weight:700;margin-left:4px;">↑ progression</span>'
+        : '';
+      const shortVsExp = d.shortVsExpected > 0
+        ? '<span style="font-size:10px;color:#ca8a04;"> · expect ' + d.expected + ' (short ' + d.shortVsExpected + ')</span>'
+        : d.expected > 0
+          ? '<span style="font-size:10px;color:#16a34a;"> · on track vs last yr</span>'
+          : '';
+      return '<div style="display:flex;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">'
+        + '<span style="font-weight:900;font-size:13px;min-width:32px;">' + d.ag + '</span>' + progTag
+        + '<span style="font-size:12px;color:' + viableCol + ';font-weight:700;">' + d.placed + ' placed</span>'
+        + '<span style="font-size:11px;color:var(--text-dim);">of ' + d.eligible + ' eligible · min ' + d.min + '</span>'
+        + (d.shortVsMin > 0 ? '<span style="font-size:11px;font-weight:700;color:#dc2626;">Need ' + d.shortVsMin + ' more</span>' : '<span style="font-size:11px;color:#16a34a;font-weight:700;">✓ Viable</span>')
+        + shortVsExp
+        + '</div>';
+    }).join('');
+
+    const unplacedNote = result.unplanned.length > 0
+      ? '<div style="margin-top:8px;padding:8px 12px;background:#fef3c7;border-radius:7px;font-size:11px;color:#92400e;">'
+        + '⚠️ ' + result.unplanned.length + ' player' + (result.unplanned.length !== 1 ? 's' : '') + ' unplaced with this combination'
+        + '</div>'
+      : '<div style="margin-top:8px;padding:8px 12px;background:rgba(22,163,74,.1);border-radius:7px;font-size:11px;color:#16a34a;font-weight:700;">✓ All registered players placed</div>';
+
+    const contNote = result.continuityScore > 0
+      ? '<div style="font-size:11px;color:#16a34a;margin-top:4px;">↑ ' + result.continuityScore + ' group' + (result.continuityScore > 1 ? 's' : '') + ' follow natural progression from last season</div>'
+      : '';
+
+    return '<div id="rec-option-' + idx + '" style="border:2px solid ' + badgeCol + ';border-radius:12px;padding:14px 16px;background:#fff;flex:1;min-width:260px;">'
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">'
+      +   '<div style="background:' + badgeBg + ';color:' + badgeCol + ';font-weight:900;font-size:13px;padding:3px 10px;border-radius:6px;">Option ' + letter + '</div>'
+      +   '<div style="font-size:12px;font-weight:700;">' + result.combo.join(' · ') + '</div>'
+      + '</div>'
+      + groupRows
+      + unplacedNote
+      + contNote
+      + '<button class="mprimary" style="width:100%;margin-top:12px;font-size:13px;" '
+      +   'onclick="applyGroupRecommendation(' + idx + ')">Use Option ' + letter + '</button>'
+      + '</div>';
+  }
+
+  let overlay = document.getElementById('autoplan-preview-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'autoplan-preview-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:4000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+
+  overlay.innerHTML = '<div style="background:#fff;border-radius:14px;width:780px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.2);">'
+    + '<div style="padding:18px 20px;border-bottom:1px solid var(--border);">'
+    +   '<div style="font-weight:900;font-size:18px;text-transform:uppercase;letter-spacing:.5px;">Age Group Recommendation</div>'
+    +   '<div style="font-size:12px;color:var(--text-dim);margin-top:3px;">Based on current registrations, historical data, and natural progressions from last season. Select an option to activate those age groups and auto-assign players.</div>'
+    + '</div>'
+    + '<div style="flex:1;overflow-y:auto;padding:16px 20px;">'
+    +   '<div style="display:flex;gap:12px;flex-wrap:wrap;">'
+    +     top2.map((r, i) => renderOption(r, i)).join('')
+    +   '</div>'
+    + '</div>'
+    + '<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">'
+    +   '<button class="msecondary" onclick="closeAutoPlanPreview()">Cancel</button>'
+    + '</div>'
+    + '</div>';
+
+  // Store results for apply
+  window._pendingRecommendations = top2;
+}
+
+async function applyGroupRecommendation(idx) {
+  const rec = (window._pendingRecommendations || [])[idx];
+  if (!rec) return;
+
+  const overlay = document.getElementById('autoplan-preview-overlay');
+  if (overlay) overlay.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;"><div class="ls-spinner"></div></div>';
+
+  // 1. Activate selected age groups in config and save
+  const newConfig = {};
+  ALL_AGE_GROUPS.forEach(ag => {
+    const existing = (_seasonCfg && _seasonCfg[ag]) || {};
+    newConfig[ag] = {
+      active:  rec.combo.includes(ag),
+      min:     existing.min  || (ag === 'U9' ? 9 : 14),
+      max:     existing.max  || 24,
+      gender:  existing.gender || 'Mixed',
+      phase:   existing.phase  || (parseInt(ag.slice(1)) <= 10 ? 'Development' : 'Competition'),
+    };
+  });
+
+  const saveRes = await api('saveSeasonConfigSheet', { year: plSeason, config: newConfig });
+  if (saveRes.error) { showToast('Config save failed: ' + saveRes.error, 'err'); return; }
+  _seasonCfg = { ...newConfig, _year: plSeason };
+
+  // 2. Save each group's plan
+  for (const ag of rec.combo) {
+    await api('savePlanningTeam', { year: plSeason, ageGroup: ag, profileIds: rec.plan[ag] || [] });
+    _planningData[ag] = rec.plan[ag] || [];
+  }
+  _planningData._year = plSeason;
+
+  if (overlay) overlay.style.display = 'none';
+  showToast('Option applied — ' + rec.combo.join(', ') + ' activated ✓');
+  renderPlPlanning();
 }
 
 function closeAutoPlanPreview() {
@@ -5311,89 +5583,6 @@ async function applyAutoPlan() {
   showToast('Plan applied — ' + activeGroups.length + ' age groups updated ✓');
   _renderOverviewHTML();
 }
-
-async function getAIInsights() {
-  const panel   = document.getElementById('ai-insights-panel');
-  const content = document.getElementById('ai-insights-content');
-  if (!panel || !content) return;
-  panel.style.display = 'block';
-  content.innerHTML = '<div class="ls-spinner" style="margin:0 auto 8px;"></div><div style="text-align:center;color:var(--text-dim);">Analysing…</div>';
-  panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
-
-  const rows  = plSeasonRows();
-  const pm    = plPlayerMap();
-  const cfg   = _seasonCfg || {};
-
-  // De-identified aggregate only — no names, no club identifier
-  const playerElig = rows.map(r => ({
-    r, p: pm[r.profileId]||{},
-    nat: playerNaturalAge(r),
-    eligible: playerEligibleGroups(r, pm[r.profileId])
-  }));
-
-  const byAG = {}, byAGGender = {};
-  rows.forEach(r => {
-    const ag = effectiveAgeGroup(r);
-    byAG[ag] = (byAG[ag]||0) + 1;
-    const g = (pm[r.profileId]||{}).gender === 'Male' ? 'M' : 'F';
-    byAGGender[ag] = byAGGender[ag] || { M:0, F:0 };
-    byAGGender[ag][g]++;
-  });
-
-  const prevRows = (plData.seasons||[]).filter(s => +s.year === +plSeason - 1);
-  const prevByAG = {};
-  prevRows.forEach(r => { const ag = effectiveAgeGroup(r); prevByAG[ag] = (prevByAG[ag]||0)+1; });
-
-  const activeGroups = ALL_AGE_GROUPS.filter(ag => cfg[ag] && cfg[ag].active);
-  const totalBoys  = rows.filter(r => (pm[r.profileId]||{}).gender === 'Male').length;
-  const totalGirls = rows.filter(r => (pm[r.profileId]||{}).gender === 'Female').length;
-
-  const agLines = ALL_AGE_GROUPS.map(ag => {
-    const nat  = byAG[ag]||0;
-    const elig = playerElig.filter(e => e.eligible.includes(ag)).length;
-    const prev = prevByAG[ag];
-    const g    = byAGGender[ag]||{M:0,F:0};
-    const trend = prev !== undefined
-      ? (nat > prev ? ` (up ${nat-prev} from prior year)` : nat < prev ? ` (down ${prev-nat} from prior year)` : ' (unchanged)')
-      : '';
-    return `  ${ag}: ${nat} natural (${g.M||0}M/${g.F||0}F)${trend}, ${elig} total eligible${cfg[ag]&&cfg[ag].active?' [TARGETED]':''}`;
-  }).join('\n');
-
-  const prompt = `You are an AFL junior football analyst. Analyse this anonymous aggregate registration data.
-
-Season: ${plSeason}
-Total registered: ${rows.length} (${totalBoys} boys / ${totalGirls} girls)
-Eligibility rule: players can play their natural age group (age on Jan 1) plus up to 2 years above.
-
-Age group data (natural registrations + total eligible pool including those slotting up):
-${agLines}
-
-Targeted groups this season: ${activeGroups.length ? activeGroups.join(', ') : 'None set'}
-Targets: ${activeGroups.map(ag => `${ag} min ${(cfg[ag]||{}).min||14}/max ${(cfg[ag]||{}).max||24}`).join(', ')}
-
-Provide:
-1. **Optimal age group mix** — which combination maximises full viable teams given eligible pools?
-2. **Recruitment priorities** — which groups need players most urgently and how many?
-3. **Trend analysis** — growing vs declining age groups year-on-year.
-4. **One bold recommendation** — single highest-impact action for participation.
-
-Concise bullet points only. No preamble.`;
-
-  try {
-    const res = await api('getAIInsights', { prompt });
-    if (res.error) throw new Error(res.error);
-    const text = res.text || 'No response received.';
-    content.innerHTML = text
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^### (.+)$/gm, '<div style="font-weight:700;font-size:13px;margin:10px 0 4px;">$1</div>')
-      .replace(/^\d+\. \*\*(.+?)\*\*(.*)$/gm, '<div style="margin:10px 0 4px;"><span style="font-weight:800;color:var(--green);">$1</span>$2</div>')
-      .replace(/^[-•] (.+)$/gm, '<div style="padding:2px 0 2px 12px;border-left:2px solid var(--green-light);">• $1</div>')
-      .replace(/\n/g, '<br>');
-  } catch(e) {
-    content.innerHTML = `<div style="color:var(--red);">Could not load AI insights: ${e.message}</div>`;
-  }
-}
-
 
 // ── PLANNING TEAMS ────────────────────────────────────────────────
 // _planningData: { ageGroup: [profileId, ...], ... } for current season
@@ -5526,7 +5715,7 @@ function _renderPlanningSlide() {
       <!-- Avatar -->
       <div style="width:34px;height:34px;border-radius:50%;background:${isSel ? 'var(--green)' : 'var(--green-light)'};
                   display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;
-                  color:${isSel ? '#fff' : 'var(--green)'};font-family:'Barlow Condensed',sans-serif;flex-shrink:0;">
+                  color:${isSel ? '#fff' : 'var(--green)'};font-weight:900;flex-shrink:0;">
         ${plInitials(p)}
       </div>
       <!-- Info -->
@@ -5789,7 +5978,7 @@ function openPlayerDetail(profileId) {
   document.getElementById('pdm-body').innerHTML = `
     <!-- Avatar + consent -->
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
-      <div style="width:64px;height:64px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;color:var(--green);font-family:'Barlow Condensed',sans-serif;flex-shrink:0;">${init}</div>
+      <div style="width:64px;height:64px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;color:var(--green);font-weight:900;flex-shrink:0;">${init}</div>
       <div>
         <label style="font-size:12px;display:flex;align-items:center;gap:7px;cursor:pointer;">
           <input type="checkbox" id="pdm-photo-consent" ${p.photoConsent!=='No'?'checked':''}
@@ -6092,7 +6281,7 @@ function renderPlTeams() {
                 <!-- Header -->
                 <div style="background:var(--green);padding:12px 14px;display:flex;justify-content:space-between;align-items:flex-start;">
                   <div style="flex:1;min-width:0;">
-                    <div style="font-weight:900;font-size:15px;color:#fff;font-family:'Barlow Condensed',sans-serif;letter-spacing:.3px;">${t.name}</div>
+                    <div style="font-weight:900;font-size:15px;color:#fff;font-weight:900;letter-spacing:.3px;">${t.name}</div>
                     <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:1px;">${[t.ageGroup,t.gender].filter(Boolean).join(' · ')}</div>
                   </div>
                   <div style="display:flex;gap:5px;margin-left:8px;" onclick="event.stopPropagation()">
