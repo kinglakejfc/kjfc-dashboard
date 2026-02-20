@@ -3792,7 +3792,7 @@ function _renderOverviewHTML() {
     .filter(t => t.minPlayers > 0)
     .map(t => ({ t, count: teamCountMap[t.id]||0, short: Math.max(0, t.minPlayers - (teamCountMap[t.id]||0)) }))
     .filter(d => d.short > 0)
-    .sort((a,b) => b.short - a.short);
+    .sort((a,b) => (parseInt((a.t.ageGroup||'').replace(/\D/g,''))||99) - (parseInt((b.t.ageGroup||'').replace(/\D/g,''))||99) || (a.t.name||'').localeCompare(b.t.name||''));
   const totalShort = shortTeams.reduce((s,d) => s+d.short, 0);
 
   // Retention: players in current season who were also in previous season
@@ -3871,6 +3871,35 @@ function _renderOverviewHTML() {
         </div>
       </div>
 
+      <!-- Recruitment Targets card — full width, only shown when teams have shortfalls -->
+      ${shortTeams.length > 0 ? `
+      <div class="pl-kpi" style="margin-bottom:16px;border-left:4px solid #dc2626;">
+        <div class="pl-kpi-label" style="color:#dc2626;">🎯 Recruitment Targets</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">${totalShort} player${totalShort!==1?'s':''} needed across ${shortTeams.length} team${shortTeams.length!==1?'s':''} to reach minimum numbers</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${shortTeams.map(({t, count, short}) => {
+            const pct = Math.min(100, Math.round(count / t.minPlayers * 100));
+            const col = count >= Math.ceil(t.minPlayers * 0.8) ? '#ca8a04' : '#dc2626';
+            const schoolYr = t.ageGroup ? agRecruitTarget(t.ageGroup) : '';
+            return '<div style="background:#fafafa;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;">'
+              + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:4px;">'
+              +   '<div>'
+              +     '<span style="font-weight:800;font-size:13px;">' + t.name + '</span>'
+              +     (schoolYr ? ' <span style="font-size:10px;background:var(--green-light);color:var(--green);border-radius:5px;padding:1px 6px;font-weight:700;margin-left:4px;">Target: ' + schoolYr + '</span>' : '')
+              +   '</div>'
+              +   '<span style="font-size:12px;font-weight:700;color:' + col + ';">Need ' + short + ' more</span>'
+              + '</div>'
+              + '<div style="display:flex;align-items:center;gap:8px;">'
+              +   '<div style="flex:1;height:5px;background:#e5e7eb;border-radius:4px;">'
+              +     '<div style="height:5px;border-radius:4px;background:' + col + ';width:' + pct + '%;"></div>'
+              +   '</div>'
+              +   '<span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">' + count + ' / ' + t.minPlayers + '</span>'
+              + '</div>'
+              + '</div>';
+          }).join('')}
+        </div>
+      </div>` : ''}
+
       <!-- Gender Split — last year block → arrow → this year block -->
       <div class="pl-kpi" onclick="openGenderSlideover()" style="cursor:pointer;margin-bottom:16px;">
         <div class="pl-kpi-label">Female Participation</div>
@@ -3919,35 +3948,6 @@ function _renderOverviewHTML() {
             + '</div>';
         })()}
       </div>
-
-      <!-- Recruitment Targets card — full width, only shown when teams have shortfalls -->
-      ${shortTeams.length > 0 ? `
-      <div class="pl-kpi" style="margin-bottom:16px;border-left:4px solid #dc2626;">
-        <div class="pl-kpi-label" style="color:#dc2626;">🎯 Recruitment Targets</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">${totalShort} player${totalShort!==1?'s':''} needed across ${shortTeams.length} team${shortTeams.length!==1?'s':''} to reach minimum numbers</div>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          ${shortTeams.map(({t, count, short}) => {
-            const pct = Math.min(100, Math.round(count / t.minPlayers * 100));
-            const col = count >= Math.ceil(t.minPlayers * 0.8) ? '#ca8a04' : '#dc2626';
-            const schoolYr = t.ageGroup ? agRecruitTarget(t.ageGroup) : '';
-            return '<div style="background:#fafafa;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;">'
-              + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:4px;">'
-              +   '<div>'
-              +     '<span style="font-weight:800;font-size:13px;">' + t.name + '</span>'
-              +     (schoolYr ? ' <span style="font-size:10px;background:var(--green-light);color:var(--green);border-radius:5px;padding:1px 6px;font-weight:700;margin-left:4px;">Target: ' + schoolYr + '</span>' : '')
-              +   '</div>'
-              +   '<span style="font-size:12px;font-weight:700;color:' + col + ';">Need ' + short + ' more</span>'
-              + '</div>'
-              + '<div style="display:flex;align-items:center;gap:8px;">'
-              +   '<div style="flex:1;height:5px;background:#e5e7eb;border-radius:4px;">'
-              +     '<div style="height:5px;border-radius:4px;background:' + col + ';width:' + pct + '%;"></div>'
-              +   '</div>'
-              +   '<span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">' + count + ' / ' + t.minPlayers + '</span>'
-              + '</div>'
-              + '</div>';
-          }).join('')}
-        </div>
-      </div>` : ''}
 
       <!-- Schools + Avg Age + Teams + Retention row -->
       <div class="pl-kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;align-items:start;">
@@ -5213,7 +5213,7 @@ function renderPlTeams() {
         </div>
       ` : `
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;">
-          ${teams.map(t => {
+          ${[...teams].sort((a,b) => (parseInt((a.ageGroup||'').replace(/\D/g,''))||99) - (parseInt((b.ageGroup||'').replace(/\D/g,''))||99) || (a.name||'').localeCompare(b.name||'')).map(t => {
             const count   = teamCount[t.id] || 0;
             const roster  = allRows.filter(s => s.assignedTeam === t.id).map(s => pm[s.profileId]).filter(Boolean);
             const minP    = t.minPlayers || 0;
