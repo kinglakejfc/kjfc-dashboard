@@ -746,7 +746,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
   .logo-text h1{font-size:17px;}
   #user-name{display:none!important;}
   .user-pill{padding:2px 5px 2px 3px;}
-  #sync-state{display:none;}
+  #sync-state{font-size:9px !important;}
   .desktop-only{display:none !important;}
   .hnav-sync{gap:3px;}
   .lobtn,.hnav-signout{display:none!important;} /* in hamburger */
@@ -872,7 +872,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       </div>
       <!-- Last loaded timestamp (quiet) + Sign Out -->
       <div class="hnav-sync">
-        <span id="sync-state" style="font-size:10px;color:rgba(255,255,255,.5);white-space:nowrap;"></span>
+        <span id="sync-state" style="font-size:10px;color:rgba(255,255,255,.65);white-space:nowrap;letter-spacing:0.1px;"></span>
         <button class="lobtn hnav-signout" onclick="doLogout()" id="signout-btn">Sign Out</button>
       </div>
       <!-- Hamburger (mobile only) -->
@@ -4015,8 +4015,14 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
   }).length))/prevTotal*100):null;
   const schoolCount=new Set(rows.map(r=>(pm[r.profileId]||{}).school).filter(Boolean)).size;
 
-  // Fingerprint: total + lapsed + season + month bucket (changes with each import or time window shift)
-  const _ovFP = [plSeason, total, prevTotal, lapsed, currentMonthBucket].join('|');
+  // Is this a completed historical season or the active/upcoming one?
+  const _currentCalYear = today.getFullYear();
+  const _seasonComplete = +plSeason < _currentCalYear ||
+    (+plSeason === _currentCalYear && today.getMonth() > 8); // past Sep of season year
+
+  // Fingerprint: for past seasons use fixed 'done'; for active season include month bucket
+  // so it refreshes as registrations come in each month
+  const _ovFP = [plSeason, total, prevTotal, lapsed, _seasonComplete ? 'done' : currentMonthBucket].join('|');
 
   // Check backend for shared insight — all committee members see the same one
   el.innerHTML = '<span style="opacity:.4;font-size:12px;">Generating insight\u2026</span>';
@@ -4027,23 +4033,45 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
     }
   } catch(e) { /* proceed to generate */ }
 
-  const prompt = 'You are helping volunteers at a community junior football club understand their player registrations. '
-    + 'This club has no paid staff — everyone involved is a volunteer giving their time. '
-    + 'Today is ' + today.toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'}) + '. '
-    + 'Your tone should be warm, encouraging, and data-driven. Acknowledge the effort the team is putting in. Be specific with numbers. '
-    + 'Write 3-5 concise bullet points. Each starts with a relevant emoji. Use **bold** for key figures. '
-    + 'Consider: where registrations are at in the season window, how they compare to the same point last year, '
-    + 'which age groups are looking healthy, and one practical next step the team can feel good about taking. '
-    + 'Do not use language like "urgent attention" or "concern" — frame everything constructively. '
-    + 'No headers. Each bullet 1-2 sentences max.\n\n'
-    + 'Season: ' + plSeason + ' (planning window: Oct ' + (+plSeason-1) + ' to Sep ' + plSeason + ')\n'
-    + 'Current date: ' + currentMonthName + ' (month ' + (currentMonthBucket+1) + ' of 12 in the season window)\n'
-    + 'Total registered: ' + total + ' (' + boys + 'M / ' + girls + 'F)'
-    + (prevTotal ? ', cf. ' + prevTotal + ' all of ' + prevYr : '') + '\n'
-    + monthContext + '\n'
-    + 'Age distribution: ' + (ageStr||'insufficient DOB data') + '\n'
-    + 'Not returned from ' + prevYr + ': ' + lapsed + (retPct!==null?', retention '+retPct+'%':'') + '\n'
-    + 'Schools: ' + schoolCount;
+  // Prompt branches on _seasonComplete (already defined above)
+
+  var prompt;
+  if (_seasonComplete) {
+    // Historical review — season is over, summarise what happened
+    prompt = 'You are helping volunteers at a community junior football club review a completed season. '
+      + 'This club has no paid staff — everyone is a volunteer. '
+      + 'Today is ' + today.toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'}) + '. '
+      + 'The ' + plSeason + ' season is now complete. Write a warm, honest season review — celebrate achievements, '
+      + 'note what the numbers show, and highlight one thing worth carrying into the next season. '
+      + 'Write 3-5 concise bullet points. Each starts with a relevant emoji. Use **bold** for key figures. '
+      + 'Speak in past tense. Do not give forward planning advice as if the season is upcoming. '
+      + 'No headers. Each bullet 1-2 sentences max.\n\n'
+      + 'Season: ' + plSeason + ' (completed)\n'
+      + 'Total registered: ' + total + ' (' + boys + 'M / ' + girls + 'F)'
+      + (prevTotal ? ', vs ' + prevTotal + ' in ' + prevYr : '') + '\n'
+      + 'Age distribution: ' + (ageStr||'insufficient DOB data') + '\n'
+      + 'Retention from ' + prevYr + ': ' + (retPct !== null ? retPct + '%' : 'unknown') + ' (' + (total - lapsed) + ' returned)\n'
+      + 'Schools represented: ' + schoolCount;
+  } else {
+    // Active/upcoming season — forward-looking prompt
+    prompt = 'You are helping volunteers at a community junior football club understand their player registrations. '
+      + 'This club has no paid staff — everyone involved is a volunteer giving their time. '
+      + 'Today is ' + today.toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'}) + '. '
+      + 'Your tone should be warm, encouraging, and data-driven. Acknowledge the effort the team is putting in. Be specific with numbers. '
+      + 'Write 3-5 concise bullet points. Each starts with a relevant emoji. Use **bold** for key figures. '
+      + 'Consider: where registrations are at in the season window, how they compare to the same point last year, '
+      + 'which age groups are looking healthy, and one practical next step the team can feel good about taking. '
+      + 'Do not use language like "urgent attention" or "concern" — frame everything constructively. '
+      + 'No headers. Each bullet 1-2 sentences max.\n\n'
+      + 'Season: ' + plSeason + ' (planning window: Oct ' + (+plSeason-1) + ' to Sep ' + plSeason + ')\n'
+      + 'Current date: ' + currentMonthName + ' (month ' + (currentMonthBucket+1) + ' of 12 in the season window)\n'
+      + 'Total registered: ' + total + ' (' + boys + 'M / ' + girls + 'F)'
+      + (prevTotal ? ', cf. ' + prevTotal + ' all of ' + prevYr : '') + '\n'
+      + monthContext + '\n'
+      + 'Age distribution: ' + (ageStr||'insufficient DOB data') + '\n'
+      + 'Not returned from ' + prevYr + ': ' + lapsed + (retPct!==null?', retention '+retPct+'%':'') + '\n'
+      + 'Schools: ' + schoolCount;
+  }
 
   try {
     const res = await api('getAIInsights', { prompt });
@@ -4182,10 +4210,13 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
       if (monSub)   monSub.textContent   = 'Run backfill to populate';
     } else {
 
-    // Trim to current date — don't show future empty months
+    // For the current season: trim to today. For past seasons: show all 12 months.
     var today2 = new Date();
-    var maxBucket = dateToBucket(today2, +plSeason);
-    if (maxBucket < 0) maxBucket = 11;
+    var isCurrentSeason = (+plSeason === today2.getFullYear()) ||
+      (today2.getFullYear() === +plSeason && today2.getMonth() <= 8) ||
+      (today2.getFullYear() === +plSeason - 1 && today2.getMonth() >= 9);
+    var maxBucket = isCurrentSeason ? dateToBucket(today2, +plSeason) : -1;
+    if (maxBucket < 0) maxBucket = 11; // past season or outside window → show all 12 months
 
     var trimLabels  = MONTH_NAMES.slice(0, maxBucket+1);
     var trimCounts  = monthCounts.slice(0, maxBucket+1);
