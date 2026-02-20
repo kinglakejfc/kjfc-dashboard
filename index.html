@@ -3923,22 +3923,22 @@ function _renderOverviewHTML() {
           <span style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;color:var(--yellow-dark);line-height:1;">${girls}</span>
           <span style="font-size:11px;font-weight:700;color:var(--yellow-dark);text-transform:uppercase;letter-spacing:.5px;">Female</span>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px;">
-          <div class="pl-kpi-sub" style="margin:0;min-width:140px;">${total ? Math.round(boys/total*100) : 0}% male · ${total ? Math.round(girls/total*100) : 0}% female</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:6px;">
+          <div class="pl-kpi-sub" style="margin:0;min-width:160px;font-size:13px;">${total ? Math.round(girls/total*100) : 0}% female · ${total ? Math.round(boys/total*100) : 0}% male</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
             ${(()=>{
-              const yoy = yoyData.slice().reverse();
+              const yoy = yoyData.slice().reverse().slice(0,5);
               return yoy.map((d,i) => {
-                const malePct = d.total ? Math.round(d.boys/d.total*100) : 0;
+                const femalePct = d.total ? Math.round(d.girls/d.total*100) : 0;
                 const prev = yoy[i-1];
-                const prevPct = prev && prev.total ? Math.round(prev.boys/prev.total*100) : null;
-                const arrow = prevPct === null ? '' : malePct > prevPct
-                  ? '<span style="color:#16a34a;font-size:11px;" title="Male % up">↑</span>'
-                  : malePct < prevPct
-                    ? '<span style="color:#dc2626;font-size:11px;" title="Male % down">↓</span>'
-                    : '<span style="color:var(--text-dim);font-size:11px;">–</span>';
-                return '<span style="font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:2px;"><strong style="color:var(--text);">' + d.year + '</strong> ' + malePct + '%M' + arrow + '</span>';
-              }).join('<span style="color:var(--border);">·</span>');
+                const prevPct = prev && prev.total ? Math.round(prev.girls/prev.total*100) : null;
+                const arrow = prevPct === null ? '' : femalePct > prevPct
+                  ? '<span style="color:#16a34a;font-size:13px;" title="Female % up">↑</span>'
+                  : femalePct < prevPct
+                    ? '<span style="color:#dc2626;font-size:13px;" title="Female % down">↓</span>'
+                    : '<span style="color:var(--text-dim);font-size:13px;">–</span>';
+                return '<span style="font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:2px;"><strong style="color:var(--text);font-size:13px;">' + d.year + '</strong> ' + femalePct + '%F' + arrow + '</span>';
+              }).join('<span style="color:var(--border);padding:0 2px;">·</span>');
             })()}
           </div>
         </div>
@@ -4564,29 +4564,37 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
 
 
 // ── OVERVIEW SLIDEVERS ────────────────────────────────────────────
+let _psoBackFn = null; // stored back function for current slideover level
+
 function _openSimpleSlideover(title, sub, players, backFn) {
+  _psoBackFn = backFn || null;
   const pm = plPlayerMap();
   const overlay = document.getElementById('player-slideover-overlay');
   const panel   = document.getElementById('player-slideover');
   document.getElementById('pso-name').textContent  = title;
   document.getElementById('pso-meta').textContent  = sub;
   document.getElementById('pso-avatar').innerHTML  = backFn
-    ? '<button onclick="('+backFn.toString()+')()" style="background:none;border:none;cursor:pointer;font-size:20px;padding:0;line-height:1;" title="Back">‹ Back</button>'
+    ? '<button onclick="_psoBackFn()" style="background:var(--green-light);border:none;cursor:pointer;font-size:13px;font-weight:700;color:var(--green);padding:5px 10px;border-radius:7px;line-height:1;" title="Back">‹ Back</button>'
     : '<span style="font-size:20px;">👥</span>';
 
   document.getElementById('pso-body').innerHTML = players.length
-    ? players.map(({ pid, label, sub: rowSub }) => `
-      <div onclick="openPlayerDetailFromSlideover('${pid}')"
-        style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;cursor:pointer;margin-bottom:5px;border:1.5px solid var(--border);background:#fff;"
-        onmouseenter="this.style.background='var(--green-light)'" onmouseleave="this.style.background='#fff'">
-        <div style="width:34px;height:34px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--green);font-family:'Barlow Condensed',sans-serif;flex-shrink:0;">${plInitials(pm[pid]||{})}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:13px;">${plName(pm[pid]||{pid})}</div>
-          ${label  ? `<div style="font-size:11px;color:var(--text-dim);">${label}</div>` : ''}
-          ${rowSub ? `<div style="font-size:11px;color:var(--text-dim);">${rowSub}</div>` : ''}
-        </div>
-        <div style="color:var(--text-dim);font-size:16px;">›</div>
-      </div>`).join('')
+    ? players.map(function(item) {
+        const pid    = item.pid;
+        const label  = item.label  || '';
+        const rowSub = item.sub    || '';
+        const p      = pm[pid] || {};
+        return '<div onclick="openPlayerDetailFromSlideover(\'' + pid + '\')"'
+          + ' style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;cursor:pointer;margin-bottom:5px;border:1.5px solid var(--border);background:#fff;"'
+          + ' onmouseenter="this.style.background=\'var(--green-light)\'" onmouseleave="this.style.background=\'#fff\'">'
+          + '<div style="width:34px;height:34px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--green);font-family:\'Barlow Condensed\',sans-serif;flex-shrink:0;">' + plInitials(p) + '</div>'
+          + '<div style="flex:1;min-width:0;">'
+          + '<div style="font-weight:700;font-size:13px;">' + plName(p) + '</div>'
+          + (label  ? '<div style="font-size:11px;color:var(--text-dim);">' + label  + '</div>' : '')
+          + (rowSub ? '<div style="font-size:11px;color:var(--text-dim);">' + rowSub + '</div>' : '')
+          + '</div>'
+          + '<div style="color:var(--text-dim);font-size:16px;">›</div>'
+          + '</div>';
+      }).join('')
     : '<div style="color:var(--text-dim);padding:20px;text-align:center;">No players.</div>';
 
   // List mode: hide "Open Full Profile" footer button
@@ -4693,6 +4701,7 @@ function openSchoolsOverviewSlideover() {
   const panel   = document.getElementById('player-slideover');
   document.getElementById('pso-name').textContent  = 'Schools — ' + plSeason;
   document.getElementById('pso-meta').textContent  = sorted.length + ' schools represented';
+  _psoBackFn = null;
   document.getElementById('pso-avatar').innerHTML  = '<span style="font-size:20px;">🏫</span>';
   _psoSinglePid = null;
   document.getElementById('pso-footer').style.display = 'none';
@@ -4747,6 +4756,7 @@ function openTeamsOverviewSlideover() {
   const totalAssigned = teamData.reduce((s,d) => s + d.players.length, 0);
 
   document.getElementById('pso-meta').textContent  = teams.length + ' team' + (teams.length!==1?'s':'') + ' · ' + totalAssigned + ' players assigned';
+  _psoBackFn = null;
   document.getElementById('pso-avatar').innerHTML  = '<span style="font-size:20px;">🏉</span>';
 
   document.getElementById('pso-body').innerHTML = teamData.map(({team, players}) => `
