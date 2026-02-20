@@ -4109,6 +4109,10 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
 
 function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
   if (typeof Chart === 'undefined') return;
+  try { _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears); }
+  catch(e) { console.error('[Charts] Render failed:', e); }
+}
+function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
   const GREEN = '#2e7d4f', GREEN_DARK = '#013C1E';
   const YELLOW = '#c9b400', GREEN_LIGHT = '#e6f0eb';
   const AGE_COLORS = ['#013C1E','#025a2d','#2e7d4f','#4ead72','#a8d5b5','#c9b400','#eab308','#f3f4f6'];
