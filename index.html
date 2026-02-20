@@ -1969,8 +1969,9 @@ async function _loadSponsorAI(s, season, prevYr, prev) {
     });
     const html = htmlParts.join('');
     el.innerHTML = html;
-    // Save to backend — fire and forget, don't block UI
-    api('saveAIInsight', { type: 'sponsor', season, html, fingerprint: _spFP }).catch(() => {});
+    // Save to backend so all committee members see the same insight
+    const saveRes = await api('saveAIInsight', { type: 'sponsor', season, html, fingerprint: _spFP });
+    if (saveRes.error) console.warn('[AI] sponsor save failed:', saveRes.error);
   } catch(e) {
     _sponsorAICache[season] = false; // allow retry
     el.innerHTML = '<span style="opacity:.5;font-size:12px;">AI summary unavailable</span>';
@@ -4055,8 +4056,9 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
     });
     const _ovHtml = htmlParts.join('');
     el.innerHTML = _ovHtml;
-    // Save to backend — fire and forget
-    api('saveAIInsight', { type: 'overview', season: plSeason, html: _ovHtml, fingerprint: _ovFP }).catch(() => {});
+    // Save to backend so all committee members see the same insight
+    const saveOvRes = await api('saveAIInsight', { type: 'overview', season: plSeason, html: _ovHtml, fingerprint: _ovFP });
+    if (saveOvRes.error) console.warn('[AI] overview save failed:', saveOvRes.error);
   } catch(e) {
     _overviewAIFetching[plSeason] = false; // allow retry
     el.innerHTML = '<span style="opacity:.5;font-size:12px;">AI summary unavailable</span>';
