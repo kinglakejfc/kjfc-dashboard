@@ -5569,8 +5569,8 @@ function renderFilteredPlayers() {
             <td><strong>${plName(p)}</strong></td>
             <td>${agDisplay} ${dispTag}</td>
             <td>${p.gender||'—'}</td>
-            <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${seasonSchool(r,pm)||'—'}</td>
-            <td style="font-size:11px;">${seasonSuburb(r,pm)||'—'}</td>
+            <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${seasonSchool(ps,pm)||'—'}</td>
+            <td style="font-size:11px;">${seasonSuburb(ps,pm)||'—'}</td>
             <td>${ps.newToClub==='Yes'?'<span style="color:var(--green);font-weight:700;font-size:11px;">✓ New</span>':'—'}</td>
             <td style="text-align:center;">${p.photoConsent==='No'?'<span style="color:#dc2626;font-size:11px;" title="Opted out">✗</span>':'<span style="color:var(--green);font-size:13px;" title="Consent given (or assumed by default)">✓</span>'}</td>
             <td><button class="actbtn" onclick="event.stopPropagation();openPlayerDetail('${p.profileId}')">View</button></td>
