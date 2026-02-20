@@ -3579,20 +3579,26 @@ function plPlayerMap() {
 }
 
 // ── Demographic snapshot helpers ──────────────────────────────────────────────
-// Season rows now carry school/suburb/address as they were at time of registration.
-// Use these instead of reading from the Players profile (which reflects current data).
-// Falls back to the Players profile for seasons imported before the snapshot feature.
+// Season rows carry school/suburb/address as they were at time of registration.
+// For past seasons with no snapshot, show blank — don't project current profile
+// data backwards, as it will be wrong (e.g. current high school vs primary school).
+// Only fall back to the Players profile for the current active season where
+// the season row and player profile are effectively the same import.
+const _currentSeasonYear = new Date().getFullYear();
 function seasonSchool(sr, pm) {
   if (sr && sr.school) return sr.school;
-  return (pm && pm[sr && sr.profileId] || {}).school || '';
+  if (+sr.year >= _currentSeasonYear) return (pm && (pm[sr.profileId]||{}).school) || '';
+  return ''; // historical season, no snapshot — show blank
 }
 function seasonSuburb(sr, pm) {
   if (sr && sr.suburb) return sr.suburb;
-  return (pm && pm[sr && sr.profileId] || {}).suburb || '';
+  if (+sr.year >= _currentSeasonYear) return (pm && (pm[sr.profileId]||{}).suburb) || '';
+  return '';
 }
 function seasonAddr(sr, pm) {
   if (sr && sr.address) return sr.address;
-  return (pm && pm[sr && sr.profileId] || {}).address || '';
+  if (+sr.year >= _currentSeasonYear) return (pm && (pm[sr.profileId]||{}).address) || '';
+  return '';
 }
 
 // Effective age group for a player in a season row:
