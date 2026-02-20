@@ -4202,12 +4202,12 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
 
     // If no real registration dates — show a message instead of misleading data
     if (!hasDate) {
-      if (monEl) monEl.style.display = 'none';
+      if (monthEl) monthEl.style.display = 'none';
       var noDateMsg = document.createElement('div');
       noDateMsg.style.cssText = 'text-align:center;padding:20px 16px;font-size:12px;color:var(--text-dim);background:var(--bg);border-radius:8px;border:1px dashed var(--border);margin-bottom:4px;';
       noDateMsg.innerHTML = '📅 Registration date data not yet available for ' + plSeason + '<br>'
         + '<span style="font-size:11px;">Use the <strong>Backfill Registration Dates</strong> tool on the Import tab to add historical dates.</span>';
-      if (monEl && monEl.parentNode) monEl.parentNode.insertBefore(noDateMsg, monEl);
+      if (monthEl && monthEl.parentNode) monthEl.parentNode.insertBefore(noDateMsg, monthEl);
       var monTitle = document.getElementById('chart-monthly-title');
       var monSub   = document.getElementById('chart-monthly-sub');
       if (monTitle) monTitle.style.color = 'var(--text-dim)';
