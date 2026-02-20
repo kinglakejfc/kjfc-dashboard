@@ -3931,12 +3931,21 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
   // Build monthly registration counts for current and previous seasons
   function parseDateStr2(raw) {
     if (!raw) return null;
+    var s = (typeof raw === 'string') ? raw.trim() : String(raw);
     var d;
-    if (typeof raw === 'string' && raw.indexOf('/') !== -1) {
-      var parts = raw.split('/');
-      d = parts.length===3 ? new Date(+parts[2],+parts[1]-1,+parts[0]) : null;
-    } else { d = new Date(raw); }
-    return (d && !isNaN(d)) ? d : null;
+    // DD/MM/YYYY or D/M/YYYY
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
+      var pts = s.split('/');
+      d = new Date(+pts[2], +pts[1]-1, +pts[0]);
+    // ISO: YYYY-MM-DD or YYYY-MM-DDTHH:MM or YYYY-MM-DD HH:MM — parse date part only to avoid UTC shift
+    } else if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      var datePart = s.slice(0,10); // 'YYYY-MM-DD'
+      var dp = datePart.split('-');
+      d = new Date(+dp[0], +dp[1]-1, +dp[2]); // local midnight — no UTC shift
+    } else {
+      d = new Date(s);
+    }
+    return (d && !isNaN(d.getTime())) ? d : null;
   }
   function dateBucket2(d, seasonYear) {
     if (!d) return -1;
@@ -3946,21 +3955,25 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
     return -1;
   }
 
+  // Monthly buckets — only use registrationDate (not importedAt fallback)
+  // importedAt is the import date, not when the player registered — useless for this chart
   const curMonths = new Array(12).fill(0);
+  var hasRealRegDates = 0;
   rows.forEach(function(r){
-    var raw=r.registrationDate||r.regDate||r.importedAt||null;
-    var b=dateBucket2(parseDateStr2(raw),+plSeason);
-    if(b>=0)curMonths[b]++;
+    var raw = r.registrationDate || r.regDate || null; // NO importedAt fallback
+    if (!raw) return;
+    var b = dateBucket2(parseDateStr2(raw), +plSeason);
+    if (b >= 0) { curMonths[b]++; hasRealRegDates++; }
   });
 
-  // Previous 2 years monthly average
+  // Previous 2 years monthly average — only real registration dates, no importedAt fallback
   const prevYears2 = allYears.filter(function(y){return +y<+plSeason;}).slice(-2);
   const prevAvgMonths = new Array(12).fill(0);
   let hasPrevMonthData = false;
   prevYears2.forEach(function(py){
     (plData.seasons||[]).filter(function(s){return+s.year===+py;}).forEach(function(r){
-      var raw=r.registrationDate||r.regDate||r.importedAt||null;
-      var b=dateBucket2(parseDateStr2(raw),+py);
+      var raw = r.registrationDate || r.regDate || null; // no importedAt
+      var b = dateBucket2(parseDateStr2(raw), +py);
       if(b>=0){prevAvgMonths[b]++;hasPrevMonthData=true;}
     });
   });
@@ -4108,14 +4121,20 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
 
     function parseDateStr(raw) {
       if (!raw) return null;
+      var s = (typeof raw === 'string') ? raw.trim() : String(raw);
       var d;
-      if (typeof raw === 'string' && raw.indexOf('/') !== -1) {
-        var parts = raw.split('/');
-        d = parts.length === 3 ? new Date(+parts[2], +parts[1]-1, +parts[0]) : null;
+      // DD/MM/YYYY
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
+        var pts = s.split('/');
+        d = new Date(+pts[2], +pts[1]-1, +pts[0]);
+      // ISO YYYY-MM-DD (with optional time) — parse date part only to avoid UTC shift
+      } else if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+        var dp = s.slice(0,10).split('-');
+        d = new Date(+dp[0], +dp[1]-1, +dp[2]);
       } else {
-        d = new Date(raw);
+        d = new Date(s);
       }
-      return (d && !isNaN(d)) ? d : null;
+      return (d && !isNaN(d.getTime())) ? d : null;
     }
 
     function dateToBucket(d, seasonYear) {
@@ -4127,19 +4146,20 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
     }
 
     seasonRows.forEach(function(r) {
-      var raw = r.registrationDate || r.regDate || r.importedAt || null;
+      // Only use real registration dates — importedAt is the import date, not registration date
+      var raw = r.registrationDate || r.regDate || null;
       var d   = parseDateStr(raw);
       var b   = dateToBucket(d, +plSeason);
       if (b >= 0) { monthCounts[b]++; monthPids[b].push(r.profileId); hasDate = true; }
     });
 
-    // Previous years monthly average for comparison (up to last 2 years with data)
+    // Previous years monthly average — only real dates
     var prevYears = allYears.filter(function(y) { return +y < +plSeason; }).slice(-2);
     var prevMonthAvg = [0,0,0,0,0,0,0,0,0,0,0,0];
     if (prevYears.length) {
       prevYears.forEach(function(py) {
         (plData.seasons||[]).filter(function(s){return +s.year===+py;}).forEach(function(r) {
-          var raw = r.registrationDate || r.regDate || r.importedAt || null;
+          var raw = r.registrationDate || r.regDate || null;
           var d   = parseDateStr(raw);
           var b   = dateToBucket(d, +py);
           if (b >= 0) prevMonthAvg[b]++;
@@ -4148,13 +4168,19 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
       for (var i=0;i<12;i++) prevMonthAvg[i] = Math.round(prevMonthAvg[i] / prevYears.length);
     }
 
+    // If no real registration dates — show a message instead of misleading data
     if (!hasDate) {
-      var today0 = new Date();
-      var b0 = dateToBucket(today0, +plSeason);
-      if (b0 < 0) b0 = 5;
-      monthCounts[b0] = seasonRows.length;
-      seasonRows.forEach(function(r){ monthPids[b0].push(r.profileId); });
-    }
+      if (monEl) monEl.style.display = 'none';
+      var noDateMsg = document.createElement('div');
+      noDateMsg.style.cssText = 'text-align:center;padding:20px 16px;font-size:12px;color:var(--text-dim);background:var(--bg);border-radius:8px;border:1px dashed var(--border);margin-bottom:4px;';
+      noDateMsg.innerHTML = '📅 Registration date data not yet available for ' + plSeason + '<br>'
+        + '<span style="font-size:11px;">Use the <strong>Backfill Registration Dates</strong> tool on the Import tab to add historical dates.</span>';
+      if (monEl && monEl.parentNode) monEl.parentNode.insertBefore(noDateMsg, monEl);
+      var monTitle = document.getElementById('chart-monthly-title');
+      var monSub   = document.getElementById('chart-monthly-sub');
+      if (monTitle) monTitle.style.color = 'var(--text-dim)';
+      if (monSub)   monSub.textContent   = 'Run backfill to populate';
+    } else {
 
     // Trim to current date — don't show future empty months
     var today2 = new Date();
@@ -4213,7 +4239,8 @@ function _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears) {
         }
       })
     });
-  }
+  } // end else (hasDate)
+  } // end if (monthEl)
 
   // ── 2. YEAR ON YEAR COMPARISON ──
   var yoyEl = document.getElementById('chart-yoy');
