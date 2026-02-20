@@ -1941,8 +1941,10 @@ async function _loadSponsorAI(s, season, prevYr, prev) {
     .map(([t,d]) => (TL[t]||t) + ': ' + d.count + (d.ikCount ? ' (' + d.ikCount + ' in-kind)' : '') + ' · $' + fmt(d.amount))
     .join('; ');
 
-  // Prospect count
-  const prospects = orgs.filter(o => o.orgStatus === 'prospect').length;
+  // Prospects only meaningful for current season — orgStatus is a live field, not historical
+  const _spCurrentYear = today.getFullYear();
+  const _spIsCurrentSeason = +season >= _spCurrentYear;
+  const prospects = _spIsCurrentSeason ? orgs.filter(o => o.orgStatus === 'prospect').length : 0;
 
   // Multi-year context
   const yoyStr = years.slice(0,4).map(y => {
@@ -1950,23 +1952,42 @@ async function _loadSponsorAI(s, season, prevYr, prev) {
     return y + ': $' + fmt(ys.total) + ' (' + ys.count + ' sponsors)';
   }).join(', ');
 
-  const prompt = 'You are helping volunteers at a community junior football club understand their sponsorship season. '
-    + 'This club has no paid staff — everyone involved is a volunteer giving their time. '
-    + 'Today is ' + today.toLocaleDateString('en-AU', {day:'numeric', month:'long', year:'numeric'}) + '. '
-    + 'IMPORTANT: Sponsorship payments are not due until the season starts, so any outstanding amounts are completely normal and expected — do not frame them as a problem. '
-    + 'Your tone should be warm, encouraging, and data-driven. Celebrate what has been achieved. Be specific with numbers. '
-    + 'Write 3-5 concise bullet points. Each starts with a relevant emoji. Use **bold** for key figures. '
-    + 'Focus on: pipeline strength, year-on-year progress, tier mix, and one practical next step the team can feel good about. '
-    + 'No headers. Each bullet 1-2 sentences max.\n\n'
-    + 'Season: ' + season + '\n'
-    + 'Total committed: $' + fmt(s.total) + ' across ' + s.count + ' sponsors\n'
-    + 'Collected: $' + fmt(s.recv) + ' (' + pct + '%)'
-    + (prevPct !== null ? ', vs ' + prevPct + '% collected all of ' + prevYr : '') + '\n'
-    + 'Outstanding: $' + fmt(s.outstanding) + ' across ' + s.outCount + ' invoices\n'
-    + (s.ikCount ? 'In-kind: ' + s.ikCount + ' sponsors\n' : '')
-    + 'By tier: ' + (tierStr || 'no sponsors yet') + '\n'
-    + (prospects ? 'Prospects in pipeline: ' + prospects + '\n' : '')
-    + 'Historical: ' + yoyStr;
+  var prompt;
+  if (!_spIsCurrentSeason) {
+    // Historical season — review framing
+    prompt = 'You are helping volunteers at a community junior football club review a completed sponsorship season. '
+      + 'This club has no paid staff — everyone involved is a volunteer giving their time. '
+      + 'The ' + season + ' season is now complete. Write a warm, honest season review — celebrate achievements, '
+      + 'note what the numbers show, and highlight one thing worth carrying into future seasons. '
+      + 'Write 3-5 concise bullet points. Each starts with a relevant emoji. Use **bold** for key figures. '
+      + 'Speak in past tense. No headers. Each bullet 1-2 sentences max.\n\n'
+      + 'Season: ' + season + ' (completed)\n'
+      + 'Total raised: $' + fmt(s.total) + ' across ' + s.count + ' sponsors\n'
+      + 'Collected: $' + fmt(s.recv) + ' (' + pct + '%)'
+      + (prevPct !== null ? ', vs ' + prevPct + '% in ' + prevYr : '') + '\n'
+      + (s.ikCount ? 'In-kind: ' + s.ikCount + ' sponsors\n' : '')
+      + 'By tier: ' + (tierStr || 'no sponsors') + '\n'
+      + 'Historical context: ' + yoyStr;
+  } else {
+    // Current/upcoming season — forward-looking framing
+    prompt = 'You are helping volunteers at a community junior football club understand their sponsorship season. '
+      + 'This club has no paid staff — everyone involved is a volunteer giving their time. '
+      + 'Today is ' + today.toLocaleDateString('en-AU', {day:'numeric', month:'long', year:'numeric'}) + '. '
+      + 'IMPORTANT: Sponsorship payments are not due until the season starts, so any outstanding amounts are completely normal and expected — do not frame them as a problem. '
+      + 'Your tone should be warm, encouraging, and data-driven. Celebrate what has been achieved. Be specific with numbers. '
+      + 'Write 3-5 concise bullet points. Each starts with a relevant emoji. Use **bold** for key figures. '
+      + 'Focus on: pipeline strength, year-on-year progress, tier mix, and one practical next step the team can feel good about. '
+      + 'No headers. Each bullet 1-2 sentences max.\n\n'
+      + 'Season: ' + season + '\n'
+      + 'Total committed: $' + fmt(s.total) + ' across ' + s.count + ' sponsors\n'
+      + 'Collected: $' + fmt(s.recv) + ' (' + pct + '%)'
+      + (prevPct !== null ? ', vs ' + prevPct + '% collected all of ' + prevYr : '') + '\n'
+      + 'Outstanding: $' + fmt(s.outstanding) + ' across ' + s.outCount + ' invoices\n'
+      + (s.ikCount ? 'In-kind: ' + s.ikCount + ' sponsors\n' : '')
+      + 'By tier: ' + (tierStr || 'no sponsors yet') + '\n'
+      + (prospects ? 'Prospects in pipeline: ' + prospects + '\n' : '')
+      + 'Historical: ' + yoyStr;
+  }
 
   try {
     const res = await api('getAIInsights', { prompt });
