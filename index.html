@@ -5654,9 +5654,21 @@ function renderPlPlayers() {
   const ags = teamAgs.length ? teamAgs : fallbackAgs;
   const usingTeams = teamAgs.length > 0;
 
+  // Pre-count eligible players per age group for dropdown labels
+  const eligibleCountByAg = {};
+  if (usingTeams) {
+    ags.forEach(ag => {
+      eligibleCountByAg[ag] = rows.filter(r => {
+        const p = pm[r.profileId] || {};
+        return playerEligibleGroups(r, p).includes(ag);
+      }).length;
+    });
+  }
+
   const optionsHtml = ags.map(a => {
-    const num = (parseInt(a.replace(/\D/g,''))||0) - 1;
-    const label = usingTeams ? a + ' (≤ ' + num + ')' : a;
+    const label = usingTeams
+      ? a + ' (' + (eligibleCountByAg[a] || 0) + ' eligible)'
+      : a;
     return '<option value="' + a + '">' + label + '</option>';
   }).join('');
 
@@ -5683,19 +5695,17 @@ function renderFilteredPlayers() {
   const agF    = document.getElementById('pl-filter-ag')?.value||'';
   const genF   = document.getElementById('pl-filter-gender')?.value||'';
 
-  // Determine if we're using team-sourced age groups (≤ age filtering)
+  // Determine if we're using team-sourced age groups (eligible-group filtering)
   const seasonTeams = plSeasonTeams().filter(t => t.name && t.ageGroup);
   const usingTeams  = seasonTeams.length > 0;
-  // Max age for ≤ filter: U12 → age 11 (calcAge-1 is the natural age = U-group number - 1)
-  const agFNum = agF ? parseInt(agF.replace(/\D/g,'')) : 0;
 
   let filtered = rows.map(r => ({ ps: r, p: pm[r.profileId]||{} }))
     .filter(({ps,p}) => {
       if (agF) {
         if (usingTeams) {
-          // Show players whose natural age (Jan 1) is <= agFNum - 1
-          const natAge = playerNaturalAge(ps);
-          if (natAge === null || natAge > agFNum - 1) return false;
+          // Show players whose eligible groups include this group (AFL eligibility rules)
+          const el = playerEligibleGroups(ps, p);
+          if (!el.includes(agF)) return false;
         } else {
           if (effectiveAgeGroup(ps) !== agF) return false;
         }
