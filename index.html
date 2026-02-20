@@ -177,8 +177,8 @@ header{
 }
 /* Recruitment row: 7 tabs spread evenly */
 .dbar-row2-recruit .dtab{flex:1;justify-content:center;padding:0 4px;min-width:0;}
-/* Sponsor row: left-aligned */
-.dbar-row2:not(.dbar-row2-recruit) .dtab{padding:0 18px;}
+.dbar-row2-sponsor .dtab{padding:0 18px;}
+.dbar-row2:not(.dbar-row2-recruit):not(.dbar-row2-sponsor) .dtab{padding:0 18px;}
 .dtab{
   min-height:38px;border:none;border-bottom:3px solid transparent;
   background:transparent;font-size:12px;font-weight:700;cursor:pointer;
@@ -744,7 +744,6 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
   .logo-text h1{font-size:17px;}
   #user-name{display:none!important;}
   .user-pill{padding:2px 5px 2px 3px;}
-  #sync-state{font-size:9px !important;}
   .desktop-only{display:none !important;}
   .hnav-sync{gap:3px;}
   .lobtn,.hnav-signout{display:none!important;} /* in hamburger */
@@ -796,10 +795,6 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 .stable tr:last-child td{border-bottom:none;}
 .stable tbody tr{cursor:pointer;transition:background .12s;}
 .stable tbody tr:hover{background:var(--green-light);}
-#sync-state,.sync-ok,.sync-loading,.sync-err{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;}
-.sync-ok{background:var(--green-light);color:var(--green);}
-.sync-loading{background:var(--yellow-pale);color:var(--yellow-dark);}
-.sync-err{background:var(--red-light);color:var(--red);}
 
 /* ── Admin modal tabs ── */
 .adm-tabs{display:flex;gap:4px;padding-bottom:12px;border-bottom:1.5px solid var(--border);flex-wrap:wrap;}
@@ -861,16 +856,10 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
         <div class="user-pill-init" id="user-init">?</div>
         <span id="user-name"></span>
       </div>
-      <!-- Desktop nav items (hidden on mobile via CSS) -->
-      <div id="header-nav-desktop" class="hnav-desktop">
-        <div id="admin-nav-btns" style="display:none;align-items:center;gap:4px;">
-          <button class="hnav-btn" onclick="openAdminModal('log')">Access Log</button>
-          <button class="hnav-btn" onclick="openAdminModal('users')">Users</button>
-        </div>
-      </div>
+      <!-- Desktop nav items (admin tab in dashboard nav instead) -->
+      <div id="header-nav-desktop" class="hnav-desktop"></div>
       <!-- Last loaded timestamp (quiet) + Sign Out -->
       <div class="hnav-sync">
-        <span id="sync-state"></span>
         <button class="lobtn hnav-signout" onclick="doLogout()" id="signout-btn">Sign Out</button>
       </div>
       <!-- Hamburger (mobile only) -->
@@ -895,9 +884,10 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button class="dtab dashboard-tab" id="dash-tab-recruitment" onclick="switchDashboard('recruitment')" style="display:none;">🏉 Recruitment</button>
     </div>
     <!-- Row 2a: Sponsor sub-tabs -->
-    <div class="dbar-row2" id="dash-sub-sponsors">
+    <div class="dbar-row2 dbar-row2-sponsor" id="dash-sub-sponsors">
       <button class="dtab act" id="dsub-add-sponsor" onclick="openAddOrg()">+ Add Sponsor</button>
-      <button class="dtab" onclick="openAdminModal('packages')">Packages</button>
+      <button class="dtab" onclick="openAdminModal('packages')">${me && (me.admin||me.edit) ? 'View/Edit Packages' : 'View Packages'}</button>
+      <button class="dtab" id="dsub-admin" style="display:none;" onclick="switchDashboard('admin-panel')">⚙️ Admin</button>
     </div>
     <!-- Row 2b: Recruitment sub-tabs — all 7 fit on one row, labels shorten on mobile -->
     <div class="dbar-row2 dbar-row2-recruit" id="dash-sub-recruitment" style="display:none;">
@@ -905,6 +895,11 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button class="dtab"     data-tab="players"   onclick="switchPlTab(this,'players')"><span class="dtab-icon">👥</span><span class="dtab-lbl">Players</span></button>
       <button class="dtab"     data-tab="teams"     onclick="switchPlTab(this,'teams')"><span class="dtab-icon">🏉</span><span class="dtab-lbl">Teams</span></button>
       <button class="dtab"     data-tab="import"    onclick="switchPlTab(this,'import')"><span class="dtab-icon">📥</span><span class="dtab-lbl">Import</span></button>
+    </div>
+    <!-- Row 2c: Admin sub-tabs (admin only, desktop) -->
+    <div class="dbar-row2 dbar-row2-sponsor" id="dash-sub-admin" style="display:none;">
+      <button class="dtab act" data-admintab="users" onclick="switchAdminTab(this,'users')"><span class="dtab-icon">👤</span><span class="dtab-lbl">Manage Users</span></button>
+      <button class="dtab" data-admintab="log" onclick="switchAdminTab(this,'log')"><span class="dtab-icon">📋</span><span class="dtab-lbl">Activity Log</span></button>
     </div>
   </div>
 
@@ -1023,6 +1018,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       </div>
       <div id="pl-body" style="min-height:400px;padding-top:4px;"></div>
     </div>
+    <div id="admin-panel-content" style="display:none;"></div>
   </main>
 
 
@@ -1666,7 +1662,6 @@ async function loadAll() {
     populatePackageSelect();
     renderSeasonTabs();
     render(); // always update sponsorship KPIs
-    setSyncState('ok', 'Synced · ' + fmtTime(new Date()));
     // Restore whichever dashboard was active — don't reset to sponsors on refresh
     const wasDash = typeof _currentDashboard !== 'undefined' ? _currentDashboard : 'sponsors';
     if (wasDash === 'recruitment') {
@@ -1709,7 +1704,7 @@ function renderUserUI() {
     pic.src = me.picture; pic.style.display = 'block';
     if (initEl) initEl.style.display = 'none';
   }
-  if (me.admin) { const el = document.getElementById('admin-nav-btns'); if(el) el.style.display='flex'; const rt = document.getElementById('dash-tab-recruitment'); if(rt) rt.style.display='flex'; const hma = document.getElementById('hmenu-admin'); if(hma) hma.style.display='block'; }  if (!me.edit) { const b = document.getElementById('add-sponsor-btn'); if(b) b.style.display='none'; }
+  if (me.admin) { const rt = document.getElementById('dash-tab-recruitment'); if(rt) rt.style.display='flex'; const hma = document.getElementById('hmenu-admin'); if(hma) hma.style.display='block'; const da = document.getElementById('dsub-admin'); if(da) da.style.display='flex'; }  if (!me.edit) { const b = document.getElementById('add-sponsor-btn'); if(b) b.style.display='none'; }
 }
 
 // ════════════════════════════════════════════════════════
@@ -2872,8 +2867,8 @@ async function openAdminModal(tab) {
 }
 function closeAdminModal() { document.getElementById('admin-modal').classList.remove('open'); }
 
-async function loadAdminTab(tab) {
-  const body = document.getElementById('adm-body');
+async function loadAdminTab(tab, containerId) {
+  const body = document.getElementById(containerId || 'adm-body');
   if (tab==='packages') {
     renderPackageManager();
     return;
@@ -3159,9 +3154,9 @@ function btnLoading(el, isLoading) {
 //  SYNC STATE / TOAST
 // ════════════════════════════════════════════════════════
 function setSyncState(state, text) {
-  const el = document.getElementById('sync-state'); if (!el) return;
+  return; // sync-state pill removed
   if (state === 'ok') {
-    el.textContent = 'Loaded ' + fmtTime(new Date());
+    // (loaded pill removed)
     el.style.color = 'rgba(255,255,255,.45)';
   } else if (state === 'loading') {
     el.textContent = 'Loading…';
@@ -3293,6 +3288,25 @@ let plDetailId   = null;  // profileId of open player detail
 
 // ── OPEN / CLOSE ─────────────────────────────────────────────────
 // ── HAMBURGER MENU ───────────────────────────────────────────────
+function switchAdminTab(btn, tab) {
+  document.querySelectorAll('#dash-sub-admin .dtab').forEach(b => b.classList.toggle('act', b === btn));
+  renderAdminPanel(tab);
+}
+
+function renderAdminPanel(tab) {
+  const el = document.getElementById('admin-panel-content');
+  if (!el) return;
+  const activetab = tab || document.querySelector('#dash-sub-admin .dtab.act')?.dataset?.admintab || 'users';
+  // Sync active state
+  document.querySelectorAll('#dash-sub-admin .dtab').forEach(b => {
+    b.classList.toggle('act', b.dataset.admintab === activetab);
+  });
+  el.innerHTML = '<div style="padding:20px;max-width:900px;">' +
+    '<div class="section-head"><h2 class="section-title">' + (activetab === 'users' ? 'Manage Users' : 'Activity Log') + '</h2></div>' +
+    '<div id="admin-panel-body"></div></div>';
+  loadAdminTab(activetab, 'admin-panel-body');
+}
+
 function buildHamburgerMenu() {
   const menu = document.getElementById('hamburger-menu');
   const dash  = typeof _currentDashboard !== 'undefined' ? _currentDashboard : 'sponsors';
@@ -3306,7 +3320,7 @@ function buildHamburgerMenu() {
   if (canEdit) {
     html += `<button class="hmenu-item" onclick="switchDashboard('sponsors');openAddOrg();toggleHamburger()">➕ Add Sponsor</button>`;
   }
-  html += `<button class="hmenu-item" onclick="switchDashboard('sponsors');openAdminModal('packages');toggleHamburger()">📦 Packages</button>`;
+  html += `<button class="hmenu-item" onclick="switchDashboard('sponsors');openAdminModal('packages');toggleHamburger()">📦 ${canEdit ? 'View/Edit Packages' : 'View Packages'}</button>`;
 
   // ── Recruitment — always visible for admins ───────────────
   if (isAdmin) {
@@ -3384,25 +3398,35 @@ let _currentDashboard = 'sponsors';
 function switchDashboard(which) {
   _currentDashboard = which;
 
-  // Dashboard selector tabs
-  document.getElementById('dash-tab-sponsors').classList.toggle('act', which === 'sponsors');
+  // Dashboard selector tabs — admin-panel shares sponsors appearance
+  document.getElementById('dash-tab-sponsors').classList.toggle('act', which === 'sponsors' || which === 'admin-panel');
   document.getElementById('dash-tab-recruitment').classList.toggle('act', which === 'recruitment');
 
-  // Sub-nav sections
-  document.getElementById('dash-sub-sponsors').style.display    = which === 'sponsors'    ? 'flex' : 'none';
+  // Sub-nav rows
+  document.getElementById('dash-sub-sponsors').style.display    = (which === 'sponsors' || which === 'admin-panel') ? 'flex' : 'none';
   document.getElementById('dash-sub-recruitment').style.display = which === 'recruitment' ? 'flex' : 'none';
+  document.getElementById('dash-sub-admin').style.display       = which === 'admin-panel' ? 'flex' : 'none';
+
+  // Admin sub-tab button active state
+  if (document.getElementById('dsub-admin')) {
+    document.getElementById('dsub-admin').classList.toggle('act', which === 'admin-panel');
+  }
 
   // Content panels
   document.getElementById('sponsor-content').style.display     = which === 'sponsors'    ? 'block' : 'none';
   document.getElementById('recruitment-content').style.display = which === 'recruitment' ? 'block' : 'none';
+  const adminContent = document.getElementById('admin-panel-content');
+  if (adminContent) adminContent.style.display = which === 'admin-panel' ? 'block' : 'none';
 
   if (which === 'recruitment') {
-    // Sync plSeason with current yellow bar season
     const activeTab = document.querySelector('.stab.act');
     if (activeTab && activeTab.dataset.year) plSeason = +activeTab.dataset.year;
     initPlayerSeasonSel();
     if (!plData) loadPlayerData();
     else renderPlTab();
+  }
+  if (which === 'admin-panel') {
+    renderAdminPanel();
   }
 }
 
@@ -4947,7 +4971,8 @@ function openPlayerDetail(profileId) {
 
   // Compute age + eligibility for nearby groups
   const calcAgeVal = ps.calcAge ? +ps.calcAge : null;
-  const eligible = calcAgeVal ? [calcAgeVal-1, calcAgeVal, calcAgeVal+1].filter(a=>a>=9&&a<=17).map(a=>'U'+a) : []; // U-labels here are team groups, appropriate
+  const natAgeVal  = calcAgeVal ? calcAgeVal - 1 : null; // age on Jan 1 of season
+  const eligible   = natAgeVal ? playerEligibleGroups(ps, p) : [];
 
   // Build seasons history for this player
   const allPlayerSeasons = (plData.seasons||[])
@@ -4994,7 +5019,7 @@ function openPlayerDetail(profileId) {
     <div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:16px;">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">Age & Team Assignment</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
-        <span style="font-size:13px;">Calculated age <strong>${calcAgeVal||'?'}</strong> → eligible: ${eligible.map(g=>`<span style="background:var(--green-light);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">${g}</span>`).join(' ')}</span>
+        <span style="font-size:13px;">Age on Jan 1: <strong>${natAgeVal||'?'}</strong> → eligible: ${eligible.map(g=>`<span style="background:var(--green-light);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">${g}</span>`).join(' ')}</span>
       </div>
       <!-- Team assignment — always visible -->
       <div style="margin-bottom:10px;">
@@ -5604,7 +5629,8 @@ function renderPlImport() {
       <input type="file" id="import-file-input" accept=".csv" style="display:none" onchange="handleImportFile(this.files[0])">
       <div id="import-review" style="margin-top:20px;"></div>
 
-      <!-- ── ONE-OFF: Backfill registration dates ─────────────────── -->
+      <!-- ── ONE-OFF: Backfill registration dates (admin only) ─── -->
+      ${me && me.admin ? `
         <details style="margin-top:28px;border:1.5px solid #fbbf24;border-radius:10px;overflow:hidden;">
         <summary style="cursor:pointer;padding:10px 14px;background:#fffbeb;font-size:12px;font-weight:700;color:#92400e;list-style:none;display:flex;align-items:center;gap:8px;">
           <span>🛠️</span> <span>One-off: Backfill Season Snapshot</span>
@@ -5656,6 +5682,7 @@ function renderPlImport() {
           <div id="clear-season-status" style="margin-top:10px;font-size:12px;"></div>
         </div>
       </details>
+      ` : ''}
     </div>
   `;
 }
