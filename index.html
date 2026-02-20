@@ -878,18 +878,18 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 
   <!-- DASHBOARD NAV: Row 1 = dashboard switcher, Row 2 = sub-tabs -->
   <div id="dashboard-nav" class="dashboard-nav">
-    <!-- Row 1: Dashboard selector — always fully visible, tabs fill width equally -->
+    <!-- Row 1: Dashboard selector -->
     <div class="dbar-row1">
       <button class="dtab dashboard-tab act" id="dash-tab-sponsors" onclick="switchDashboard('sponsors')">🏆 Sponsorship</button>
       <button class="dtab dashboard-tab" id="dash-tab-recruitment" onclick="switchDashboard('recruitment')" style="display:none;">🏉 Recruitment</button>
+      <button class="dtab dashboard-tab" id="dash-tab-admin" onclick="switchDashboard('admin-panel')" style="display:none;">⚙️ Admin</button>
     </div>
     <!-- Row 2a: Sponsor sub-tabs -->
     <div class="dbar-row2 dbar-row2-sponsor" id="dash-sub-sponsors">
-      <button class="dtab act" id="dsub-add-sponsor" onclick="openAddOrg()">+ Add Sponsor</button>
-      <button class="dtab" onclick="openAdminModal('packages')">${me && (me.admin||me.edit) ? 'View/Edit Packages' : 'View Packages'}</button>
-      <button class="dtab" id="dsub-admin" style="display:none;" onclick="switchDashboard('admin-panel')">⚙️ Admin</button>
+      <button class="dtab act" id="dsub-add-sponsor" onclick="openAddOrg()"><span class="dtab-icon">➕</span><span class="dtab-lbl">Add Sponsor</span></button>
+      <button class="dtab" id="dsub-packages" onclick="openAdminModal('packages')"><span class="dtab-icon">📦</span><span class="dtab-lbl" id="packages-lbl">Packages</span></button>
     </div>
-    <!-- Row 2b: Recruitment sub-tabs — all 7 fit on one row, labels shorten on mobile -->
+    <!-- Row 2b: Recruitment sub-tabs -->
     <div class="dbar-row2 dbar-row2-recruit" id="dash-sub-recruitment" style="display:none;">
       <button class="dtab act" data-tab="overview"  onclick="switchPlTab(this,'overview')"><span class="dtab-icon">📊</span><span class="dtab-lbl">Overview</span></button>
       <button class="dtab"     data-tab="players"   onclick="switchPlTab(this,'players')"><span class="dtab-icon">👥</span><span class="dtab-lbl">Players</span></button>
@@ -907,10 +907,9 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
   <main id="main-wrap">
     <!-- SPONSORSHIP CONTENT -->
     <div id="sponsor-content">
-    <!-- ROW 1: Season title + Add button -->
+    <!-- ROW 1: Season title -->
     <div class="season-head">
       <h2 class="section-title" id="season-span">SPONSORSHIP</h2>
-      <button class="actbtn" onclick="openAddOrg()" id="add-sponsor-btn" style="margin-left:auto">+ Add Sponsor</button>
     </div>
 
     <!-- ROW 2: KPI CARDS (full width, 4 col) -->
@@ -1704,7 +1703,17 @@ function renderUserUI() {
     pic.src = me.picture; pic.style.display = 'block';
     if (initEl) initEl.style.display = 'none';
   }
-  if (me.admin) { const rt = document.getElementById('dash-tab-recruitment'); if(rt) rt.style.display='flex'; const hma = document.getElementById('hmenu-admin'); if(hma) hma.style.display='block'; const da = document.getElementById('dsub-admin'); if(da) da.style.display='flex'; }  if (!me.edit) { const b = document.getElementById('add-sponsor-btn'); if(b) b.style.display='none'; }
+  if (me.admin) {
+    const rt = document.getElementById('dash-tab-recruitment'); if(rt) rt.style.display='flex';
+    const hma = document.getElementById('hmenu-admin'); if(hma) hma.style.display='block';
+    const at = document.getElementById('dash-tab-admin'); if(at) at.style.display='flex';
+  }
+  // Set packages label based on role
+  const pkgLbl = document.getElementById('packages-lbl');
+  if (pkgLbl) pkgLbl.textContent = (me.admin || me.edit) ? 'View/Edit Packages' : 'View Packages';
+  // Hide Add Sponsor tab for read-only users
+  const addSpBtn = document.getElementById('dsub-add-sponsor');
+  if (addSpBtn && !(me.admin || me.edit)) addSpBtn.style.display = 'none';  // add-sponsor-btn removed from DOM
 }
 
 // ════════════════════════════════════════════════════════
@@ -3398,19 +3407,16 @@ let _currentDashboard = 'sponsors';
 function switchDashboard(which) {
   _currentDashboard = which;
 
-  // Dashboard selector tabs — admin-panel shares sponsors appearance
-  document.getElementById('dash-tab-sponsors').classList.toggle('act', which === 'sponsors' || which === 'admin-panel');
+  // Dashboard selector tabs
+  document.getElementById('dash-tab-sponsors').classList.toggle('act', which === 'sponsors');
   document.getElementById('dash-tab-recruitment').classList.toggle('act', which === 'recruitment');
+  const adminTab = document.getElementById('dash-tab-admin');
+  if (adminTab) adminTab.classList.toggle('act', which === 'admin-panel');
 
   // Sub-nav rows
-  document.getElementById('dash-sub-sponsors').style.display    = (which === 'sponsors' || which === 'admin-panel') ? 'flex' : 'none';
+  document.getElementById('dash-sub-sponsors').style.display    = which === 'sponsors'    ? 'flex' : 'none';
   document.getElementById('dash-sub-recruitment').style.display = which === 'recruitment' ? 'flex' : 'none';
   document.getElementById('dash-sub-admin').style.display       = which === 'admin-panel' ? 'flex' : 'none';
-
-  // Admin sub-tab button active state
-  if (document.getElementById('dsub-admin')) {
-    document.getElementById('dsub-admin').classList.toggle('act', which === 'admin-panel');
-  }
 
   // Content panels
   document.getElementById('sponsor-content').style.display     = which === 'sponsors'    ? 'block' : 'none';
