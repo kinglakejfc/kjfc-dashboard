@@ -4276,6 +4276,9 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
         datasets: [
           { type:'bar',  label: String(plSeason) + ' Season',
             data: trimCounts, backgroundColor: GREEN_LIGHT, borderColor: GREEN, borderWidth:1.5, borderRadius:3 },
+          { type:'line', label: 'Trend',
+            data: trimCounts, borderColor: GREEN_DARK, backgroundColor:'transparent',
+            borderWidth:2, pointRadius:3, pointBackgroundColor:GREEN_DARK, tension:0.3 },
           { type:'line', label: 'Prior yr avg',
             data: trimPrevAvg, borderColor: YELLOW, backgroundColor:'transparent',
             borderWidth:1.5, pointRadius:2, borderDash:[4,3], tension:0.3, hidden: !hasAnyPrev }
@@ -4283,7 +4286,10 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
       },
       options: Object.assign({}, compact, {
         plugins: {
-          legend: { display: hasAnyPrev, position:'bottom', labels:{boxWidth:8,font:{size:9},color:'#6b7280',padding:8} },
+          legend: { display: hasAnyPrev, position:'bottom', labels:{
+            boxWidth:8, font:{size:9}, color:'#6b7280', padding:8,
+            filter: function(item) { return item.text !== String(plSeason) + ' Season'; } // hide bar from legend, keep trend lines
+          }},
           tooltip: { callbacks: {
             title: function(items) {
               var idx = MONTH_NAMES.indexOf(items[0].label);
@@ -4291,6 +4297,7 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
               return items[0].label + ' ' + yr2;
             },
             label: function(ctx) {
+              if (ctx.datasetIndex === 1) return; // suppress duplicate Trend tooltip
               return ctx.dataset.label + ': ' + ctx.parsed.y + ' players' + (ctx.datasetIndex===0 ? ' \u00b7 click to view' : '');
             }
           }}
