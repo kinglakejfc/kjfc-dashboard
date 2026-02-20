@@ -3451,16 +3451,18 @@ function switchDashboard(which) {
   }
 
   if (which === 'recruitment') {
-    // Always reset to Overview sub-tab
+    // Read selected season from yellow bar FIRST, then render
+    const activeSeasonTab = document.querySelector('.stab.act');
+    if (activeSeasonTab && activeSeasonTab.dataset.year) plSeason = +activeSeasonTab.dataset.year;
+    // Reset to Overview sub-tab
     const overviewBtn = document.querySelector('#dash-sub-recruitment .dtab[data-tab="overview"]');
-    if (overviewBtn) switchPlTab(overviewBtn, 'overview');
-    else {
-      const activeTab = document.querySelector('.stab.act');
-      if (activeTab && activeTab.dataset.year) plSeason = +activeTab.dataset.year;
-      initPlayerSeasonSel();
-      if (!plData) loadPlayerData();
-      else renderPlTab();
+    if (overviewBtn) {
+      document.querySelectorAll('#dash-sub-recruitment .dtab').forEach(b => b.classList.remove('act'));
+      overviewBtn.classList.add('act');
     }
+    initPlayerSeasonSel();
+    if (!plData) loadPlayerData();
+    else renderPlTab();
   }
 
   if (which === 'admin-panel') {
