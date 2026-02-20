@@ -1044,7 +1044,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     <div class="msub" id="org-m-sub">New sponsor organisation.</div>
 
     <div class="frow two">
-      <div class="fg"><label>Business Name *</label><input type="text" id="of-name" placeholder="Business name" autocomplete="organization"></div>
+      <div class="fg"><label>Business Name *</label><input type="text" id="of-name" placeholder="Business name" autocomplete="organization" oninput="const w=document.getElementById('org-dup-warning');if(w){w.style.display='none';w.dataset.acknowledgedFor='';}"></div>
       <div class="fg"><label>Status</label>
         <select id="of-orgstatus">
           <option value="prospect">Prospect</option>
@@ -2398,6 +2398,9 @@ function closeOrgDetail() { document.getElementById('org-detail-overlay').classL
 //  ORG MODAL (add / edit organisation)
 // ════════════════════════════════════════════════════════
 function resetOrgModal() {
+  // Clear any duplicate warning
+  const _dw = document.getElementById('org-dup-warning');
+  if (_dw) { _dw.style.display = 'none'; _dw.dataset.acknowledgedFor = ''; }
   ['of-name','of-contact','of-email','of-phone','of-website','of-physaddr','of-postaddr','of-notes'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value='';
   });
@@ -2416,6 +2419,66 @@ function togglePostalSame() {
 document.getElementById('of-physaddr').addEventListener('input', function() {
   if (document.getElementById('of-postsame').checked) document.getElementById('of-postaddr').value = this.value;
 });
+
+// ── DUPLICATE SPONSOR DETECTION ──────────────────────────────────────
+// Normalise a business name for comparison: lowercase, strip common suffixes,
+// collapse whitespace, remove punctuation
+function _normOrgName(s) {
+  return (s||'').toLowerCase()
+    .replace(/pty\.?\s*ltd\.?|pty|ltd\.?|p\/l|inc\.?|co\.?|group|&|and|the/g, ' ')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Levenshtein distance (edit distance) between two strings
+function _editDist(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, (_, i) => Array.from({length: n+1}, (_, j) => i||j));
+  for (let i=1;i<=m;i++) for (let j=1;j<=n;j++)
+    dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1+Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+// Returns true if normA contains normB or vice versa, or edit dist is small relative to length
+function _orgSimilar(rawA, rawB) {
+  const a = _normOrgName(rawA), b = _normOrgName(rawB);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.includes(b) || b.includes(a)) return true;
+  const maxLen = Math.max(a.length, b.length);
+  const dist = _editDist(a, b);
+  // Allow up to ~25% edit distance for longer names, stricter for short
+  const threshold = maxLen <= 6 ? 1 : maxLen <= 12 ? 2 : Math.floor(maxLen * 0.25);
+  return dist <= threshold;
+}
+
+function findSimilarOrgs(name) {
+  return orgs.filter(o => o.id !== editOrgId && _orgSimilar(name, o.name));
+}
+
+function _showOrgDupWarning(name, similar) {
+  let el = document.getElementById('org-dup-warning');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'org-dup-warning';
+    el.style.cssText = 'border-radius:8px;padding:12px 14px;margin:10px 0;background:#fffbeb;border:1.5px solid #f59e0b;font-size:12px;line-height:1.5;';
+    // Insert before the save button row
+    const saveRow = document.querySelector('#org-modal .modal-btns') || document.getElementById('org-m-save')?.parentElement;
+    if (saveRow) saveRow.parentElement.insertBefore(el, saveRow);
+  }
+  el.dataset.acknowledgedFor = ''; // reset acknowledgement
+  el.innerHTML = '<div style="font-weight:700;color:#92400e;margin-bottom:6px;">⚠️ Possible duplicate — similar sponsors already exist:</div>'
+    + similar.slice(0,3).map(o => '<div style="color:#78350f;padding:2px 0;">• ' + o.name + '</div>').join('')
+    + '<div style="margin-top:8px;color:#92400e;">Is this a new sponsor, or did you mean one of the above?</div>'
+    + '<div style="display:flex;gap:8px;margin-top:10px;">'
+    + '<button onclick="var _dw=document.getElementById(\'org-dup-warning\');_dw.dataset.acknowledgedFor=document.getElementById(\'of-name\').value.trim();saveOrg();" style="flex:1;background:#f59e0b;color:#fff;border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">Add Anyway &#8212; it\'s different</button>'
+    + '<button onclick="document.getElementById(\'org-dup-warning\').style.display=\'none\'" style="flex:1;background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">&#8592; Go Back</button>'
+    + '</div>';
+  el.style.display = 'block';
+  // Scroll warning into view
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
 
 function openAddOrg() {
   if (!me?.edit) return;
@@ -2456,6 +2519,22 @@ function closeOrgModal() { document.getElementById('org-modal').classList.remove
 async function saveOrg() {
   const name = document.getElementById('of-name').value.trim();
   if (!name) { showToast('Enter a business name', 'warn'); return; }
+
+  // Duplicate detection — only on new sponsors, not edits
+  if (!editOrgId) {
+    const similar = findSimilarOrgs(name);
+    if (similar.length > 0) {
+      // Check if user already acknowledged this specific warning
+      const _dupWarnEl = document.getElementById('org-dup-warning');
+      const _acknowledged = _dupWarnEl && _dupWarnEl.dataset.acknowledgedFor === name;
+      if (!_acknowledged) {
+        // Show inline warning and stop — user must click "Add Anyway" or fix the name
+        _showOrgDupWarning(name, similar);
+        return;
+      }
+    }
+  }
+
   const data = {
     id:             editOrgId || '',
     name,
@@ -3085,7 +3164,7 @@ function openPackagesPanel() {
 
 function renderPackageManager() {
   const body = document.getElementById('adm-body');
-  const tierLabel = { gold:'🥇 Gold', silver:'🥈 Silver', bronze:'🥉 Bronze', community:'🤝 Community', custom:'⭐ Custom' };
+  // Use TE[] which is rebuilt from loaded packages — includes diamond and custom emoji
 
   const rows = packages.length ? packages.slice().sort((a,b) => (b.amount||0) - (a.amount||0)).map(function(p) {
     const usageCount = seasonEntries.filter(function(s) {
@@ -3097,7 +3176,7 @@ function renderPackageManager() {
       +   '<div style="flex:1;min-width:0;">'
       +     '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">'
       +       '<span style="font-weight:800;font-size:15px;">' + p.name + '</span>'
-      +       '<span style="font-size:11px;color:var(--text-dim);">' + (tierLabel[p.tier]||p.tier) + '</span>'
+      +       '<span style="font-size:11px;color:var(--text-dim);">' + (TE[p.tier]||'') + ' ' + (TL[p.tier]||p.tier) + '</span>'
       +       (p.active === 'false' ? '<span style="font-size:9px;background:#f3f4f6;color:#6b7280;padding:1px 6px;border-radius:8px;font-weight:700;">Inactive</span>' : '')
       +     '</div>'
       +     (p.description ? '<div style="font-size:12px;color:var(--text-dim);margin-top:2px;">' + p.description + '</div>' : '')
@@ -3126,7 +3205,8 @@ const DEFAULT_PKG_EMOJI = {diamond:'💎',gold:'🥇',silver:'🥈',bronze:'🥉
 function onPkgTierChange() {
   const tier = document.getElementById('pf-tier').value;
   const emojiField = document.getElementById('pf-emoji');
-  if (!emojiField.value || Object.values(DEFAULT_PKG_EMOJI).includes(emojiField.value)) {
+  // Only auto-fill emoji if the field is empty — never overwrite a saved custom emoji
+  if (!emojiField.value) {
     emojiField.value = DEFAULT_PKG_EMOJI[tier] || '⭐';
   }
 }
@@ -3135,8 +3215,9 @@ function openPkgModal(pkgId) {
   editPkgId = pkgId;
   const pkg = pkgId ? packages.find(function(p){ return p.id === pkgId; }) : null;
   document.getElementById('pkg-m-title').textContent = pkg ? 'Edit Package / Tier' : 'Add Package / Tier';
+  const _emojiToRestore = pkg ? (pkg.emoji || DEFAULT_PKG_EMOJI[pkg.tier] || '') : '🥇';
   document.getElementById('pf-tier').value     = pkg ? (pkg.tier||'gold') : 'gold';
-  document.getElementById('pf-emoji').value    = pkg ? (pkg.emoji || DEFAULT_PKG_EMOJI[pkg.tier] || '') : '🥇';
+  document.getElementById('pf-emoji').value    = _emojiToRestore; // set AFTER tier so it's never overwritten
   document.getElementById('pf-amount').value   = pkg ? pkg.amount    : '';
   document.getElementById('pf-desc').value     = pkg ? pkg.description : '';
   document.getElementById('pf-benefits').value = pkg ? pkg.benefits  : '';
@@ -4016,78 +4097,6 @@ function _renderOverviewHTML() {
         </div>
       </div>` : ''}
 
-      <!-- Gender Split — last year block → arrow → this year block -->
-      <div class="pl-kpi" onclick="openGenderSlideover()" style="cursor:pointer;margin-bottom:16px;">
-        <div class="pl-kpi-label">Female Participation</div>
-        ${(()=>{
-          const thisYr  = yoyData.find(d => +d.year === +plSeason) || null;
-          const lastYr  = yoyData.find(d => +d.year === +plSeason - 1) || null;
-          if (!thisYr) return '<div style="color:var(--text-dim);font-size:13px;">No data</div>';
-
-          const thisPct  = thisYr.total  ? Math.round(thisYr.girls  / thisYr.total  * 100) : 0;
-          const lastPct  = lastYr && lastYr.total ? Math.round(lastYr.girls / lastYr.total * 100) : null;
-          // Positive = improvement (more female players this season vs last)
-          const diffPct  = lastPct !== null ? thisPct - lastPct : null;
-          const diffNum  = lastYr ? thisYr.girls - lastYr.girls : null;
-          const arrowCol = diffPct === null ? '#9ca3af' : diffPct > 0 ? '#16a34a' : diffPct < 0 ? '#dc2626' : '#9ca3af';
-          const arrowSym = diffPct === null ? '→' : diffPct > 0 ? '↑' : diffPct < 0 ? '↓' : '→';
-          const diffLabel = diffPct !== null ? (diffPct > 0 ? '+' : '') + diffPct + 'pp' + (diffNum !== 0 ? ' (' + (diffNum > 0 ? '+' : '') + diffNum + ')' : '') : '';
-
-          // Current season on the LEFT (highlighted), previous on the RIGHT (muted)
-          const blockThis = '<div style="flex:1;background:rgba(201,180,0,.08);border:2px solid #c9b400;border-radius:12px;padding:16px 20px;">'
-            +   '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#a09000;margin-bottom:10px;">' + plSeason + ' Season</div>'
-            +   '<div style="font-size:48px;font-weight:900;color:#c9b400;line-height:1;">' + thisYr.girls + '</div>'
-            +   '<div style="font-size:13px;color:#a09000;margin-top:6px;">female players</div>'
-            +   '<div style="font-size:20px;font-weight:700;color:#c9b400;margin-top:8px;">' + thisPct + '%</div>'
-            +   '<div style="font-size:11px;color:#a09000;margin-top:2px;">of ' + thisYr.total + ' registered</div>'
-            + '</div>';
-
-          const blockArrow = lastYr
-            ? '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 16px;gap:6px;flex-shrink:0;">'
-            +   '<div style="font-size:40px;font-weight:900;color:' + arrowCol + ';line-height:1;">' + arrowSym + '</div>'
-            +   '<div style="font-size:12px;font-weight:800;color:' + arrowCol + ';text-align:center;">' + diffLabel + '</div>'
-            + '</div>'
-            : '';
-
-          const blockLast = lastYr
-            ? '<div style="flex:1;background:#f9fafb;border:1.5px solid var(--border);border-radius:12px;padding:16px 20px;">'
-            +   '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-dim);margin-bottom:10px;">Previous season (' + lastYr.year + ')</div>'
-            +   '<div style="font-size:48px;font-weight:900;color:var(--text-dim);line-height:1;">' + lastYr.girls + '</div>'
-            +   '<div style="font-size:13px;color:var(--text-dim);margin-top:6px;">female players</div>'
-            +   '<div style="font-size:20px;font-weight:700;color:var(--text-dim);margin-top:8px;">' + lastPct + '%</div>'
-            +   '<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">of ' + lastYr.total + ' registered</div>'
-            + '</div>'
-            : '';
-
-          return '<div style="display:flex;align-items:center;margin-top:12px;min-height:140px;">'
-            + blockThis + blockArrow + blockLast
-            + '</div>';
-        })()}
-      </div>
-
-      <!-- Schools + Avg Age + Teams + Retention row -->
-      <div class="pl-kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;align-items:start;">
-        <div class="pl-kpi" onclick="openSchoolsOverviewSlideover()" style="cursor:pointer;">
-          <div class="pl-kpi-label">Schools</div>
-          <div class="pl-kpi-val">${schools}</div>
-          <div class="pl-kpi-sub">represented →</div>
-        </div>
-        <div class="pl-kpi">
-          <div class="pl-kpi-label">Avg Age</div>
-          <div class="pl-kpi-val" style="color:var(--green)">${avgAge > 0 ? avgAge.toFixed(1) : '—'}</div>
-          <div class="pl-kpi-sub">at 1 Jan ${plSeason}</div>
-        </div>
-        <div class="pl-kpi" onclick="openTeamsOverviewSlideover()" style="cursor:pointer;">
-          <div class="pl-kpi-label">Teams</div>
-          <div class="pl-kpi-val" style="color:var(--green)">${activeTeams}</div>
-          <div class="pl-kpi-sub">active ${plSeason} →</div>
-        </div>
-        <div class="pl-kpi" onclick="openRetentionSlideover()" style="cursor:pointer;">
-          <div class="pl-kpi-label">Retention</div>
-          <div class="pl-kpi-val" style="color:${retentionPct >= 50 ? 'var(--green-bright)' : retentionPct >= 30 ? 'var(--yellow-dark)' : 'var(--red)'}">${retentionPct}%</div>
-          <div class="pl-kpi-sub">returned from ${plSeason-1} →</div>
-        </div>
-      </div>
       <!-- CHARTS SECTION -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;" id="overview-charts-grid">
         <!-- Row 1: Monthly registrations this season (full width) -->
@@ -4118,12 +4127,86 @@ function _renderOverviewHTML() {
         </div>
       </div>
 
+      <!-- Schools + Avg Age + Teams + Retention row -->
+      <div class="pl-kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;align-items:start;">
+        <div class="pl-kpi" onclick="openSchoolsOverviewSlideover()" style="cursor:pointer;">
+          <div class="pl-kpi-label">Schools</div>
+          <div class="pl-kpi-val">${schools}</div>
+          <div class="pl-kpi-sub">represented →</div>
+        </div>
+        <div class="pl-kpi">
+          <div class="pl-kpi-label">Avg Age</div>
+          <div class="pl-kpi-val" style="color:var(--green)">${avgAge > 0 ? avgAge.toFixed(1) : '—'}</div>
+          <div class="pl-kpi-sub">at 1 Jan ${plSeason}</div>
+        </div>
+        <div class="pl-kpi" onclick="openTeamsOverviewSlideover()" style="cursor:pointer;">
+          <div class="pl-kpi-label">Teams</div>
+          <div class="pl-kpi-val" style="color:var(--green)">${activeTeams}</div>
+          <div class="pl-kpi-sub">active ${plSeason} →</div>
+        </div>
+        <div class="pl-kpi" onclick="openRetentionSlideover()" style="cursor:pointer;">
+          <div class="pl-kpi-label">Retention</div>
+          <div class="pl-kpi-val" style="color:${retentionPct >= 50 ? 'var(--green-bright)' : retentionPct >= 30 ? 'var(--yellow-dark)' : 'var(--red)'}">${retentionPct}%</div>
+          <div class="pl-kpi-sub">returned from ${plSeason-1} →</div>
+        </div>
+      </div>
+
+      <!-- Gender Split — last year block → arrow → this year block -->
+      <div class="pl-kpi" onclick="openGenderSlideover()" style="cursor:pointer;margin-bottom:16px;">
+        <div class="pl-kpi-label">Female Participation</div>
+        ${(()=>{
+          const thisYr  = yoyData.find(d => +d.year === +plSeason) || null;
+          const lastYr  = yoyData.find(d => +d.year === +plSeason - 1) || null;
+          if (!thisYr) return '<div style="color:var(--text-dim);font-size:13px;">No data</div>';
+
+          const thisPct  = thisYr.total  ? Math.round(thisYr.girls  / thisYr.total  * 100) : 0;
+          const lastPct  = lastYr && lastYr.total ? Math.round(lastYr.girls / lastYr.total * 100) : null;
+          const diffPct  = lastPct !== null ? thisPct - lastPct : null;
+          const diffNum  = lastYr ? thisYr.girls - lastYr.girls : null;
+          const arrowCol = diffPct === null ? '#9ca3af' : diffPct > 0 ? '#16a34a' : diffPct < 0 ? '#dc2626' : '#9ca3af';
+          const arrowSym = diffPct === null ? '→' : diffPct > 0 ? '↑' : diffPct < 0 ? '↓' : '→';
+          const diffLabel = diffPct !== null ? (diffPct > 0 ? '+' : '') + diffPct + 'pp' + (diffNum !== 0 ? ' (' + (diffNum > 0 ? '+' : '') + diffNum + ')' : '') : '';
+
+          const blockThis = '<div style="flex:1;background:rgba(201,180,0,.08);border:2px solid #c9b400;border-radius:12px;padding:16px 20px;">'
+            +   '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#a09000;margin-bottom:10px;">' + plSeason + ' Season</div>'
+            +   '<div style="font-size:48px;font-weight:900;color:#c9b400;line-height:1;">' + thisYr.girls + '</div>'
+            +   '<div style="font-size:13px;color:#a09000;margin-top:6px;">female players</div>'
+            +   '<div style="font-size:20px;font-weight:700;color:#c9b400;margin-top:8px;">' + thisPct + '%</div>'
+            +   '<div style="font-size:11px;color:#a09000;margin-top:2px;">of ' + thisYr.total + ' registered</div>'
+            + '</div>';
+
+          const blockArrow = lastYr
+            ? '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 16px;gap:6px;flex-shrink:0;">'
+            +   '<div style="font-size:40px;font-weight:900;color:' + arrowCol + ';line-height:1;">' + arrowSym + '</div>'
+            +   '<div style="font-size:12px;font-weight:800;color:' + arrowCol + ';text-align:center;">' + diffLabel + '</div>'
+            + '</div>'
+            : '';
+
+          const blockLast = lastYr
+            ? '<div style="flex:1;background:#f9fafb;border:1.5px solid var(--border);border-radius:12px;padding:16px 20px;">'
+            +   '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-dim);margin-bottom:10px;">Previous season (' + lastYr.year + ')</div>'
+            +   '<div style="font-size:48px;font-weight:900;color:var(--text-dim);line-height:1;">' + lastYr.girls + '</div>'
+            +   '<div style="font-size:13px;color:var(--text-dim);margin-top:6px;">female players</div>'
+            +   '<div style="font-size:20px;font-weight:700;color:var(--text-dim);margin-top:8px;">' + lastPct + '%</div>'
+            +   '<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">of ' + lastYr.total + ' registered</div>'
+            + '</div>'
+            : '';
+
+          return '<div style="display:flex;align-items:center;margin-top:12px;min-height:140px;">'
+            + blockThis + blockArrow + blockLast
+            + '</div>';
+        })()}
+      </div>
       <!-- AI OVERVIEW CARD — auto-loads a 3-4 line summary -->
       <div id="ai-overview-card" style="background:rgba(1,60,30,0.72);color:#fff;border-radius:12px;padding:18px 22px;margin-bottom:20px;position:relative;overflow:hidden;backdrop-filter:blur(2px);">
         <div style="position:absolute;top:0;right:0;width:200px;height:100%;background:linear-gradient(135deg,transparent 55%,rgba(251,226,1,.05));pointer-events:none;"></div>
         <div style="display:flex;align-items:flex-start;gap:12px;">
-          <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;flex-shrink:0;margin-top:2px;">AI Summary</div>
-          <div id="ai-overview-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.95;"></div>
+          <div style="flex-shrink:0;margin-top:2px;">
+            <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;">AI Summary</div>
+            <div id="ai-overview-season" style="font-size:9px;opacity:.5;margin-top:3px;text-align:center;font-weight:700;"></div>
+            <div id="ai-overview-ts" style="font-size:9px;opacity:.5;margin-top:2px;text-align:center;"></div>
+          </div>
+          <div id="ai-overview-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.95;"><span style="opacity:.4;font-size:12px;">Loading…</span></div>
         </div>
       </div>
     </div>
@@ -4131,7 +4214,8 @@ function _renderOverviewHTML() {
 
   // Render charts after DOM update
   requestAnimationFrame(() => _renderOverviewCharts(yoyData, ageYOY, topSchools, allYears));
-  // Auto-load AI overview
+  // Auto-load AI overview — clear guard so season changes always re-evaluate
+  _overviewAIFetching[plSeason] = false;
   _loadOverviewAI(rows, pm, yoyData, allYears);
 }
 
@@ -4139,8 +4223,9 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
   const el = document.getElementById('ai-overview-text');
   if (!el) return;
 
-  if (_overviewAIFetching[plSeason]) return; // already fetching
+  if (_overviewAIFetching[plSeason]) return; // already fetching for this season
   _overviewAIFetching[plSeason] = true;
+  const _aiSeason = plSeason; // capture season at start to detect stale callbacks
 
   const today    = new Date();
   const total    = rows.length;
@@ -4254,18 +4339,41 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
   const _estSum = (plData.teams||[]).filter(t=>+t.season===+plSeason&&t.estimateCount>0).reduce((s,t)=>s+(t.estimateCount||0),0);
   const _ovFP = [plSeason, total, prevTotal, lapsed, _seasonComplete ? 'done' : currentMonthBucket, _estSum, 'v3'].join('|');
 
-  // Check backend first — show cached content instantly if fingerprint matches
+  // Step 1: Load cached insight from sheet immediately — show without delay
+  let _cachedStored = null;
   try {
-    const stored = await api('getAIInsight', { type: 'overview', season: plSeason });
-    if (!stored.error && stored.html && stored.fingerprint === _ovFP) {
-      el.innerHTML = stored.html;
-      _overviewAIFetching[plSeason] = false; // allow future refreshes
-      return; // data unchanged — show immediately, no loading state
-    }
-  } catch(e) { /* proceed to generate */ }
+    _cachedStored = await api('getAIInsight', { type: 'overview', season: plSeason });
+  } catch(e) { /* network issue — continue to generate */ }
 
-  // Only show loading state if we actually need to generate new content
-  el.innerHTML = '<span style="opacity:.4;font-size:12px;">Generating insight\u2026</span>';
+  // Abort if season changed while we were fetching cache
+  if (plSeason !== _aiSeason) { _overviewAIFetching[_aiSeason] = false; return; }
+
+  const _tsEl = document.getElementById('ai-overview-ts');
+  if (_cachedStored && !_cachedStored.error && _cachedStored.html) {
+    // Show cached content right away — user sees something immediately
+    el.innerHTML = _cachedStored.html;
+    const _sEl = document.getElementById('ai-overview-season');
+    if (_sEl) _sEl.textContent = String(plSeason);
+    if (_tsEl && _cachedStored.updatedAt) {
+      try {
+        const d = new Date(_cachedStored.updatedAt);
+        _tsEl.textContent = 'Generated ' + d.toLocaleDateString('en-AU',{day:'numeric',month:'short'}) + ' ' + d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});
+      } catch(tsErr) {}
+    }
+    // If fingerprint matches — data hasn't changed, we're done
+    if (_cachedStored.fingerprint === _ovFP) {
+      _overviewAIFetching[plSeason] = false;
+      return;
+    }
+  }
+
+  // Step 2: Fingerprint mismatch (or no cache) — regenerate
+  // Keep existing content visible while regenerating; show subtle indicator
+  if (_cachedStored && _cachedStored.html) {
+    if (_tsEl) _tsEl.textContent = 'Updating\u2026';
+  } else {
+    el.innerHTML = '<span style="opacity:.4;font-size:12px;">Generating insight\u2026</span>';
+  }
 
   // Prompt branches on _seasonComplete (already defined above)
 
@@ -4345,14 +4453,21 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
         + '</div>';
     });
     const _ovHtml = htmlParts.join('');
+    if (plSeason !== _aiSeason) { _overviewAIFetching[_aiSeason] = false; return; } // season changed
     el.innerHTML = _ovHtml;
+    const _tsEl2 = document.getElementById('ai-overview-ts');
+    if (_tsEl2) _tsEl2.textContent = 'Generated just now';
+    const _sEl3 = document.getElementById('ai-overview-season');
+    if (_sEl3) _sEl3.textContent = String(plSeason);
     // Save to backend so all committee members see the same insight
     const saveOvRes = await api('saveAIInsight', { type: 'overview', season: plSeason, html: _ovHtml, fingerprint: _ovFP });
     if (saveOvRes.error) console.warn('[AI] overview save failed:', saveOvRes.error);
-    _overviewAIFetching[plSeason] = false; // allow future refreshes
+    _overviewAIFetching[plSeason] = false;
   } catch(e) {
-    _overviewAIFetching[plSeason] = false; // allow retry
-    el.innerHTML = '<span style="opacity:.5;font-size:12px;">AI summary unavailable</span>';
+    _overviewAIFetching[_aiSeason] = false; // allow retry
+    if (plSeason === _aiSeason && !el.innerHTML.includes('●')) {
+      el.innerHTML = '<span style="opacity:.5;font-size:12px;">AI summary unavailable — will retry next load</span>';
+    }
   }
 }
 
@@ -4464,18 +4579,15 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
       if (monSub)   monSub.textContent   = 'Run backfill to populate';
     } else {
 
-    // For the current season: trim to today. For past seasons: show all 12 months.
+    // Always show full 12 months (Oct→Sep) — trend line is useful even for future months
     var today2 = new Date();
-    var isCurrentSeason = (+plSeason === today2.getFullYear()) ||
-      (today2.getFullYear() === +plSeason && today2.getMonth() <= 8) ||
-      (today2.getFullYear() === +plSeason - 1 && today2.getMonth() >= 9);
-    var maxBucket = isCurrentSeason ? dateToBucket(today2, +plSeason) : -1;
-    if (maxBucket < 0) maxBucket = 11; // past season or outside window → show all 12 months
+    var todayBucket = dateToBucket(today2, +plSeason);
+    if (todayBucket < 0) todayBucket = 11;
 
-    var trimLabels  = MONTH_NAMES.slice(0, maxBucket+1);
-    var trimCounts  = monthCounts.slice(0, maxBucket+1);
-    var trimPrevAvg = prevMonthAvg.slice(0, maxBucket+1);
-    var trimPids    = monthPids.slice(0, maxBucket+1);
+    var trimLabels  = MONTH_NAMES;                     // all 12 months always
+    var trimCounts  = monthCounts;                     // zeros for future months
+    var trimPrevAvg = prevMonthAvg;                    // trend line shows full year
+    var trimPids    = monthPids;                       // only past months have pids
 
     var hasAnyPrev = prevYears.length > 0 && trimPrevAvg.some(function(v){return v>0;});
 
@@ -4515,6 +4627,7 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
         onClick: function(e, els) {
           if (!els.length || els[0].datasetIndex !== 0) return;
           var idx  = els[0].index;
+          if (idx > todayBucket) return; // no data for future months
           var pids = trimPids[idx];
           if (!pids || !pids.length) return;
           var pm   = plPlayerMap();
