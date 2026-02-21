@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.170</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.171</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4179,6 +4179,7 @@ function init() {
 //  PLAYER MODULE
 // ════════════════════════════════════════════════════════
 let plData       = null;  // { players, seasons, seasonYears, settings, teams }
+let _yearDataCache = {};   // Cache for on-demand year player data { year: { players, seasons } }
 let plSeason     = null;
 let plTab        = 'overview';
 let plSearchQ    = '';
@@ -5608,6 +5609,7 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
 // ── OVERVIEW SLIDEVERS ────────────────────────────────────────────
 let _psoBackFn = null; // stored back function for current slideover level
 
+
 function _openSimpleSlideover(title, sub, players, backFn) {
   _psoBackFn = backFn || null;
   const pm = plPlayerMap();
@@ -5618,27 +5620,7 @@ function _openSimpleSlideover(title, sub, players, backFn) {
   document.getElementById('pso-avatar').innerHTML  = backFn
     ? '<button onclick="_psoBackFn()" style="background:var(--green-light);border:none;cursor:pointer;font-size:13px;font-weight:700;color:var(--green);padding:5px 10px;border-radius:7px;line-height:1;" title="Back">‹ Back</button>'
     : '<span style="font-size:20px;">👥</span>';
-
-  document.getElementById('pso-body').innerHTML = players.length
-    ? players.map(function(item) {
-        const pid    = item.pid;
-        const label  = item.label  || '';
-        const rowSub = item.sub    || '';
-        const p      = pm[pid] || {};
-        return '<div onclick="openPlayerDetailFromSlideover(\'' + pid + '\')"'
-          + ' style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;cursor:pointer;margin-bottom:5px;border:1.5px solid var(--border);background:#fff;"'
-          + ' onmouseenter="this.style.background=\'var(--green-light)\'" onmouseleave="this.style.background=\'#fff\'">'
-          + '<div style="flex:1;min-width:0;">'
-          + '<div style="font-weight:700;font-size:13px;">' + plName(p) + '</div>'
-          + (label  ? '<div style="font-size:11px;color:var(--text-dim);">' + label  + '</div>' : '')
-          + (rowSub ? '<div style="font-size:11px;color:var(--text-dim);">' + rowSub + '</div>' : '')
-          + '</div>'
-          + '<div style="color:var(--text-dim);font-size:16px;">›</div>'
-          + '</div>';
-      }).join('')
-    : '<div style="color:var(--text-dim);padding:20px;text-align:center;">No players.</div>';
-
-  // List mode: hide "Open Full Profile" footer button
+  _psoRenderList(players, pm);
   _psoSinglePid = null;
   document.getElementById('pso-footer').style.display = 'none';
   overlay.style.display = 'block';
@@ -5700,11 +5682,100 @@ function openDispSlideover() {
     rows.map(r=>({ pid:r.profileId, label:'Dispensation active', sub: ageLabel(r)+' · '+(seasonSchool(r,pm)||'—') })));
 }
 
-function showYearPlayersSlideover(year) {
-  const yearRows = (plData.seasons||[]).filter(s=>+s.year===+year);
-  const pm = plPlayerMap();
-  _openSimpleSlideover(`${year} Registrations`, `${yearRows.length} players`,
-    yearRows.map(r=>({ pid:r.profileId, label:ageLabel(r), sub:seasonSchool(r,pm)||'—' })));
+// Build a player map that merges fetched year data on top of current plData
+function _mergedPlayerMap(extraPlayers) {
+  const m = {};
+  (_lapsedCache||[]).forEach(p => { if (p.profileId && p.firstName) m[p.profileId] = p; });
+  (plData.players||[]).forEach(p => { if (p.profileId) m[p.profileId] = p; });
+  (extraPlayers||[]).forEach(p => { if (p.profileId) m[p.profileId] = p; });
+  return m;
+}
+
+// Spinner HTML for slideover loading state
+function _psoSpinner(title, sub) {
+  const overlay = document.getElementById('player-slideover-overlay');
+  const panel   = document.getElementById('player-slideover');
+  document.getElementById('pso-name').textContent = title;
+  document.getElementById('pso-meta').textContent = sub;
+  document.getElementById('pso-avatar').innerHTML = '<span style="font-size:20px;">📅</span>';
+  document.getElementById('pso-body').innerHTML =
+    '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;gap:14px;">'
+    + '<div style="width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin 0.7s linear infinite;"></div>'
+    + '<div style="font-size:13px;color:var(--text-dim);">Loading players…</div>'
+    + '</div>';
+  document.getElementById('pso-footer').style.display = 'none';
+  _psoSinglePid = null;
+  overlay.style.display = 'block';
+  panel.style.transform = 'translateX(0)';
+}
+
+// Render slideover body from a pre-built items array + player map
+function _psoRenderList(items, pm) {
+  document.getElementById('pso-body').innerHTML = items.length
+    ? items.map(function(item) {
+        const p      = pm[item.pid] || {};
+        const name   = plName(p) || '(Unknown)';
+        const label  = item.label  || '';
+        const rowSub = item.sub    || '';
+        return '<div onclick="openPlayerDetailFromSlideover('' + item.pid + '')"'
+          + ' style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;cursor:pointer;margin-bottom:5px;border:1.5px solid var(--border);background:#fff;"'
+          + ' onmouseenter="this.style.background='var(--green-light)'" onmouseleave="this.style.background='#fff'">'
+          + '<div style="flex:1;min-width:0;">'
+          + '<div style="font-weight:700;font-size:13px;">' + name + '</div>'
+          + (label  ? '<div style="font-size:11px;color:var(--text-dim);">' + label  + '</div>' : '')
+          + (rowSub ? '<div style="font-size:11px;color:var(--text-dim);">' + rowSub + '</div>' : '')
+          + '</div>'
+          + '<div style="color:var(--text-dim);font-size:16px;">›</div>'
+          + '</div>';
+      }).join('')
+    : '<div style="color:var(--text-dim);padding:20px;text-align:center;">No players.</div>';
+}
+
+// Fetch player data for a given year (cached) — returns { players, seasons }
+async function _fetchYearData(year) {
+  if (_yearDataCache[year]) return _yearDataCache[year];
+  const res = await api('getPlayerData', { season: String(year) });
+  if (res.error || !res.players) return { players: [], seasons: [] };
+  _yearDataCache[year] = { players: res.players, seasons: res.seasons || [] };
+  return _yearDataCache[year];
+}
+
+async function showYearPlayersSlideover(year) {
+  // Season rows for this year are already in plData.seasons (all years loaded)
+  const yearRows = (plData.seasons||[]).filter(s => +s.year === +year);
+
+  // If all players for this year are already in our player map, render immediately
+  const currentPm = plPlayerMap();
+  const allKnown  = yearRows.every(r => currentPm[r.profileId]);
+
+  if (allKnown) {
+    const items = yearRows.map(r => ({ pid:r.profileId, label:ageLabel(r), sub:seasonSchool(r,currentPm)||'—' }));
+    document.getElementById('pso-name').textContent = `${year} Registrations`;
+    document.getElementById('pso-meta').textContent = `${yearRows.length} players`;
+    document.getElementById('pso-avatar').innerHTML = '<span style="font-size:20px;">📅</span>';
+    document.getElementById('pso-footer').style.display = 'none';
+    _psoSinglePid = null;
+    document.getElementById('player-slideover-overlay').style.display = 'block';
+    document.getElementById('player-slideover').style.transform = 'translateX(0)';
+    _psoRenderList(items, currentPm);
+    return;
+  }
+
+  // Show spinner and fetch
+  _psoSpinner(`${year} Registrations`, `Loading…`);
+  const yd  = await _fetchYearData(year);
+  const pm  = _mergedPlayerMap(yd.players);
+
+  // Also cache fetched players into plData.players for openPlayerDetail click-throughs
+  const existingIds = new Set((plData.players||[]).map(p => p.profileId));
+  (yd.players||[]).forEach(p => { if (!existingIds.has(p.profileId)) plData.players.push(p); });
+
+  const items = yearRows.map(r => ({ pid:r.profileId, label:ageLabel(r), sub:seasonSchool(r,pm)||'—' }))
+                        .sort((a,b) => (plName(pm[a.pid]||{})).localeCompare(plName(pm[b.pid]||{})));
+
+  document.getElementById('pso-name').textContent = `${year} Registrations`;
+  document.getElementById('pso-meta').textContent = `${yearRows.length} players`;
+  _psoRenderList(items, pm);
 }
 
 function openAgeGroupSlideover(ag) {
