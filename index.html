@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.166</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.167</span></small>
       </div>
     </div>
     <div class="hright">
@@ -909,7 +909,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button class="dtab act" data-tab="overview"  onclick="switchPlTab(this,'overview')"><span class="dtab-icon">📊</span><span class="dtab-lbl">Overview</span></button>
       <button class="dtab"     data-tab="players"   onclick="switchPlTab(this,'players')"><span class="dtab-icon">👥</span><span class="dtab-lbl">Players</span></button>
       <button class="dtab"     data-tab="teams"     onclick="switchPlTab(this,'teams')"><span class="dtab-icon">🏉</span><span class="dtab-lbl">Teams</span></button>
-      <button class="dtab"     data-tab="import"    onclick="switchPlTab(this,'import')"><span class="dtab-icon">📥</span><span class="dtab-lbl">Import</span></button>
+      <button class="dtab"     data-tab="import"    onclick="switchPlTab(this,'import')" id="pl-tab-import"><span class="dtab-icon">📥</span><span class="dtab-lbl">Import</span></button>
     </div>
     <!-- Row 2c: Admin sub-tabs (admin only, desktop) -->
     <div class="dbar-row2 dbar-row2-sponsor" id="dash-sub-admin" style="display:none;">
@@ -1439,7 +1439,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 </div>
 
 <!-- PLAYER DETAIL MODAL -->
-<div class="moverlay" id="player-detail-modal" style="align-items:center;justify-content:center;padding:20px;">
+<div class="moverlay" id="player-detail-modal" style="align-items:flex-start;justify-content:center;padding:60px 20px 20px;overflow-y:auto;">
   <div style="background:var(--card);border-radius:14px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;">
     <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--card);z-index:1;">
       <div id="pdm-avatar" style="width:48px;height:48px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:var(--green);font-family:'Barlow Condensed',sans-serif;"></div>
@@ -1850,6 +1850,10 @@ function renderUserUI() {
   // Hide Add Sponsor tab for view-only users
   const addSpBtn = document.getElementById('dsub-add-sponsor');
   if (addSpBtn) addSpBtn.style.display = canSeeDash('sponsors.edit') ? '' : 'none';
+
+  // Hide Import tab — admin only
+  const importTab = document.getElementById('pl-tab-import');
+  if (importTab) importTab.style.display = me?.admin ? '' : 'none';
 }
 
 // ════════════════════════════════════════════════════════
@@ -4465,6 +4469,10 @@ function _showRecruitSkeleton() {
 }
 
 async function loadPlayerData() {
+  // P3-03: Update heading immediately before any loading/skeleton so it's always correct
+  const plSpanEl = document.getElementById('pl-season-span');
+  if (plSpanEl) plSpanEl.textContent = 'Recruitment ' + plSeason + ' Season';
+
   // D: Try sessionStorage cache first — instant if switching back to a season
   const cached = _loadRecruitFromCache(plSeason);
   if (cached) {
@@ -4550,6 +4558,20 @@ function plTeamById(id) {
 function plPlayerMap() {
   const m = {};
   (plData.players||[]).forEach(p => m[p.profileId] = p);
+  // Synthesise minimal records for players in season rows but not in current plData.players
+  // (e.g. lapsed players, prior-season players in YoY charts)
+  (plData.seasons||[]).forEach(s => {
+    if (!m[s.profileId] && s.firstName) {
+      m[s.profileId] = {
+        profileId: s.profileId,
+        firstName:  s.firstName,
+        lastName:   s.lastName  || '',
+        gender:     s.gender    || '',
+        dob:        '', // private — not available from season rows
+        _synthetic: true // flag so openPlayerDetail knows profile is incomplete
+      };
+    }
+  });
   return m;
 }
 
@@ -5493,21 +5515,16 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
   if (ageEl) {
     var ageRows = (plData.seasons||[]).filter(function(s){return +s.year===+plSeason;});
     var bandMale = {}, bandFemale = {}, bandPids = {};
-    var jan1 = new Date(+plSeason, 0, 1);
+    var _agePm = plPlayerMap();
     ageRows.forEach(function(r) {
-      var p = (plData.players||[]).find(function(pp){return pp.profileId===r.profileId;});
-      if (!p || !p.dob) return;
-      var parts = p.dob.split('/');
-      var d = parts.length===3 ? new Date(+parts[2],+parts[1]-1,+parts[0]) : new Date(p.dob);
-      if (isNaN(d)) return;
-      var age = jan1.getFullYear()-d.getFullYear();
-      var mo  = jan1.getMonth()-d.getMonth();
-      if (mo<0||(mo===0&&jan1.getDate()<d.getDate())) age--;
-      if (age<5||age>20) return;
+      // P3-04: use calcAge from season row — no DOB required, works without private access
+      var age = r.calcAge ? +r.calcAge : null;
+      if (!age || age<5 || age>20) return;
       var lo   = age%2===0 ? age-1 : age;
       var band = lo+'-'+(lo+1);
-      if (p.gender === 'Female') bandFemale[band] = (bandFemale[band]||0)+1;
-      else                       bandMale[band]   = (bandMale[band]||0)+1;
+      var gender = r.gender || (_agePm[r.profileId]||{}).gender || '';
+      if (gender === 'Female') bandFemale[band] = (bandFemale[band]||0)+1;
+      else                     bandMale[band]   = (bandMale[band]||0)+1;
       if (!bandPids[band]) bandPids[band]=[];
       bandPids[band].push(r.profileId);
     });
@@ -6005,7 +6022,8 @@ function _plPrivContactHtml(p) {
 }
 
 function openPlayerDetail(profileId) {
-  const p   = (plData.players||[]).find(x=>x.profileId===profileId);
+  const pm  = plPlayerMap();
+  const p   = pm[profileId];
   if (!p) return;
   const ps  = plSeasonRows().find(r=>r.profileId===profileId) || {};
   plDetailId = profileId;
@@ -6660,6 +6678,14 @@ function renderPlImport() {
   document.getElementById('pl-body').innerHTML = `
     <div style="max-width:720px;">
       <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:17px;text-transform:uppercase;margin-bottom:8px;">Import PlayHQ Data</h3>
+      ${_lastImportDate ? `<div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);display:inline-block;">
+        Last import: <strong>${(function(){
+          var d=new Date(_lastImportDate);
+          if(isNaN(d.getTime())&&!isNaN(Number(_lastImportDate))) d=new Date((Number(_lastImportDate)-25569)*86400000);
+          if(isNaN(d.getTime())&&typeof _lastImportDate==='string'){var m=_lastImportDate.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)d=new Date(+m[3],+m[2]-1,+m[1]);}
+          return isNaN(d.getTime()) ? _lastImportDate : d.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+        })()} — ${plSeason} season</strong>
+      </div>` : ''}
       <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
         Export a <strong>participants CSV</strong> from the PlayHQ admin portal, then drag it here.
         You'll be able to review all records — included, excluded, and duplicates — before committing.
