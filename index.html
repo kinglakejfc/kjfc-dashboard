@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.171</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.172</span></small>
       </div>
     </div>
     <div class="hright">
@@ -5713,11 +5713,12 @@ function _psoSpinner(title, sub) {
 function _psoRenderList(items, pm) {
   document.getElementById('pso-body').innerHTML = items.length
     ? items.map(function(item) {
-        const p      = pm[item.pid] || {};
-        const name   = plName(p) || '(Unknown)';
-        const label  = item.label  || '';
-        const rowSub = item.sub    || '';
-        return '<div onclick="openPlayerDetailFromSlideover('' + item.pid + '')"'
+        var p      = pm[item.pid] || {};
+        var name   = plName(p) || '(Unknown)';
+        var label  = item.label  || '';
+        var rowSub = item.sub    || '';
+        var pid    = item.pid;
+        return '<div onclick="openPlayerDetailFromSlideover(\'' + pid + '\')"'
           + ' style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;cursor:pointer;margin-bottom:5px;border:1.5px solid var(--border);background:#fff;"'
           + ' onmouseenter="this.style.background='var(--green-light)'" onmouseleave="this.style.background='#fff'">'
           + '<div style="flex:1;min-width:0;">'
