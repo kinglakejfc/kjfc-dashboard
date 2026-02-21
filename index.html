@@ -642,6 +642,13 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 .ss-check input:checked ~ .ss-check-box::after{content:'✓';color:#fff;font-size:12px;font-weight:900;line-height:1;}
 .ss-check:hover .ss-check-box{border-color:var(--green);}
 
+/* ── Group modal custom checkboxes (Safari-safe, no accent-color) ── */
+.gm-check{display:none;}
+.gm-check-box{width:16px;height:16px;border-radius:4px;border:2px solid var(--border-s);background:#fff;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;cursor:pointer;}
+.gm-check:checked ~ .gm-check-box{background:var(--green);border-color:var(--green);}
+.gm-check:checked ~ .gm-check-box::after{content:'✓';color:#fff;font-size:10px;font-weight:900;line-height:1;}
+.gm-check.purple:checked ~ .gm-check-box{background:#7c3aed;border-color:#7c3aed;}
+
 /* ── Checklist badges on ss-row ── */
 .chk-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;background:var(--green-light);color:var(--green);}
 .chk-badge.miss{background:#fef2f2;color:#b91c1c;}
@@ -854,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard</small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.147</span></small>
       </div>
     </div>
     <div class="hright">
@@ -3751,10 +3758,10 @@ async function openGroupModal(groupJson) {
             + 'background:' + (hasView ? 'var(--green-light)' : '#f3f4f6') + ';'
             + 'border:1.5px solid ' + (hasView ? 'var(--green)' : 'var(--border)') + ';'
             + 'border-radius:7px;padding:5px 11px;" id="gm-viewlabel-' + dashId + '">'
-            + '<input type="checkbox" data-perm="' + viewPerm.key + '" data-dash="' + dashId + '" '
+            + '<input type="checkbox" class="gm-check" data-perm="' + viewPerm.key + '" data-dash="' + dashId + '" '
             + (hasView ? 'checked' : '')
-            + ' onchange="_gmToggleView(\'' + dashId + '\',this.checked)"'
-            + ' style="width:14px;height:14px;accent-color:var(--green);cursor:pointer;flex-shrink:0;">'
+            + ' onchange="_gmToggleView(\'' + dashId + '\',this.checked)">'
+            + '<span class="gm-check-box"></span>'
             + '<span id="gm-viewspan-' + dashId + '" style="font-size:12px;font-weight:800;'
             + 'color:' + (hasView ? 'var(--green)' : '#9ca3af') + ';">&#x1F441; Visible</span>'
             + '</label>'
@@ -3772,10 +3779,10 @@ async function openGroupModal(groupJson) {
               const indent    = isPrivacy ? 'margin-left:16px;' : '';
               return '<label style="display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:8px;cursor:pointer;'
                 + 'background:' + labelBg + ';border:1.5px solid ' + labelBord + ';margin-bottom:6px;' + indent + '">'
-                + '<input type="checkbox" data-perm="' + p.key + '" data-dash="' + dashId + '" '
-                + (isOn ? 'checked' : '') + ' '
-                + 'style="margin-top:2px;width:15px;height:15px;accent-color:' + accentColor + ';cursor:pointer;flex-shrink:0;" '
-                + 'onchange="_gmSyncLabel(this)">'
+                + '<input type="checkbox" class="gm-check' + (isPrivacy ? ' purple' : '') + '" data-perm="' + p.key + '" data-dash="' + dashId + '" '
+                + (isOn ? 'checked' : '')
+                + ' onchange="_gmSyncLabel(this)">'
+                + '<span class="gm-check-box" style="margin-top:2px;"></span>'
                 + '<div style="flex:1;">'
                 + '<div style="font-size:13px;font-weight:700;">' + p.icon + ' ' + p.label + '</div>'
                 + '<div style="font-size:11px;color:var(--text-dim);margin-top:2px;line-height:1.45;">' + p.desc + '</div>'
