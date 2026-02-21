@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.160</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.161</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1081,6 +1081,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     <button class="mclose" id="org-mclose">×</button>
     <div class="mtitle" id="org-m-title">Add Sponsor</div>
     <div class="msub" id="org-m-sub">New sponsor organisation.</div>
+    <div id="org-dup-warning" style="display:none;"></div>
 
     <div class="frow two">
       <div class="fg"><label>Business Name *</label><input type="text" id="of-name" placeholder="Business name" autocomplete="organization" oninput="_onOrgNameInput(this.value)"></div>
@@ -2689,20 +2690,9 @@ function _onOrgNameInput(val) {
 }
 
 function _showOrgDupWarning(name, similar) {
-  // Full-width warning inserted at top of modal form
-  let el = document.getElementById('org-dup-warning');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'org-dup-warning';
-    // Insert before first .fg field group in the modal
-    const firstFg = document.querySelector('#org-modal .fg');
-    if (firstFg && firstFg.parentElement) firstFg.parentElement.insertBefore(el, firstFg);
-    else {
-      const nameField = document.getElementById('of-name');
-      if (nameField && nameField.parentElement) nameField.parentElement.appendChild(el);
-    }
-  }
-  el.style.cssText = 'border-radius:8px;padding:12px 16px;margin:0 0 14px 0;background:#fffbeb;border:1.5px solid #f59e0b;font-size:12px;line-height:1.6;width:100%;box-sizing:border-box;';
+  const el = document.getElementById('org-dup-warning');
+  if (!el) return;
+  el.style.cssText = 'border-radius:8px;padding:12px 16px;margin:0 0 14px 0;background:#fffbeb;border:1.5px solid #f59e0b;font-size:12px;line-height:1.6;box-sizing:border-box;';
   el.dataset.acknowledgedFor = '';
   el.innerHTML =
     '<div style="display:flex;align-items:flex-start;gap:10px;">'
