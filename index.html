@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.181</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.182</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1712,9 +1712,9 @@ async function api(action, body = {}) {
     function cleanup() { clearTimeout(timer); delete window[cbName]; const el=document.getElementById(cbName); if(el) el.remove(); }
     window[cbName] = (data) => {
       cleanup();
-      // Force sign out if server returns an auth/permission error
-      // This catches revoked tokens, removed users, or session invalidation
-      if (data && data.error && (
+      // Force sign out if server returns an auth/permission error while already logged in
+      // Excludes exchangeCode (login attempt) — those errors should show on the login screen
+      if (action !== 'exchangeCode' && data && data.error && (
         data.error.toLowerCase().includes('unauthori') ||
         data.error.toLowerCase().includes('not authorised') ||
         data.error.toLowerCase().includes('invalid token') ||
