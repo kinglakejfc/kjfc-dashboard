@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.156</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.157</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1607,7 +1607,11 @@ function yrsBadge(n) {
 //  SESSION
 // ════════════════════════════════════════════════════════
 function saveSession(t, user) { localStorage.setItem('kjfc_token',t); localStorage.setItem('kjfc_user',JSON.stringify(user)); }
-function loadSession() { token=localStorage.getItem('kjfc_token'); try{me=JSON.parse(localStorage.getItem('kjfc_user'));}catch{me=null;} }
+function loadSession() {
+  token=localStorage.getItem('kjfc_token');
+  try{me=JSON.parse(localStorage.getItem('kjfc_user'));}catch{me=null;}
+  try{const d=localStorage.getItem('kjfc_dashboard'); if(d) _currentDashboard=d;}catch(e){}
+}
 function clearSession() { localStorage.removeItem('kjfc_token'); localStorage.removeItem('kjfc_user'); token=null; me=null; }
 
 // ════════════════════════════════════════════════════════
@@ -1737,7 +1741,14 @@ function showApp() {
   document.getElementById('login-view').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   renderUserUI();
-  _navigateToFirstDashboard();
+  // Restore saved dashboard if accessible, otherwise navigate to first available
+  const _savedDash = _currentDashboard;
+  const _savedDashKey = _savedDash === 'admin-panel' ? 'admin' : _savedDash;
+  if (_savedDash && canSeeDash(_savedDashKey)) {
+    switchDashboard(_savedDash);
+  } else {
+    _navigateToFirstDashboard();
+  }
   loadAll();
   // Security: refresh permissions from backend — catches group changes without sign-out
   _refreshPermissions();
@@ -4192,6 +4203,7 @@ let _sponsorStaticHTML = '';
 
 function switchDashboard(which) {
   _currentDashboard = which;
+  try { localStorage.setItem('kjfc_dashboard', which); } catch(e) {}
 
   // Dashboard selector tabs
   document.getElementById('dash-tab-sponsors').classList.toggle('act', which === 'sponsors');
