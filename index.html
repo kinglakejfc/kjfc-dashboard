@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.159</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.160</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1967,8 +1967,11 @@ function render() {
   }).join('') || '<div style="color:var(--text-dim);font-size:13px;padding:6px">No sponsors yet.</div>';
 
   // Prospect pipeline — only for current/future seasons, not completed ones.
-  // Season year runs Oct–Sep, so "current" = activeSeason (already accounts for Oct rollover).
-  const _isCurOrFuture = +cy >= +activeSeason;
+  // Season runs Oct–Sep: the "current" season year is the year in which Sep falls.
+  // e.g. season 2026 = Oct 2025 – Sep 2026. If today is Oct or later, season = next year.
+  const _now = new Date();
+  const _currentSeasonYear = _now.getMonth() >= 9 ? _now.getFullYear() + 1 : _now.getFullYear();
+  const _isCurOrFuture = +cy >= _currentSeasonYear;
   if (_isCurOrFuture) renderProspects();
   else { const _pp = document.getElementById('prospect-panel'); if (_pp) _pp.style.display='none'; }
 
