@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.163</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.164</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1700,6 +1700,21 @@ async function handleGoogleCredential(response) {
 // ════════════════════════════════════════════════════════
 //  LOAD DATA
 // ════════════════════════════════════════════════════════
+// Background data sync — refreshes orgs/seasonEntries/packages without touching UI or overlays
+async function _syncData() {
+  try {
+    const data = await api('getAllData');
+    if (data.error) return;
+    orgs          = data.orgs     || orgs;
+    seasonEntries = data.seasons  || seasonEntries;
+    packages      = data.packages || packages;
+    years         = (data.years   || []).map(Number).sort((a,b) => b-a);
+    rebuildTierLookups();
+    render();
+    setSyncState('ok', 'Saved');
+  } catch(e) {}
+}
+
 async function loadAll() {
   setSyncState('loading', 'Loading data…');
   try {
@@ -2830,8 +2845,16 @@ async function saveOrg() {
     }, 100);
   } else {
     showToast('Sponsor updated ✓');
+    // Re-render org detail in-place if it's open for this org
+    const _editedOrg = orgs.find(o => o.id === data.id);
+    const _detailOverlay = document.getElementById('org-detail-overlay');
+    if (_editedOrg && _detailOverlay && _detailOverlay.classList.contains('open')) {
+      renderOrgDetail(_editedOrg, [], true);
+      const logRes = await api('getContactLog', { orgId: data.id });
+      renderOrgDetail(_editedOrg, Array.isArray(logRes) ? logRes : [], false);
+    }
   }
-  loadAll();
+  _syncData();
 }
 
 async function deleteOrg() {
@@ -3068,33 +3091,17 @@ async function saveSS() {
   const _wasNew = !editSSId;
   closeSSModal();
   showToast(_wasNew ? 'Sponsorship added ✓' : 'Package updated ✓');
-  // Update background table with local data (no loadAll — avoids overlay disruption)
   render();
-  // Re-render the org detail panel in-place using updated in-memory seasonEntries
+  // Re-render org detail in-place with fresh in-memory data — no overlay disruption
   if (reopenOrgId) {
     const _org = orgs.find(o => o.id === reopenOrgId);
     if (_org) {
-      const overlay = document.getElementById('org-detail-overlay');
-      if (overlay && overlay.classList.contains('open')) {
-        // Already open — just re-render contents with fresh data
-        renderOrgDetail(_org, [], true); // show briefly with loading contact log
-        const logRes = await api('getContactLog', { orgId: reopenOrgId });
-        renderOrgDetail(_org, Array.isArray(logRes) ? logRes : [], false);
-      } else {
-        openOrgDetail(reopenOrgId);
-      }
+      renderOrgDetail(_org, [], true);
+      const logRes = await api('getContactLog', { orgId: reopenOrgId });
+      renderOrgDetail(_org, Array.isArray(logRes) ? logRes : [], false);
     }
   }
-  // Sync with server in background without disrupting the UI
-  api('getAllData').then(data => {
-    if (!data.error) {
-      orgs          = data.orgs    || orgs;
-      seasonEntries = data.seasons || seasonEntries;
-      packages      = data.packages || packages;
-      render();
-      setSyncState('ok', 'Saved');
-    }
-  });
+  _syncData(); // background refresh — won't touch overlays
 }
 
 async function deleteSS() {
@@ -3114,23 +3121,12 @@ async function deleteSS() {
   if (reopenOrgId) {
     const _org = orgs.find(o => o.id === reopenOrgId);
     if (_org) {
-      const overlay = document.getElementById('org-detail-overlay');
-      if (overlay && overlay.classList.contains('open')) {
-        renderOrgDetail(_org, [], true);
-        const logRes = await api('getContactLog', { orgId: reopenOrgId });
-        renderOrgDetail(_org, Array.isArray(logRes) ? logRes : [], false);
-      } else {
-        openOrgDetail(reopenOrgId);
-      }
+      renderOrgDetail(_org, [], true);
+      const logRes = await api('getContactLog', { orgId: reopenOrgId });
+      renderOrgDetail(_org, Array.isArray(logRes) ? logRes : [], false);
     }
   }
-  api('getAllData').then(data => {
-    if (!data.error) {
-      orgs          = data.orgs    || orgs;
-      seasonEntries = data.seasons || seasonEntries;
-      render();
-    }
-  });
+  _syncData();
 }
 
 // ════════════════════════════════════════════════════════
