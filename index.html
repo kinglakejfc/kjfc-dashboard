@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.177</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.178</span></small>
       </div>
     </div>
     <div class="hright">
@@ -6431,8 +6431,8 @@ function renderPlTeams() {
     </div>
 
     <!-- Team modal -->
-    <div id="team-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;align-items:flex-start;justify-content:center;padding:60px 16px 20px;overflow-y:auto;">
-      <div style="background:#fff;border-radius:14px;padding:24px;width:420px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.18);">
+    <div class="moverlay" id="team-modal-overlay" style="align-items:flex-start;justify-content:center;padding:60px 20px 20px;overflow-y:auto;">
+      <div class="modal" style="border-radius:14px;width:100%;max-width:460px;padding:24px;max-height:none;">
         <div style="font-weight:800;font-size:16px;font-family:'Barlow Condensed',sans-serif;margin-bottom:16px;" id="team-modal-title">Add Team</div>
         <input type="hidden" id="tm-id">
         <div style="display:grid;gap:10px;">
@@ -6721,12 +6721,12 @@ function openTeamModal(teamId) {
   document.getElementById('tm-min').value      = t?.minPlayers || '';
   document.getElementById('tm-estimate').value       = t?.estimateCount || '';
   document.getElementById('tm-estimate-names').value = (t?.estimateNames || []).join('\n');
-  overlay.style.display = 'flex';
+  overlay.classList.add('open');
 }
 
 function closeTeamModal() {
   const overlay = document.getElementById('team-modal-overlay');
-  if (overlay) overlay.style.display = 'none';
+  if (overlay) overlay.classList.remove('open');
 }
 
 async function saveTeamModal() {
