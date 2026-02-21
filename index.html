@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.152</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.153</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1687,7 +1687,7 @@ async function handleGoogleCredential(response) {
     return;
   }
   token = result.token;
-  me = { email: result.email, name: result.name, role: result.role, edit: result.edit, admin: result.admin, picture: result.picture };
+  me = { email: result.email, name: result.name, role: result.role, edit: result.edit, admin: result.admin, picture: result.picture, dashboards: result.dashboards || [] };
   saveSession(token, me);
   showApp();
 }
@@ -3544,11 +3544,12 @@ let _editingGroup = null; // group being edited in modal
 
 // ── Derive dashboards from me object ──────────────────────────────
 function _buildMeDashboards() {
-  // Called after renderUserUI. me.dashboards is provided by verifyToken on the backend.
-  // This is a no-op when the backend has already populated it (normal case).
-  // Legacy fallback: stale session with no group support yet.
+  // me.dashboards is set from the backend on login and persisted in localStorage.
+  // If it's already an array (even empty), trust it — the backend controls visibility.
+  // Only fall back to legacy hardcode for genuinely stale sessions with no dashboards key.
   if (!me) return;
-  if (me.dashboards && me.dashboards.length) return; // already set by backend
+  if (Array.isArray(me.dashboards)) return; // already set by backend — do not override
+  // Legacy fallback for stale sessions pre-group-support
   me.dashboards = ['sponsors'];
   if (me.edit || me.admin) { me.dashboards.push('sponsors.edit', 'sponsors.private'); }
   if (me.admin) { me.dashboards.push('recruitment','recruitment.edit','recruitment.private','admin'); }
