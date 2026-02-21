@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.178</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.179</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1453,6 +1453,87 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;">
       <button class="msecondary" onclick="closePlayerDetail()">Close</button>
       <button class="mprimary" id="pdm-save-btn" onclick="savePlayerDetail()" style="display:none">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEAM MODAL (static — outside pl-body so position:fixed works correctly) -->
+<div class="moverlay" id="team-modal-overlay" style="align-items:flex-start;justify-content:center;padding:60px 20px 20px;overflow-y:auto;">
+  <div class="modal" style="border-radius:14px;width:100%;max-width:460px;padding:24px;max-height:none;">
+    <div style="font-weight:800;font-size:16px;font-family:'Barlow Condensed',sans-serif;margin-bottom:16px;" id="team-modal-title">Add Team</div>
+    <input type="hidden" id="tm-id">
+    <div style="display:grid;gap:10px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">TEAM NAME *</div>
+        <input id="tm-name" type="text" placeholder="e.g. U12 Boys Blue" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">AGE GROUP</div>
+          <select id="tm-age" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+            <option value="">—</option>
+            <option value="U9">U9</option>
+            <option value="U10">U10</option>
+            <option value="U11">U11</option>
+            <option value="U12">U12</option>
+            <option value="U13">U13</option>
+            <option value="U14">U14</option>
+            <option value="U15">U15</option>
+            <option value="U16">U16</option>
+            <option value="U17">U17</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">GENDER</div>
+          <select id="tm-gender" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+            <option value="">—</option>
+            <option value="Mixed">Mixed</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">COACH</div>
+        <input id="tm-coach" type="text" placeholder="Coach name" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">ASSISTANT COACH</div>
+        <input id="tm-acoach" type="text" placeholder="Assistant coach name" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">MINIMUM PLAYERS</div>
+          <input id="tm-min" type="number" min="1" max="50" placeholder="e.g. 14" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">CLUB ESTIMATE</div>
+          <input id="tm-estimate" type="number" min="0" max="200" placeholder="e.g. 16" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);line-height:1.5;background:var(--bg);border-radius:7px;padding:8px 10px;margin-top:-4px;">
+        💡 <strong>Club Estimate</strong> — your best guess at total likely players before all registrations are in, based on training attendance and expressions of interest. Must be greater than current registered count. Does not affect registered numbers.
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">NOTES</div>
+        <textarea id="tm-notes" rows="2" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;resize:vertical;"></textarea>
+      </div>
+      <details style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden;">
+        <summary style="cursor:pointer;padding:8px 12px;background:var(--bg);font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;list-style:none;display:flex;align-items:center;gap:6px;">
+          <span>📋</span> Optional: Estimated Players List
+          <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;margin-left:auto;">for record keeping only</span>
+        </summary>
+        <div style="padding:10px 12px;background:#fff;">
+          <div style="font-size:11px;color:var(--text-dim);line-height:1.5;margin-bottom:8px;">
+            Names of players expected — from training attendance, expressions of interest, or parent enquiries. One name per line. <strong>This list is for your reference only and does not change any numbers above.</strong>
+          </div>
+          <textarea id="tm-estimate-names" rows="5" placeholder="e.g.&#10;Alex Smith&#10;Jordan Lee&#10;Sam Brown&#10;Riley Jones" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;resize:vertical;background:var(--bg);"></textarea>
+        </div>
+      </details>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="msecondary" onclick="closeTeamModal()" style="flex:1;">Cancel</button>
+      <button class="mprimary" onclick="saveTeamModal()" style="flex:2;">Save Team</button>
     </div>
   </div>
 </div>
@@ -6430,80 +6511,7 @@ function renderPlTeams() {
       `}
     </div>
 
-    <!-- Team modal -->
-    <div class="moverlay" id="team-modal-overlay" style="align-items:flex-start;justify-content:center;padding:60px 20px 20px;overflow-y:auto;">
-      <div class="modal" style="border-radius:14px;width:100%;max-width:460px;padding:24px;max-height:none;">
-        <div style="font-weight:800;font-size:16px;font-family:'Barlow Condensed',sans-serif;margin-bottom:16px;" id="team-modal-title">Add Team</div>
-        <input type="hidden" id="tm-id">
-        <div style="display:grid;gap:10px;">
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">TEAM NAME *</div>
-            <input id="tm-name" type="text" placeholder="e.g. U12 Boys Blue" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">AGE GROUP</div>
-              <select id="tm-age" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
-                <option value="">—</option>
-                ${ALL_AGE_GROUPS.map(ag=>`<option value="${ag}">${ag}</option>`).join('')}
-              </select>
-            </div>
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">GENDER</div>
-              <select id="tm-gender" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
-                <option value="">—</option>
-                <option value="Mixed">Mixed</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">COACH</div>
-            <input id="tm-coach" type="text" placeholder="Coach name" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">ASSISTANT COACH</div>
-            <input id="tm-acoach" type="text" placeholder="Assistant coach name" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">MINIMUM PLAYERS</div>
-              <input id="tm-min" type="number" min="1" max="50" placeholder="e.g. 14" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
-            </div>
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">CLUB ESTIMATE</div>
-              <input id="tm-estimate" type="number" min="0" max="200" placeholder="e.g. 16" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;">
-            </div>
-          </div>
-          <div style="font-size:11px;color:var(--text-dim);line-height:1.5;background:var(--bg);border-radius:7px;padding:8px 10px;margin-top:-4px;">
-            💡 <strong>Club Estimate</strong> — your best guess at total likely players before all registrations are in, based on training attendance and expressions of interest. Must be greater than current registered count. Does not affect registered numbers.
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">NOTES</div>
-            <textarea id="tm-notes" rows="2" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;resize:vertical;"></textarea>
-          </div>
-          <!-- Name list — collapsible, single combined list -->
-          <details style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden;">
-            <summary style="cursor:pointer;padding:8px 12px;background:var(--bg);font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;list-style:none;display:flex;align-items:center;gap:6px;">
-              <span>📋</span> Optional: Estimated Players List
-              <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;margin-left:auto;">for record keeping only</span>
-            </summary>
-            <div style="padding:10px 12px;background:#fff;">
-              <div style="font-size:11px;color:var(--text-dim);line-height:1.5;margin-bottom:8px;">
-                Names of players expected — from training attendance, expressions of interest, or parent enquiries. One name per line. <strong>This list is for your reference only and does not change any numbers above.</strong>
-              </div>
-              <textarea id="tm-estimate-names" rows="5" placeholder="e.g.&#10;Alex Smith&#10;Jordan Lee&#10;Sam Brown&#10;Riley Jones" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;resize:vertical;background:var(--bg);"></textarea>
-            </div>
-          </details>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:16px;">
-          <button class="msecondary" onclick="closeTeamModal()" style="flex:1;">Cancel</button>
-          <button class="mprimary" onclick="saveTeamModal()" style="flex:2;">Save Team</button>
-        </div>
-      </div>
-    </div>
-  `;
+  \`;
 }
 
 // ── TEAM ASSIGNMENT SLIDEOVER ──────────────────────────────────────
@@ -6708,7 +6716,6 @@ function closeTeamSlide() {
 
 function openTeamModal(teamId) {
   const overlay = document.getElementById('team-modal-overlay');
-  if (!overlay) { renderPlTeams(); setTimeout(()=>openTeamModal(teamId),50); return; }
   const t = teamId ? (plData.teams||[]).find(t=>t.id===teamId) : null;
   document.getElementById('team-modal-title').textContent = t ? 'Edit Team' : 'Add Team';
   document.getElementById('tm-id').value       = t?.id || '';
