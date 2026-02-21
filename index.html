@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.162</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.163</span></small>
       </div>
     </div>
     <div class="hright">
@@ -3068,10 +3068,33 @@ async function saveSS() {
   const _wasNew = !editSSId;
   closeSSModal();
   showToast(_wasNew ? 'Sponsorship added ✓' : 'Package updated ✓');
-  // Wait for loadAll to finish so seasonEntries is fully up to date, then render + open detail
-  await loadAll();
+  // Update background table with local data (no loadAll — avoids overlay disruption)
   render();
-  if (reopenOrgId) openOrgDetail(reopenOrgId);
+  // Re-render the org detail panel in-place using updated in-memory seasonEntries
+  if (reopenOrgId) {
+    const _org = orgs.find(o => o.id === reopenOrgId);
+    if (_org) {
+      const overlay = document.getElementById('org-detail-overlay');
+      if (overlay && overlay.classList.contains('open')) {
+        // Already open — just re-render contents with fresh data
+        renderOrgDetail(_org, [], true); // show briefly with loading contact log
+        const logRes = await api('getContactLog', { orgId: reopenOrgId });
+        renderOrgDetail(_org, Array.isArray(logRes) ? logRes : [], false);
+      } else {
+        openOrgDetail(reopenOrgId);
+      }
+    }
+  }
+  // Sync with server in background without disrupting the UI
+  api('getAllData').then(data => {
+    if (!data.error) {
+      orgs          = data.orgs    || orgs;
+      seasonEntries = data.seasons || seasonEntries;
+      packages      = data.packages || packages;
+      render();
+      setSyncState('ok', 'Saved');
+    }
+  });
 }
 
 async function deleteSS() {
@@ -3087,9 +3110,27 @@ async function deleteSS() {
   seasonEntries = seasonEntries.filter(s => s.id !== editSSId);
   closeSSModal();
   showToast('Sponsorship entry removed');
-  await loadAll();
   render();
-  if (reopenOrgId) openOrgDetail(reopenOrgId);
+  if (reopenOrgId) {
+    const _org = orgs.find(o => o.id === reopenOrgId);
+    if (_org) {
+      const overlay = document.getElementById('org-detail-overlay');
+      if (overlay && overlay.classList.contains('open')) {
+        renderOrgDetail(_org, [], true);
+        const logRes = await api('getContactLog', { orgId: reopenOrgId });
+        renderOrgDetail(_org, Array.isArray(logRes) ? logRes : [], false);
+      } else {
+        openOrgDetail(reopenOrgId);
+      }
+    }
+  }
+  api('getAllData').then(data => {
+    if (!data.error) {
+      orgs          = data.orgs    || orgs;
+      seasonEntries = data.seasons || seasonEntries;
+      render();
+    }
+  });
 }
 
 // ════════════════════════════════════════════════════════
