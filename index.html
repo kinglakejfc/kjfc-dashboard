@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.183</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.184</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1017,15 +1017,14 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div id="prospect-list" style="margin-top:10px;"></div>
     </div>
     <!-- AI OVERVIEW CARD sponsors — bottom of page -->
-    <div id="sponsor-ai-card" style="background:rgba(1,60,30,0.72);color:#fff;border-radius:12px;padding:18px 22px;margin-top:8px;position:relative;overflow:hidden;backdrop-filter:blur(2px);">
-      <div style="position:absolute;top:0;right:0;width:200px;height:100%;background:linear-gradient(135deg,transparent 55%,rgba(251,226,1,.05));pointer-events:none;"></div>
+    <div id="sponsor-ai-card" style="background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:18px 22px;margin-top:8px;position:relative;overflow:hidden;">
       <div style="display:flex;align-items:flex-start;gap:12px;">
         <div style="flex-shrink:0;margin-top:2px;">
-          <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;">AI Summary</div>
-          <div id="sponsor-ai-season" style="font-size:9px;opacity:.5;margin-top:3px;text-align:center;font-weight:700;"></div>
-          <div id="sponsor-ai-ts" style="font-size:9px;opacity:.5;margin-top:2px;text-align:center;"></div>
+          <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;">AI Insights</div>
+          <div id="sponsor-ai-season" style="font-size:9px;color:var(--text-dim);margin-top:3px;text-align:center;font-weight:700;"></div>
+          <div id="sponsor-ai-ts" style="font-size:9px;color:var(--text-dim);margin-top:2px;text-align:center;"></div>
         </div>
-        <div id="sponsor-ai-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.95;"><span style="opacity:.4;font-size:12px;">Loading…</span></div>
+        <div id="sponsor-ai-text" style="font-size:13px;line-height:1.65;flex:1;color:var(--text);"><span style="opacity:.4;font-size:12px;">Loading…</span></div>
       </div>
     </div>
     </div><!-- /sponsor-content -->
@@ -4344,9 +4343,10 @@ function buildHamburgerMenu() {
   if (canSeeDash('admin')) {
     html += `<div class="hmenu-divider"></div>`;
     html += `<div class="hmenu-section-lbl">⚙️ Admin</div>`;
-    html += `<button class="hmenu-item" onclick="openAdminModal('log');toggleHamburger()">📋 Access Log</button>`;
-    html += `<button class="hmenu-item" onclick="switchDashboard('admin-panel');switchAdminTab(document.querySelector('#dash-sub-admin .dtab[data-admintab=\'about\']'),'about');toggleHamburger()">ℹ️ About</button>`;
-    html += `<button class="hmenu-item" onclick="openAdminModal('users');toggleHamburger()">👤 Users</button>`;
+    html += `<button class="hmenu-item${dash==='admin-panel'?' hmenu-active':''}" onclick="switchDashboard('admin-panel');renderAdminPanel('users');toggleHamburger()">👤 Manage Users</button>`;
+    html += `<button class="hmenu-item" onclick="switchDashboard('admin-panel');renderAdminPanel('groups');toggleHamburger()">🔐 Access Groups</button>`;
+    html += `<button class="hmenu-item" onclick="switchDashboard('admin-panel');renderAdminPanel('log');toggleHamburger()">📋 Activity Log</button>`;
+    html += `<button class="hmenu-item" onclick="switchDashboard('admin-panel');renderAdminPanel('about');toggleHamburger()">ℹ️ About</button>`;
   }
 
   html += `<div class="hmenu-divider"></div>`;
@@ -5111,15 +5111,14 @@ function _renderOverviewHTML() {
         })()}
       </div>
       <!-- AI OVERVIEW CARD — auto-loads a 3-4 line summary -->
-      <div id="ai-overview-card" style="background:rgba(1,60,30,0.72);color:#fff;border-radius:12px;padding:18px 22px;margin-bottom:20px;position:relative;overflow:hidden;backdrop-filter:blur(2px);">
-        <div style="position:absolute;top:0;right:0;width:200px;height:100%;background:linear-gradient(135deg,transparent 55%,rgba(251,226,1,.05));pointer-events:none;"></div>
+      <div id="ai-overview-card" style="background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:18px 22px;margin-bottom:20px;position:relative;overflow:hidden;">
         <div style="display:flex;align-items:flex-start;gap:12px;">
           <div style="flex-shrink:0;margin-top:2px;">
-            <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;">AI Summary</div>
-            <div id="ai-overview-season" style="font-size:9px;opacity:.5;margin-top:3px;text-align:center;font-weight:700;"></div>
-            <div id="ai-overview-ts" style="font-size:9px;opacity:.5;margin-top:2px;text-align:center;"></div>
+            <div style="background:var(--yellow);color:var(--green);border-radius:7px;padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;">AI Insights</div>
+            <div id="ai-overview-season" style="font-size:9px;color:var(--text-dim);margin-top:3px;text-align:center;font-weight:700;"></div>
+            <div id="ai-overview-ts" style="font-size:9px;color:var(--text-dim);margin-top:2px;text-align:center;"></div>
           </div>
-          <div id="ai-overview-text" style="font-size:13px;line-height:1.65;flex:1;opacity:.95;"><span style="opacity:.4;font-size:12px;">Loading…</span></div>
+          <div id="ai-overview-text" style="font-size:13px;line-height:1.65;flex:1;color:var(--text);"><span style="opacity:.4;font-size:12px;">Loading…</span></div>
         </div>
       </div>
     </div>
