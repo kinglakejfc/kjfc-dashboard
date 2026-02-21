@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.165</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.166</span></small>
       </div>
     </div>
     <div class="hright">
@@ -3178,9 +3178,10 @@ async function saveContactLog() {
   const res = await api('addContactLog', { orgId: clOrgId, date, notes });
   btnLoading(document.getElementById('cl-m-save'), false);
   if (res.error) { showToast('Error: '+res.error, 'err'); return; }
+  const _savedClOrgId = clOrgId; // capture before closeContactLog nulls it
   closeContactLog();
   showToast('Contact logged ✓');
-  _refreshContactLog(clOrgId);
+  _refreshContactLog(_savedClOrgId);
 }
 
 async function deleteContactEntry(id, orgId) {
