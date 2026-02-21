@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.169</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.170</span></small>
       </div>
     </div>
     <div class="hright">
@@ -6014,7 +6014,34 @@ function openPlayerDetail(profileId) {
   const pm  = plPlayerMap();
   const p   = pm[profileId];
   if (!p) return;
-  const ps  = plSeasonRows().find(r=>r.profileId===profileId) || {};
+
+  // Primary: look for a current season row
+  let ps = plSeasonRows().find(r => r.profileId === profileId);
+
+  // Fallback: lapsed player — synthesise a season row from lapsed cache data
+  // so calcAge, ageGroupRaw, gender etc are all available in the modal
+  if (!ps) {
+    const lp = (_lapsedCache||[]).find(l => l.profileId === profileId);
+    if (lp) {
+      ps = {
+        profileId:       profileId,
+        year:            lp.lastYear    || (+plSeason - 1),
+        calcAge:         lp.calcAge     || null,
+        ageGroupRaw:     lp.lastAgeGroup|| '',
+        gender:          lp.gender      || p.gender || '',
+        school:          lp.school      || p.school || '',
+        suburb:          lp.suburb      || p.suburb || '',
+        newToClub:       '',
+        assignedTeam:    '',
+        dispensation:    false,
+        dispensationNote:'',
+        notes:           '',
+        _fromLapsed:     true  // flag — this player is not in current season
+      };
+    }
+  }
+
+  ps = ps || {};
   plDetailId = profileId;
 
   const init = plInitials(p);
@@ -6024,9 +6051,16 @@ function openPlayerDetail(profileId) {
   document.getElementById('pdm-avatar').innerHTML = init;
   document.getElementById('pdm-name').textContent  = plName(p);
   const _plPriv = canSeePrivate('recruitment');
-  document.getElementById('pdm-meta').textContent  = _plPriv
+  const _metaBase = _plPriv
     ? `${ageLabel(ps)} · ${p.gender||''} · DOB ${normaliseDob(p.dob)||''} · ${seasonSuburb(ps, {[ps.profileId]: p})||p.suburb||''}`
     : `${ageLabel(ps)} · ${p.gender||''}`;
+  // For lapsed players, clarify data is from their last registered season
+  const _metaEl = document.getElementById('pdm-meta');
+  if (ps._fromLapsed) {
+    _metaEl.innerHTML = `<span>${_metaBase}</span> <span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:4px;">Not returned ${ps.year||''}</span>`;
+  } else {
+    _metaEl.textContent = _metaBase;
+  }
 
   // photoUrl is stored as a data URL — use directly, no async fetch needed
 
