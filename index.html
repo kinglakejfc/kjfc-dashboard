@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.185</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.186</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4335,7 +4335,7 @@ function buildHamburgerMenu() {
       { tab:'overview', icon:'📊', lbl:'Overview'  },
       { tab:'players',  icon:'👥', lbl:'Players'   },
       { tab:'teams',    icon:'🏉', lbl:'Teams'     },
-      { tab:'import',   icon:'📥', lbl:'Import'    },
+      ...(me?.admin ? [{ tab:'import', icon:'📥', lbl:'Import' }] : []),
     ];
     plTabs.forEach(t => {
       const isAct = dash==='recruitment' && document.querySelector(`#dash-sub-recruitment .dtab[data-tab="${t.tab}"]`)?.classList.contains('act');
