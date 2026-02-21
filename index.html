@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.148</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.150</span></small>
       </div>
     </div>
     <div class="hright">
@@ -3320,9 +3320,19 @@ async function confirmEditUser() {
   const payload = { email, name, role };
   // Only include access + group if the viewer is an admin
   if (me && me.admin) {
-    payload.access = document.getElementById('um-access').value;
     const grpSel = document.getElementById('um-group');
-    payload.group = grpSel ? grpSel.value : '';
+    const selectedGroup = grpSel ? grpSel.value : '';
+    const builtinIds = ['admin', 'edit', 'readonly'];
+    if (builtinIds.includes(selectedGroup)) {
+      // Builtin group selected — set access to match and clear group column
+      // so verifyToken derives permissions from access level cleanly
+      payload.access = selectedGroup;
+      payload.group  = '';
+    } else {
+      // Custom group or "use default" — keep access dropdown value, set group
+      payload.access = document.getElementById('um-access').value;
+      payload.group  = selectedGroup;
+    }
   }
 
   const btn = document.getElementById('user-modal').querySelector('.mprimary');
@@ -3563,10 +3573,11 @@ async function populateGroupSelect(selectedGroupId) {
   const sel = document.getElementById('um-group');
   if (!sel) return;
   const groups = await _loadGroups();
-  const all = [...groups.builtin, ...(groups.custom||[])];
+  // Only show custom groups — builtin access levels are set via the Access Level dropdown above
+  const custom = groups.custom || [];
   sel.innerHTML = '<option value="">— Use Access Level default —</option>'
-    + all.map(g => '<option value="' + g.id + '"' + (g.id===selectedGroupId?' selected':'') + '>'
-        + g.name + (g.builtin?' (built-in)':'') + '</option>').join('');
+    + custom.map(g => '<option value="' + g.id + '"' + (g.id===selectedGroupId?' selected':'') + '>'
+        + g.name + '</option>').join('');
 }
 
 // ── Load groups (cached per session) ─────────────────────────────
