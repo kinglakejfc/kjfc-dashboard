@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.157</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.159</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1966,8 +1966,11 @@ function render() {
     </div>`;
   }).join('') || '<div style="color:var(--text-dim);font-size:13px;padding:6px">No sponsors yet.</div>';
 
-  // Prospect pipeline
-  renderProspects();
+  // Prospect pipeline — only for current/future seasons, not completed ones.
+  // Season year runs Oct–Sep, so "current" = activeSeason (already accounts for Oct rollover).
+  const _isCurOrFuture = +cy >= +activeSeason;
+  if (_isCurOrFuture) renderProspects();
+  else { const _pp = document.getElementById('prospect-panel'); if (_pp) _pp.style.display='none'; }
 
   renderFilterTabs();
   renderTableHeaders();
@@ -2342,7 +2345,7 @@ function renderTable() {
       <td><span class="sbadge ${s.status}">${cap(s.status)}</span></td>
       <td>${cBadge}</td>
       <td style="font-size:11px;color:var(--text-dim)">${org.primaryContact||'—'}</td>
-      <td><button class="actbtn" onclick="event.stopPropagation();openEditSS('${s.id}','${org.id}')">Edit</button></td>
+      <td>${me?.edit ? `<button class="actbtn" onclick="event.stopPropagation();openEditSS('${s.id}','${org.id}')">Edit</button>` : ''}</td>
     </tr>`;
   }).join('');
 }
@@ -2683,31 +2686,60 @@ function _onOrgNameInput(val) {
 }
 
 function _showOrgDupWarning(name, similar) {
+  // Full-width warning inserted at top of modal form
   let el = document.getElementById('org-dup-warning');
   if (!el) {
     el = document.createElement('div');
     el.id = 'org-dup-warning';
-    el.style.cssText = 'border-radius:8px;padding:10px 14px;margin:8px 0;background:#fffbeb;border:1.5px solid #f59e0b;font-size:12px;line-height:1.5;';
-    const nameField = document.getElementById('of-name');
-    if (nameField && nameField.parentElement) {
-      nameField.parentElement.appendChild(el);
+    // Insert before first .fg field group in the modal
+    const firstFg = document.querySelector('#org-modal .fg');
+    if (firstFg && firstFg.parentElement) firstFg.parentElement.insertBefore(el, firstFg);
+    else {
+      const nameField = document.getElementById('of-name');
+      if (nameField && nameField.parentElement) nameField.parentElement.appendChild(el);
     }
   }
-  el.innerHTML = '<div style="display:flex;align-items:flex-start;gap:8px;">'
-    + '<span style="font-size:14px;flex-shrink:0;margin-top:1px;">⚠️</span>'
+  el.style.cssText = 'border-radius:8px;padding:12px 16px;margin:0 0 14px 0;background:#fffbeb;border:1.5px solid #f59e0b;font-size:12px;line-height:1.6;width:100%;box-sizing:border-box;';
+  el.dataset.acknowledgedFor = '';
+  el.innerHTML =
+    '<div style="display:flex;align-items:flex-start;gap:10px;">'
+    + '<span style="font-size:18px;flex-shrink:0;">⚠️</span>'
     + '<div style="flex:1;">'
-    + '<div style="font-weight:700;color:#92400e;margin-bottom:4px;">Similar sponsor already exists:</div>'
-    + similar.slice(0,3).map(o =>
-        '<div style="color:#78350f;padding:1px 0;display:flex;align-items:center;gap:6px;">'
-        + '<span style="color:#f59e0b;">•</span>'
-        + '<span style="font-weight:600;">' + o.name + '</span>'
-        + '</div>'
-      ).join('')
-    + '<div style="margin-top:6px;color:#92400e;font-size:11px;">Did you mean one of these? If this is genuinely a different sponsor, click below.</div>'
-    + '<button onclick="var _dw=document.getElementById(\'org-dup-warning\');_dw.dataset.acknowledgedFor=document.getElementById(\'of-name\').value.trim();saveOrg();" '
-    +   'style="margin-top:8px;background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">Add Anyway &#8212; it\'s a different business</button>'
+    + '<div style="font-weight:700;color:#92400e;margin-bottom:6px;font-size:13px;">Similar sponsor already exists — please check before adding:</div>'
+    + similar.slice(0,3).map(function(o) {
+        return '<div style="color:#78350f;padding:2px 0;display:flex;align-items:center;gap:6px;">'
+          + '<span style="color:#f59e0b;font-weight:700;">•</span>'
+          + '<span style="font-weight:600;">' + o.name + '</span>'
+          + '</div>';
+      }).join('')
+    + '<div style="margin-top:8px;color:#92400e;font-size:11px;">Is this genuinely a different business? Acknowledge below, then complete the form and click <strong>Add Sponsor</strong>.</div>'
+    + '<button id="org-dup-ack-btn" onclick="_ackDupWarning()"'
+    + ' style="margin-top:10px;background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;width:100%;">'
+    + 'Acknowledge — this is a different business, continue adding'
+    + '</button>'
     + '</div></div>';
   el.style.display = 'block';
+  // Disable save button until acknowledged
+  const saveBtn = document.getElementById('org-m-save');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.45'; saveBtn.style.cursor = 'not-allowed'; }
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function _ackDupWarning() {
+  const el = document.getElementById('org-dup-warning');
+  const name = document.getElementById('of-name').value.trim();
+  if (el) {
+    el.dataset.acknowledgedFor = name;
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:#166534;font-size:12px;font-weight:600;">'
+      + '<span style="font-size:16px;">✅</span>'
+      + 'Acknowledged — this is a different business. Complete the form and click <strong>Add Sponsor</strong>.'
+      + '</div>';
+    el.style.background = '#f0fdf4';
+    el.style.borderColor = '#86efac';
+  }
+  // Re-enable save button
+  const saveBtn = document.getElementById('org-m-save');
+  if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = ''; saveBtn.style.cursor = ''; }
 }
 
 function openAddOrg() {
@@ -2717,6 +2749,8 @@ function openAddOrg() {
   document.getElementById('org-m-title').textContent = 'Add Sponsor';
   document.getElementById('org-m-save').textContent  = 'Add Sponsor';
   document.getElementById('org-m-del').style.display = 'none';
+  // Ensure save button is always enabled when opening fresh
+  const _sb = document.getElementById('org-m-save'); if (_sb) { _sb.disabled=false; _sb.style.opacity=''; _sb.style.cursor=''; }
   document.getElementById('org-m-sub').textContent   = 'New sponsor organisation.';
   const m = document.getElementById('org-modal'); bringToFront(m); m.classList.add('open');
 }
@@ -3038,10 +3072,14 @@ async function saveSS() {
   else { const idx = seasonEntries.findIndex(s => s.id === editSSId); if (idx >= 0) seasonEntries[idx] = {...seasonEntries[idx], ...data}; }
   setSyncState('ok', 'Saved');
   const reopenOrgId = editSSOrg;
-  closeSSModal(); render();
-  showToast(editSSId ? 'Package updated ✓' : 'Sponsorship added ✓');
-  if (reopenOrgId) setTimeout(() => openOrgDetail(reopenOrgId), 80);
-  loadAll();
+  const _wasNew = !editSSId;
+  closeSSModal();
+  render(); // update sponsor table with local data
+  showToast(_wasNew ? 'Sponsorship added ✓' : 'Package updated ✓');
+  // Reopen detail immediately using already-updated in-memory data — no race condition
+  if (reopenOrgId) openOrgDetail(reopenOrgId);
+  // Refresh from server in background; reopen detail again once fresh data arrives
+  loadAll().then(() => { if (reopenOrgId) openOrgDetail(reopenOrgId); });
 }
 
 async function deleteSS() {
@@ -3055,10 +3093,11 @@ async function deleteSS() {
   if (res.error) { showToast('Error: '+res.error, 'err'); return; }
   const reopenOrgId = editSSOrg;
   seasonEntries = seasonEntries.filter(s => s.id !== editSSId);
-  closeSSModal(); render();
+  closeSSModal();
+  render();
   showToast('Sponsorship entry removed');
-  if (reopenOrgId) setTimeout(() => openOrgDetail(reopenOrgId), 100);
-  loadAll();
+  if (reopenOrgId) openOrgDetail(reopenOrgId);
+  loadAll().then(() => { if (reopenOrgId) openOrgDetail(reopenOrgId); });
 }
 
 // ════════════════════════════════════════════════════════
