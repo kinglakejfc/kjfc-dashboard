@@ -3213,7 +3213,7 @@ async function loadAdminTab(tab, containerId) {
     if (!Array.isArray(res)) { body.innerHTML='<div style="color:var(--red)">Failed to load users</div>'; return; }
 
     const groups = await _loadGroups();
-    const allGroups = [...BUILTIN_GROUPS_FE, ...(groups.custom||[])];
+    const allGroups = [...BUILTIN_GROUP_DEFAULTS_FE, ...(groups.custom||[])];
     const groupName = (id) => { const g = allGroups.find(g => g.id === id); return g ? g.name : id || null; };
     const accessLabel = { admin:'Admin', edit:'Can Edit', readonly:'Read Only' };
     const accessColor = { admin:'var(--green)', edit:'#0d47a1', readonly:'var(--text-dim)' };
@@ -3692,7 +3692,7 @@ function _renderGroupCard(g, users) {
     +     (g.builtin ? '<span style="font-size:9px;background:#fff;border:1px solid var(--border);color:var(--text-dim);padding:1px 7px;border-radius:6px;font-weight:700;">built-in</span>' : '')
     +     userBadge
     +   '</div>'
-    +   '<button class="actbtn" style="margin-left:10px;flex-shrink:0;" onclick="openGroupModal(' + JSON.stringify(JSON.stringify(g)) + ')">Edit</button>'
+    +   '<button class="actbtn" style="margin-left:10px;flex-shrink:0;" onclick="openGroupModal(' + _escHtml(JSON.stringify(JSON.stringify(g))) + ')">Edit</button>'
     + '</div>'
     + '<div style="padding:4px 16px 8px;">' + sectionHtml + '</div>'
     + '</div>';
