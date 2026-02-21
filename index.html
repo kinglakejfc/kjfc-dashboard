@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.184</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.185</span></small>
       </div>
     </div>
     <div class="hright">
@@ -2147,7 +2147,11 @@ async function _loadSponsorAI(s, season, prevYr, prev) {
 
   if (_spCached && !_spCached.error && _spCached.html) {
     // Show cached content immediately
-    el.innerHTML = _spCached.html;
+    el.innerHTML = _spCached.html
+      .replace(/color:#fff;font-weight:800/g, 'color:var(--green);font-weight:800')
+      .replace(/rgba\(255,255,255,\.5\)/g, 'var(--text-dim)')
+      .replace(/#86efac/g, '#16a34a')
+      .replace(/#fbbf24/g, '#d97706');
     if (_spSnEl) _spSnEl.textContent = String(season);
     if (_spTsEl && _spCached.updatedAt) {
       try {
@@ -2234,10 +2238,10 @@ async function _loadSponsorAI(s, season, prevYr, prev) {
     const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const htmlParts = lines.map(line => {
       const cleaned = line.replace(/^[\-\*\u2022]\s*/, '');
-      const bolded  = cleaned.replace(/\*\*(.+?)\*\*/g, '<strong style="color:#fff;font-weight:800;">$1</strong>');
+      const bolded  = cleaned.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--green);font-weight:800;">$1</strong>');
       const isWarn  = /\b(outstanding|overdue|behind|risk|unpaid|low|concern|missing|not paid)\b/i.test(cleaned);
       const isGood  = /\b(ahead|strong|great|on track|excellent|above|collected|received)\b/i.test(cleaned);
-      const dotCol  = isWarn ? '#fbbf24' : isGood ? '#86efac' : 'rgba(255,255,255,.5)';
+      const dotCol  = isWarn ? '#d97706' : isGood ? '#16a34a' : 'var(--text-dim)';
       return '<div style="display:flex;gap:10px;margin-bottom:8px;align-items:flex-start;">'
         + '<span style="color:' + dotCol + ';flex-shrink:0;font-size:15px;line-height:1.4;">\u25cf</span>'
         + '<span style="flex:1;">' + bolded + '</span>'
@@ -2256,7 +2260,7 @@ async function _loadSponsorAI(s, season, prevYr, prev) {
   } catch(e) {
     _sponsorAICache[_spSeason] = false; // allow retry
     if (activeSeason === _spSeason && !el.innerHTML.includes('●')) {
-      el.innerHTML = '<span style="opacity:.5;font-size:12px;">AI summary unavailable — will retry next load</span>';
+      el.innerHTML = '<span style="color:var(--text-dim);font-size:12px;">AI insights unavailable — will retry next load</span>';
     }
   }
 }
@@ -5263,7 +5267,11 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
   const _tsEl = document.getElementById('ai-overview-ts');
   if (_cachedStored && !_cachedStored.error && _cachedStored.html) {
     // Show cached content right away — user sees something immediately
-    el.innerHTML = _cachedStored.html;
+    el.innerHTML = _cachedStored.html
+      .replace(/color:#fff;font-weight:800/g, 'color:var(--green);font-weight:800')
+      .replace(/rgba\(255,255,255,\.5\)/g, 'var(--text-dim)')
+      .replace(/#86efac/g, '#16a34a')
+      .replace(/#fbbf24/g, '#d97706');
     const _sEl = document.getElementById('ai-overview-season');
     if (_sEl) _sEl.textContent = String(plSeason);
     if (_tsEl && _cachedStored.updatedAt) {
@@ -5354,11 +5362,11 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
       // Strip leading bullet/dash chars but keep emoji
       const cleaned = line.replace(/^[\-\*•]\s*/, '');
       // Convert **bold** to styled spans
-      const bolded = cleaned.replace(/\*\*(.+?)\*\*/g, '<strong style="color:#fff;font-weight:800;">$1</strong>');
+      const bolded = cleaned.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--green);font-weight:800;">$1</strong>');
       // Detect tone by keywords for subtle colour coding
       const isWarning = /\b(urgent|low|behind|risk|concern|not returned|lapsed|missing|down)\b/i.test(cleaned);
       const isGood    = /\b(ahead|strong|great|on track|excellent|growing|above)\b/i.test(cleaned);
-      const dotColor  = isWarning ? '#fbbf24' : isGood ? '#86efac' : 'rgba(255,255,255,.5)';
+      const dotColor  = isWarning ? '#d97706' : isGood ? '#16a34a' : 'var(--text-dim)';
       return '<div style="display:flex;gap:10px;margin-bottom:8px;align-items:flex-start;">'
         + '<span style="color:' + dotColor + ';flex-shrink:0;font-size:15px;line-height:1.4;">●</span>'
         + '<span style="flex:1;">' + bolded + '</span>'
@@ -5378,7 +5386,7 @@ async function _loadOverviewAI(rows, pm, yoyData, allYears) {
   } catch(e) {
     _overviewAIFetching[_aiSeason] = false; // allow retry
     if (plSeason === _aiSeason && !el.innerHTML.includes('●')) {
-      el.innerHTML = '<span style="opacity:.5;font-size:12px;">AI summary unavailable — will retry next load</span>';
+      el.innerHTML = '<span style="color:var(--text-dim);font-size:12px;">AI insights unavailable — will retry next load</span>';
     }
   }
 }
