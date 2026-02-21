@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.180</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.181</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1710,7 +1710,26 @@ async function api(action, body = {}) {
     else if (Object.keys(body).length > 0) params.set('payload', encodeURIComponent(JSON.stringify(body)));
     const timer = setTimeout(() => { cleanup(); resolve({ error: 'Request timed out' }); }, 30000);
     function cleanup() { clearTimeout(timer); delete window[cbName]; const el=document.getElementById(cbName); if(el) el.remove(); }
-    window[cbName] = (data) => { cleanup(); resolve(data); };
+    window[cbName] = (data) => {
+      cleanup();
+      // Force sign out if server returns an auth/permission error
+      // This catches revoked tokens, removed users, or session invalidation
+      if (data && data.error && (
+        data.error.toLowerCase().includes('unauthori') ||
+        data.error.toLowerCase().includes('not authorised') ||
+        data.error.toLowerCase().includes('invalid token') ||
+        data.error.toLowerCase().includes('token expired') ||
+        data.error.toLowerCase().includes('no token') ||
+        data.error.toLowerCase().includes('access denied')
+      )) {
+        clearSession();
+        sessionStorage.clear();
+        if (window.google) google.accounts.id.disableAutoSelect();
+        location.reload();
+        return;
+      }
+      resolve(data);
+    };
     const script = document.createElement('script');
     script.id = cbName;
     script.src = APPS_SCRIPT_URL + '?' + params.toString();
@@ -3455,7 +3474,7 @@ async function loadAdminTab(tab, containerId) {
 
     const groups = await _loadGroups();
     const allGroups = [...BUILTIN_GROUP_DEFAULTS_FE, ...(groups.custom||[])];
-    const groupName = (id) => { const g = allGroups.find(g => g.id === id); return g ? g.name : id || null; };
+    const groupName = (id) => { const g = allGroups.find(g => g.id === id); return g ? g.name : null; }; // null if group deleted — hides stale tags
     const accessLabel = { admin:'Admin', edit:'Can Edit', readonly:'View Only' };
     const accessColor = { admin:'var(--green)', edit:'#0d47a1', readonly:'var(--text-dim)' };
 
