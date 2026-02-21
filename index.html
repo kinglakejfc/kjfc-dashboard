@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.173</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.174</span></small>
       </div>
     </div>
     <div class="hright">
@@ -5474,7 +5474,7 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
       options: Object.assign({}, compact, {
         plugins: { legend:{display:false},
           tooltip:{callbacks:{ title:function(i){return 'Season '+i[0].label;}, label:function(c){return c.parsed.y+' players';} }} },
-        onClick: function(e,els) { if(els.length) showYearPlayersSlideover(yoyData[els[0].index].year); }
+        // YoY click-through removed — data reliability
       })
     });
   }
@@ -5495,7 +5495,7 @@ function _renderOverviewChartsInner(yoyData, ageYOY, topSchools, allYears) {
         plugins: { legend:{ display:true, position:'bottom', labels:{boxWidth:9,font:{size:9},color:'#6b7280'} },
           tooltip:{callbacks:{ title:function(i){return 'Season '+i[0].label;}, label:function(c){return c.dataset.label+': '+c.parsed.y;} }} },
         scales: Object.assign({}, compact.scales, { x:Object.assign({},compact.scales.x,{stacked:true}), y:Object.assign({},compact.scales.y,{stacked:true}) }),
-        onClick: function(e,els) { if(els.length) showYearPlayersSlideover(yoyData[els[0].index].year); }
+        // YoY click-through removed — data reliability
       })
     });
   }
