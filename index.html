@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.167</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.168</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4179,6 +4179,7 @@ function init() {
 //  PLAYER MODULE
 // ════════════════════════════════════════════════════════
 let plData       = null;  // { players, seasons, seasonYears, settings, teams }
+let _allProfiles = [];    // Lightweight name lookup for all players across all seasons
 let plSeason     = null;
 let plTab        = 'overview';
 let plSearchQ    = '';
@@ -4479,6 +4480,7 @@ async function loadPlayerData() {
     plData          = cached.playerData;
     _lastImportDate = cached.lastImport || null;
     _lapsedCache    = cached.lapsed    || [];
+    _allProfiles    = cached.allProfiles || [];
     renderPlTab();
     return;
   }
@@ -4497,9 +4499,10 @@ async function loadPlayerData() {
   plData          = res.playerData;
   _lastImportDate = res.lastImport || null;
   _lapsedCache    = res.lapsed    || [];
+  _allProfiles    = res.allProfiles || [];
 
   // D: Save to sessionStorage for fast repeat access
-  _saveRecruitToCache(plSeason, { playerData: res.playerData, lastImport: res.lastImport, lapsed: res.lapsed });
+  _saveRecruitToCache(plSeason, { playerData: res.playerData, lastImport: res.lastImport, lapsed: res.lapsed, allProfiles: res.allProfiles || [] });
 
   // Pre-populate cached AI insight if bundled
   if (res.aiInsight && !res.aiInsight.error) {
@@ -4557,21 +4560,13 @@ function plTeamById(id) {
 
 function plPlayerMap() {
   const m = {};
-  (plData.players||[]).forEach(p => m[p.profileId] = p);
-  // Synthesise minimal records for players in season rows but not in current plData.players
-  // (e.g. lapsed players, prior-season players in YoY charts)
-  (plData.seasons||[]).forEach(s => {
-    if (!m[s.profileId] && s.firstName) {
-      m[s.profileId] = {
-        profileId: s.profileId,
-        firstName:  s.firstName,
-        lastName:   s.lastName  || '',
-        gender:     s.gender    || '',
-        dob:        '', // private — not available from season rows
-        _synthetic: true // flag so openPlayerDetail knows profile is incomplete
-      };
-    }
-  });
+  // Tertiary source: all profiles (lightweight — just name fields, no private data)
+  // Load first so current season and lapsed data take precedence
+  (_allProfiles||[]).forEach(p => { if (p.profileId) m[p.profileId] = p; });
+  // Secondary source: lapsed players (may have more fields like school/lastAgeGroup)
+  (_lapsedCache||[]).forEach(p => { if (p.profileId && p.firstName) m[p.profileId] = p; });
+  // Primary source: current season player profiles (most complete — overwrite others)
+  (plData.players||[]).forEach(p => { if (p.profileId) m[p.profileId] = p; });
   return m;
 }
 
