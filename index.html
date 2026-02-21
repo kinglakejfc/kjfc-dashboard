@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.150</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.151</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1329,11 +1329,11 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
         <select id="um-role"></select>
       </div>
       <div class="fg" id="um-access-row" style="margin-bottom:10px;display:none;">
-        <label>Access Level <span style="font-size:10px;color:var(--text-dim);font-weight:400;">(controls write permissions)</span></label>
+        <label>Access Level <span style="font-size:10px;color:var(--text-dim);font-weight:400;">(controls what they can save/change)</span></label>
         <select id="um-access">
           <option value="admin">Admin — Full write access</option>
-          <option value="edit">Can Edit — Add/edit sponsors</option>
-          <option value="readonly">Read Only — View only</option>
+          <option value="edit">Can Edit — Add/edit data on any visible dashboard</option>
+          <option value="readonly">Read Only — View only, no changes</option>
         </select>
       </div>
       <div class="fg" id="um-group-row" style="margin-bottom:10px;display:none;">
@@ -1341,7 +1341,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
         <select id="um-group">
           <option value="">— Use Access Level default —</option>
         </select>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">If set, this overrides the default visibility for the selected Access Level.</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">Optional. Only needed if this person needs a different set of visible tabs to everyone else at their access level. Leave blank to use the built-in default.</div>
       </div>
       <div id="um-access-note" style="display:none;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--text-dim);line-height:1.6;">
         🔐 <strong style="color:var(--text);">Dashboard access</strong> is managed by an Admin.<br>
@@ -3222,7 +3222,7 @@ async function loadAdminTab(tab, containerId) {
     const groups = await _loadGroups();
     const allGroups = [...BUILTIN_GROUP_DEFAULTS_FE, ...(groups.custom||[])];
     const groupName = (id) => { const g = allGroups.find(g => g.id === id); return g ? g.name : id || null; };
-    const accessLabel = { admin:'Admin', edit:'Can Edit', readonly:'Read Only' };
+    const accessLabel = { admin:'Admin', edit:'Can Edit', readonly:'View Only' };
     const accessColor = { admin:'var(--green)', edit:'#0d47a1', readonly:'var(--text-dim)' };
 
     body.innerHTML = `
@@ -3616,10 +3616,14 @@ async function renderGroupsTab(containerId) {
   body.innerHTML = '<div style="max-width:820px;">'
     // ── Explainer ──────────────────────────────────────────────
     + '<div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:14px 16px;margin-bottom:22px;font-size:13px;line-height:1.6;color:#92400e;">'
-    + '<strong>How access works:</strong> Every user has an Access Level (Admin / Can Edit / Read Only) which controls write permissions. '
-    + 'The Access Group controls which dashboards are visible and how much detail is shown. '
-    + 'Built-in groups are the defaults — editing them changes visibility for <em>all users</em> with that access level unless they\'ve been assigned a custom group. '
-    + 'Custom groups override the default for individual users.'
+    + '<strong>Two separate settings control what each user can do:</strong>'
+    + '<ul style="margin:8px 0 4px 0;padding-left:18px;">'
+    + '<li style="margin-bottom:4px;"><strong>Access Level</strong> (set per user in Manage Users) — controls what they can <em>save or change</em>. '
+    + '<strong>Admin</strong> = full control incl. user management. <strong>Can Edit</strong> = can add/edit data on any dashboard they can see. <strong>View Only</strong> = read-only, no changes.</li>'
+    + '<li><strong>Access Group</strong> (below) — controls which <em>tabs are visible</em> and whether private details (phone, address, DOB) are shown. '
+    + 'Built-in groups set the default visibility for each access level. Custom groups let you give an individual user a different set of visible tabs — e.g. a Coach who can see Recruitment but not Sponsors.</li>'
+    + '</ul>'
+    + '<strong>The Access Group dropdown in Manage Users only shows custom groups</strong> — it only matters if you need to give one person a different view to everyone else at their access level. Most users just use the built-in default.'
     + '</div>'
 
     // ── Built-in groups ─────────────────────────────────────────
@@ -3742,7 +3746,7 @@ async function openGroupModal(groupJson) {
     builtinNote.style.display = isBuiltin ? 'block' : 'none';
     if (isBuiltin) {
       builtinNote.innerHTML = '&zwj;&#x26A0;&#xFE0F; <strong>Built-in group &mdash; name is fixed but permissions are fully editable.</strong> '
-        + 'Changes apply immediately to all users with the <strong>' + _escHtml(_editingGroup.name) + '</strong> access level who have no custom group assigned.';
+        + 'Changes apply immediately to all users at the <strong>' + _escHtml(_editingGroup.name) + '</strong> access level who haven\'t been assigned a custom group.';
     }
   }
 
