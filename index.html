@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.155</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.156</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1739,6 +1739,25 @@ function showApp() {
   renderUserUI();
   _navigateToFirstDashboard();
   loadAll();
+  // Security: refresh permissions from backend — catches group changes without sign-out
+  _refreshPermissions();
+}
+
+async function _refreshPermissions() {
+  try {
+    const res = await api('getMe');
+    if (res && !res.error && res.email) {
+      // Update dashboards and access flags from fresh backend data
+      const changed = JSON.stringify(me.dashboards) !== JSON.stringify(res.dashboards)
+                   || me.admin !== res.admin || me.edit !== res.edit;
+      me.dashboards = res.dashboards || me.dashboards;
+      me.edit       = res.edit;
+      me.admin      = res.admin;
+      saveSession(token, me);
+      // If permissions changed, re-render UI and re-route to correct dashboard
+      if (changed) { renderUserUI(); _navigateToFirstDashboard(); }
+    }
+  } catch(e) {}
 }
 
 function _navigateToFirstDashboard() {
@@ -4303,18 +4322,78 @@ function initPlayerSeasonSel() {
   }
 }
 
-// ── LOAD PLAYER DATA ──────────────────────────────────────────────
+// ── LOAD PLAYER DATA (C: bundle + D: sessionStorage cache + E: skeleton) ──
+const _SS_PREFIX = 'kjfc_recruit_';
+
+function _recruitCacheKey(season) { return _SS_PREFIX + season; }
+
+function _loadRecruitFromCache(season) {
+  try {
+    const raw = sessionStorage.getItem(_recruitCacheKey(season));
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    // Cache valid for 5 minutes within the session
+    if (Date.now() - cached.ts > 5 * 60 * 1000) { sessionStorage.removeItem(_recruitCacheKey(season)); return null; }
+    return cached.data;
+  } catch(e) { return null; }
+}
+
+function _saveRecruitToCache(season, data) {
+  try { sessionStorage.setItem(_recruitCacheKey(season), JSON.stringify({ ts: Date.now(), data })); } catch(e) {}
+}
+
+function _invalidateRecruitCache(season) {
+  try { sessionStorage.removeItem(_recruitCacheKey(season || plSeason)); } catch(e) {}
+}
+
+function _showRecruitSkeleton() {
+  document.getElementById('pl-body').innerHTML = `
+    <div style="padding:20px;animation:pulse 1.4s ease-in-out infinite;">
+      <div style="height:22px;width:160px;background:var(--border);border-radius:6px;margin-bottom:18px;"></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:24px;">
+        ${[1,2,3,4,5,6].map(()=>'<div style="height:72px;background:var(--border);border-radius:10px;"></div>').join('')}
+      </div>
+      <div style="height:16px;width:220px;background:var(--border);border-radius:4px;margin-bottom:10px;"></div>
+      <div style="height:16px;width:180px;background:var(--border);border-radius:4px;margin-bottom:10px;"></div>
+      <div style="height:16px;width:200px;background:var(--border);border-radius:4px;"></div>
+    </div>
+    <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}</style>`;
+}
+
 async function loadPlayerData() {
-  document.getElementById('pl-body').innerHTML =
-    '<div style="text-align:center;padding:40px;color:var(--text-dim)"><div class="ls-spinner" style="margin:0 auto 12px"></div>Loading player data…</div>';
-  const res = await api('getPlayerData', { season: plSeason });
+  // D: Try sessionStorage cache first — instant if switching back to a season
+  const cached = _loadRecruitFromCache(plSeason);
+  if (cached) {
+    plData          = cached.playerData;
+    _lastImportDate = cached.lastImport || null;
+    _lapsedCache    = cached.lapsed    || [];
+    renderPlTab();
+    return;
+  }
+
+  // E: Show skeleton while loading
+  _showRecruitSkeleton();
+
+  // C: Single bundle call instead of 5 separate requests
+  const res = await api('getRecruitmentBundle', { season: plSeason });
   if (res.error) {
     document.getElementById('pl-body').innerHTML =
       `<div style="color:var(--red);padding:20px">${res.error}</div>`;
     return;
   }
-  plData = res;
-  // Season years are shown in main yellow season bar (managed by loadAll/renderSeasonTabs)
+
+  plData          = res.playerData;
+  _lastImportDate = res.lastImport || null;
+  _lapsedCache    = res.lapsed    || [];
+
+  // D: Save to sessionStorage for fast repeat access
+  _saveRecruitToCache(plSeason, { playerData: res.playerData, lastImport: res.lastImport, lapsed: res.lapsed });
+
+  // Pre-populate cached AI insight if bundled
+  if (res.aiInsight && !res.aiInsight.error) {
+    _bundledAiInsight = res.aiInsight;
+  }
+
   renderPlTab();
 }
 
@@ -4322,7 +4401,10 @@ async function loadPlayerView() {
   // plSeason is set by the main yellow season tab bar (switchSeason)
   plData          = null;
   _seasonCfg      = null;  // force reload from Sheets for new season
-  // force reload planning data for new season
+  _lastImportDate = null;
+  _lapsedCache    = null;
+  _bundledAiInsight = null;
+  _invalidateRecruitCache(plSeason); // D: clear sessionStorage so we get fresh data
   await loadPlayerData();
 }
 
@@ -4508,28 +4590,21 @@ function normaliseDobFE(raw) {
 }
 
 // ── OVERVIEW TAB ──────────────────────────────────────────────────
-let _lastImportDate = null;
-let _lapsedCache    = null;
+let _lastImportDate    = null;
+let _lapsedCache       = null;
+let _bundledAiInsight  = null; // pre-loaded from recruitment bundle
 
 async function renderPlOverview() {
-  document.getElementById('pl-body').innerHTML =
-    '<div style="text-align:center;padding:40px;color:var(--text-dim)"><div class="ls-spinner" style="margin:0 auto 12px"></div>Loading…</div>';
+  // Data is now loaded via bundle in loadPlayerData — _lastImportDate and _lapsedCache
+  // are already populated. Just render immediately. No extra API calls needed.
+  if (!plData) { await loadPlayerData(); return; }
 
-  // Parallel loads: last import date + lapsed players
-  const [impRes, lapRes] = await Promise.all([
-    api('getLastImportDate', { season: plSeason }),
-    api('getLapsedPlayers',  { year: plSeason })
-  ]);
-
-  // Use API result, or fall back to importedAt from already-loaded season rows
-  let importDate = (!impRes.error && impRes.lastImport) ? impRes.lastImport : null;
-  if (!importDate) {
+  // Fallback: derive import date from season rows if bundle didn't provide it
+  if (!_lastImportDate) {
     const seasonRows = (plData.seasons || []).filter(s => String(s.year) === String(plSeason));
     const dates = seasonRows.map(r => r.importedAt).filter(Boolean).sort();
-    if (dates.length) importDate = dates[dates.length - 1];
+    if (dates.length) _lastImportDate = dates[dates.length - 1];
   }
-  _lastImportDate = importDate || null;
-  _lapsedCache    = (!lapRes.error && lapRes.lapsed) ? lapRes.lapsed : [];
 
   _renderOverviewHTML();
 }
@@ -5967,6 +6042,7 @@ async function savePlayerDetail() {
     Object.assign(ps, { dispensation, assignedTeam, dispensationNote: dispNote, notes });
   }
 
+  _invalidateRecruitCache(); // D: fresh data needed after player change
   showToast('Player saved ✓');
   closePlayerDetail();
   renderPlTab();
@@ -6460,6 +6536,7 @@ async function saveTeamModal() {
   else { plData.teams = plData.teams || []; plData.teams.push(newTeam); }
 
   closeTeamModal();
+  _invalidateRecruitCache(); // D: fresh data needed after team change
   showToast(payload.id ? 'Team updated ✓' : 'Team added ✓');
   renderPlTeams();
 }
@@ -6995,6 +7072,7 @@ async function runImport() {
 
   const s = res.stats || {};
   setStatus('✓ Import complete', 'var(--green)');
+  _invalidateRecruitCache(); // D: fresh data after import
   showToast(`Import done — ${s.imported} new · ${s.updated} updated · ${s.seniors} seniors excluded${s.errors?' · '+s.errors+' errors':''}`);
   _importData = null;
   plData      = null;
