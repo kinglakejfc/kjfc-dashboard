@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.174</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.175</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1452,7 +1452,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
     <div id="pdm-body" style="padding:20px;"></div>
     <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;">
       <button class="msecondary" onclick="closePlayerDetail()">Close</button>
-      <button class="mprimary" id="pdm-save-btn" onclick="savePlayerDetail()">Save Changes</button>
+      <button class="mprimary" id="pdm-save-btn" onclick="savePlayerDetail()" style="display:none">Save Changes</button>
     </div>
   </div>
 </div>
@@ -6090,6 +6090,9 @@ function openPlayerDetail(profileId) {
   const pm  = plPlayerMap();
   const p   = pm[profileId];
   if (!p) return;
+  // Show Save button only for users with edit permission
+  const _saveBtn = document.getElementById('pdm-save-btn');
+  if (_saveBtn) _saveBtn.style.display = me?.edit ? '' : 'none';
 
   // Primary: look for a current season row
   let ps = plSeasonRows().find(r => r.profileId === profileId);
