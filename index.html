@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.161</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.162</span></small>
       </div>
     </div>
     <div class="hright">
@@ -3067,12 +3067,11 @@ async function saveSS() {
   const reopenOrgId = editSSOrg;
   const _wasNew = !editSSId;
   closeSSModal();
-  render(); // update sponsor table with local data
   showToast(_wasNew ? 'Sponsorship added ✓' : 'Package updated ✓');
-  // Reopen detail immediately using already-updated in-memory data — no race condition
+  // Wait for loadAll to finish so seasonEntries is fully up to date, then render + open detail
+  await loadAll();
+  render();
   if (reopenOrgId) openOrgDetail(reopenOrgId);
-  // Refresh from server in background; reopen detail again once fresh data arrives
-  loadAll().then(() => { if (reopenOrgId) openOrgDetail(reopenOrgId); });
 }
 
 async function deleteSS() {
@@ -3087,10 +3086,10 @@ async function deleteSS() {
   const reopenOrgId = editSSOrg;
   seasonEntries = seasonEntries.filter(s => s.id !== editSSId);
   closeSSModal();
-  render();
   showToast('Sponsorship entry removed');
+  await loadAll();
+  render();
   if (reopenOrgId) openOrgDetail(reopenOrgId);
-  loadAll().then(() => { if (reopenOrgId) openOrgDetail(reopenOrgId); });
 }
 
 // ════════════════════════════════════════════════════════
