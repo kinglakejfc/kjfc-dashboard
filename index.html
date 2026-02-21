@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.182</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.183</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1907,13 +1907,14 @@ function _navigateToFirstDashboard() {
   document.querySelectorAll('.dashboard-tab').forEach(b => b.classList.remove('act'));
   const mainContent = document.getElementById('main-content') || document.querySelector('main') || document.getElementById('app');
   const noAccess = document.getElementById('no-access-msg') || document.createElement('div');
-  noAccess.id = 'no-access-msg';
-  noAccess.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;padding:40px 20px;';
-  noAccess.innerHTML = '<div style="font-size:48px;margin-bottom:16px;">🔒</div>'
-    + '<div style="font-family:var(--font-cond),sans-serif;font-size:28px;font-weight:900;color:var(--green);margin-bottom:8px;">No Dashboards Accessible</div>'
-    + '<div style="font-size:14px;color:var(--text-dim);max-width:380px;line-height:1.6;">Your account doesn\'t currently have access to any dashboards. Please contact your administrator to have your access group configured.</div>'
-    + '<div style="margin-top:20px;font-size:12px;color:var(--text-dim);">Signed in as <strong>' + (me ? me.email : '') + '</strong></div>';
-  document.querySelector('#app') && document.querySelector('#app').appendChild(noAccess);
+  // No dashboards — sign out immediately rather than showing a locked empty screen
+  const _noAccessEmail = me ? me.email : '';
+  clearSession();
+  sessionStorage.clear();
+  if (window.google) google.accounts.id.disableAutoSelect();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-view').style.display = 'flex';
+  document.getElementById('lerr').textContent = 'Your account (' + _noAccessEmail + ') has no dashboard access. Contact your administrator.';
 }
 
 function renderUserUI() {
