@@ -861,7 +861,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.172</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v0.1.173</span></small>
       </div>
     </div>
     <div class="hright">
@@ -5710,26 +5710,30 @@ function _psoSpinner(title, sub) {
 }
 
 // Render slideover body from a pre-built items array + player map
+// Render slideover body from a pre-built items array + player map
 function _psoRenderList(items, pm) {
-  document.getElementById('pso-body').innerHTML = items.length
-    ? items.map(function(item) {
-        var p      = pm[item.pid] || {};
-        var name   = plName(p) || '(Unknown)';
-        var label  = item.label  || '';
-        var rowSub = item.sub    || '';
-        var pid    = item.pid;
-        return '<div onclick="openPlayerDetailFromSlideover(\'' + pid + '\')"'
-          + ' style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;cursor:pointer;margin-bottom:5px;border:1.5px solid var(--border);background:#fff;"'
-          + ' onmouseenter="this.style.background='var(--green-light)'" onmouseleave="this.style.background='#fff'">'
-          + '<div style="flex:1;min-width:0;">'
-          + '<div style="font-weight:700;font-size:13px;">' + name + '</div>'
-          + (label  ? '<div style="font-size:11px;color:var(--text-dim);">' + label  + '</div>' : '')
-          + (rowSub ? '<div style="font-size:11px;color:var(--text-dim);">' + rowSub + '</div>' : '')
-          + '</div>'
-          + '<div style="color:var(--text-dim);font-size:16px;">›</div>'
-          + '</div>';
-      }).join('')
-    : '<div style="color:var(--text-dim);padding:20px;text-align:center;">No players.</div>';
+  var body = document.getElementById('pso-body');
+  if (!items.length) {
+    body.innerHTML = '<div style="color:var(--text-dim);padding:20px;text-align:center;">No players.</div>';
+    return;
+  }
+  body.innerHTML = '';
+  items.forEach(function(item) {
+    var p      = pm[item.pid] || {};
+    var name   = plName(p) || '(Unknown)';
+    var el     = document.createElement('div');
+    el.style.cssText = 'display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;cursor:pointer;margin-bottom:5px;border:1.5px solid var(--border);background:#fff;';
+    el.addEventListener('mouseenter', function(){ el.style.background = 'var(--green-light)'; });
+    el.addEventListener('mouseleave', function(){ el.style.background = '#fff'; });
+    el.addEventListener('click', function(){ openPlayerDetailFromSlideover(item.pid); });
+    var inner = '<div style="flex:1;min-width:0;">'
+      + '<div style="font-weight:700;font-size:13px;">' + name + '</div>';
+    if (item.label)  inner += '<div style="font-size:11px;color:var(--text-dim);">' + item.label + '</div>';
+    if (item.sub)    inner += '<div style="font-size:11px;color:var(--text-dim);">' + item.sub   + '</div>';
+    inner += '</div><div style="color:var(--text-dim);font-size:16px;">›</div>';
+    el.innerHTML = inner;
+    body.appendChild(el);
+  });
 }
 
 // Fetch player data for a given year (cached) — returns { players, seasons }
