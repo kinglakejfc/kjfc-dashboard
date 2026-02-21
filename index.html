@@ -895,7 +895,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
   <div id="dashboard-nav" class="dashboard-nav">
     <!-- Row 1: Dashboard selector -->
     <div class="dbar-row1">
-      <button class="dtab dashboard-tab act" id="dash-tab-sponsors" onclick="switchDashboard('sponsors')">🏆 Sponsorship</button>
+      <button class="dtab dashboard-tab" id="dash-tab-sponsors" onclick="switchDashboard('sponsors')">🏆 Sponsorship</button>
       <button class="dtab dashboard-tab" id="dash-tab-recruitment" onclick="switchDashboard('recruitment')" style="display:none;">🏉 Recruitment</button>
       <button class="dtab dashboard-tab" id="dash-tab-admin" onclick="switchDashboard('admin-panel')" style="display:none;">⚙️ Admin</button>
     </div>
@@ -923,7 +923,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
   <!-- MAIN -->
   <main id="main-wrap">
     <!-- SPONSORSHIP CONTENT -->
-    <div id="sponsor-content">
+    <div id="sponsor-content" style="display:none;">
     <!-- ROW 1: Season title -->
     <div class="season-head">
       <h2 class="section-title" id="season-span">SPONSORSHIP</h2>
@@ -1715,20 +1715,14 @@ async function loadAll() {
     rebuildTierLookups();
     populatePackageSelect();
     renderSeasonTabs();
-    render(); // always update sponsorship KPIs
-    // Restore whichever dashboard was active — don't reset to sponsors on refresh
-    const wasDash = typeof _currentDashboard !== 'undefined' ? _currentDashboard : 'sponsors';
-    if (wasDash === 'recruitment') {
-      // Re-apply recruitment panel visibility (render() above doesn't touch dashboard state)
-      document.getElementById('sponsor-content').style.display     = 'none';
-      document.getElementById('recruitment-content').style.display = 'block';
-      document.getElementById('dash-tab-sponsors').classList.remove('act');
-      document.getElementById('dash-tab-recruitment').classList.add('act');
-      document.getElementById('dash-sub-sponsors').style.display    = 'none';
-      document.getElementById('dash-sub-recruitment').style.display = 'flex';
-      initPlayerSeasonSel();
-      plData = null;
-      loadPlayerData();
+    // Only render sponsorship KPIs if user can see sponsors
+    if (canSeeDash('sponsors')) render();
+    // Re-apply whichever dashboard was active, but only if still accessible
+    const wasDash = _currentDashboard || 'sponsors';
+    if (canSeeDash(wasDash === 'admin-panel' ? 'admin' : wasDash)) {
+      switchDashboard(wasDash);
+    } else {
+      _navigateToFirstDashboard();
     }
   } catch(e) {
     setSyncState('err', 'Load failed: ' + e.message);
@@ -1743,7 +1737,37 @@ function showApp() {
   document.getElementById('login-view').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   renderUserUI();
+  _navigateToFirstDashboard();
   loadAll();
+}
+
+function _navigateToFirstDashboard() {
+  // Find the first dashboard this user has access to, in priority order
+  const order = ['sponsors', 'recruitment', 'admin-panel'];
+  const dashKey = { 'sponsors': 'sponsors', 'recruitment': 'recruitment', 'admin-panel': 'admin' };
+  for (let i = 0; i < order.length; i++) {
+    if (canSeeDash(dashKey[order[i]])) {
+      switchDashboard(order[i]);
+      return;
+    }
+  }
+  // No dashboards accessible — show a "no access" message
+  document.getElementById('sponsor-content').style.display  = 'none';
+  document.getElementById('recruitment-content').style.display = 'none';
+  document.getElementById('admin-panel-content').style.display = 'none';
+  document.getElementById('dash-sub-sponsors').style.display   = 'none';
+  document.getElementById('dash-sub-recruitment').style.display = 'none';
+  document.getElementById('dash-sub-admin').style.display      = 'none';
+  document.querySelectorAll('.dashboard-tab').forEach(b => b.classList.remove('act'));
+  const mainContent = document.getElementById('main-content') || document.querySelector('main') || document.getElementById('app');
+  const noAccess = document.getElementById('no-access-msg') || document.createElement('div');
+  noAccess.id = 'no-access-msg';
+  noAccess.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;padding:40px 20px;';
+  noAccess.innerHTML = '<div style="font-size:48px;margin-bottom:16px;">🔒</div>'
+    + '<div style="font-family:var(--font-cond),sans-serif;font-size:28px;font-weight:900;color:var(--green);margin-bottom:8px;">No Dashboards Accessible</div>'
+    + '<div style="font-size:14px;color:var(--text-dim);max-width:380px;line-height:1.6;">Your account doesn\'t currently have access to any dashboards. Please contact your administrator to have your access group configured.</div>'
+    + '<div style="margin-top:20px;font-size:12px;color:var(--text-dim);">Signed in as <strong>' + (me ? me.email : '') + '</strong></div>';
+  document.querySelector('#app') && document.querySelector('#app').appendChild(noAccess);
 }
 
 function renderUserUI() {
