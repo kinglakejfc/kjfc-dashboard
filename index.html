@@ -5957,19 +5957,11 @@ async function renderPlLapsed() {
           <div style="font-size:11px;color:var(--text-dim);">Age ${calcCurAge(p)||'?'} in ${res.year} · ${seasonSchool(res,{[res.profileId]:p})||'—'}${canSeePrivate('recruitment') ? ' · ' + (seasonSuburb(res,{[res.profileId]:p})||'—') : ''}</div>
         </div>
         <div style="flex-shrink:0;min-width:180px;">
-          ${canSeePrivate('recruitment') ? `
-            ${p.parent1Name||p.parent1Phone ? \`
-              <div style="font-size:11px;display:flex;gap:6px;align-items:baseline;">
-                <span style="font-weight:600;font-size:11px;min-width:90px;">\${p.parent1Name||''}</span>
-                <span style="color:var(--text-dim);">\${p.parent1Phone?fmtPhone(p.parent1Phone):''}</span>
-              </div>\` : ''}
-            ${p.parent2Name||p.parent2Phone ? \`
-              <div style="font-size:11px;display:flex;gap:6px;align-items:baseline;margin-top:1px;">
-                <span style="font-weight:600;font-size:11px;min-width:90px;">\${p.parent2Name||''}</span>
-                <span style="color:var(--text-dim);">\${p.parent2Phone?fmtPhone(p.parent2Phone):''}</span>
-              </div>\` : ''}
-            ${!p.parent1Name&&!p.parent1Phone&&!p.parent2Name&&!p.parent2Phone ? '<div style="font-size:11px;color:var(--text-dim);">No contact info</div>' : ''}
-          ` : '<div style="font-size:11px;color:var(--text-dim);">🔒 Restricted</div>'}
+          ${canSeePrivate('recruitment') ? (
+            (p.parent1Name||p.parent1Phone ? '<div style="font-size:11px;display:flex;gap:6px;align-items:baseline;"><span style="font-weight:600;font-size:11px;min-width:90px;">' + (p.parent1Name||'') + '</span><span style="color:var(--text-dim);">' + (p.parent1Phone?fmtPhone(p.parent1Phone):'') + '</span></div>' : '') +
+            (p.parent2Name||p.parent2Phone ? '<div style="font-size:11px;display:flex;gap:6px;align-items:baseline;margin-top:1px;"><span style="font-weight:600;font-size:11px;min-width:90px;">' + (p.parent2Name||'') + '</span><span style="color:var(--text-dim);">' + (p.parent2Phone?fmtPhone(p.parent2Phone):'') + '</span></div>' : '') +
+            (!p.parent1Name&&!p.parent1Phone&&!p.parent2Name&&!p.parent2Phone ? '<div style="font-size:11px;color:var(--text-dim);">No contact info</div>' : '')
+          ) : '<div style="font-size:11px;color:var(--text-dim);">🔒 Restricted</div>'}
         </div>
       </div>`).join('')}
     </div>
