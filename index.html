@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>KJFC Exec Dashboard</title>
-<!-- PWA -->
-<link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#013c1e">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1808,8 +1806,7 @@ async function handleGoogleCredential(response) {
   me = { email: result.email, name: result.name, role: result.role, edit: result.edit, admin: result.admin, picture: result.picture, dashboards: result.dashboards || [] };
   saveSession(token, me);
   showApp();
-  // PWA: subscribe to push notifications after login
-  if (window._subscribeToPush) window._subscribeToPush();
+
 }
 
 // ════════════════════════════════════════════════════════
@@ -7422,54 +7419,6 @@ function parseCSVLine(line) {
 // ── SETTINGS TAB ─────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', init);
-</script>
-<!-- PWA: Service Worker Registration & Push Notifications -->
-<script>
-const VAPID_PUBLIC_KEY = 'BCNUukAFvX7a8jtZM3Gxur8ulVoSfM72yaMFIjXQ08QDZsebTgYQf86W_trFxjZmahiLtdfiWHw1bmGej7SSuzo';
-
-// Register service worker
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    try {
-      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-      console.log('[PWA] Service worker registered:', reg.scope);
-      window._swReg = reg;
-
-      // Once logged in, subscribe to push notifications
-      window._subscribeToPush = async () => {
-        if (!reg.pushManager) return;
-        try {
-          // Check existing subscription first
-          let sub = await reg.pushManager.getSubscription();
-          if (!sub) {
-            // Request permission
-            const permission = await Notification.requestPermission();
-            if (permission !== 'granted') return;
-            // Subscribe
-            sub = await reg.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-            });
-          }
-          // Send subscription to backend
-          await api('savePushSubscription', { subscription: JSON.stringify(sub) });
-          console.log('[PWA] Push subscription saved');
-        } catch(e) {
-          console.warn('[PWA] Push subscription failed:', e);
-        }
-      };
-    } catch(e) {
-      console.warn('[PWA] Service worker registration failed:', e);
-    }
-  });
-}
-
-function _urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = atob(base64);
-  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
-}
 </script>
 </body>
 </html>
