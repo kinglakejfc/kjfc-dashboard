@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.2.4</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.2.5</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4343,14 +4343,12 @@ async function openMessagingFromLapsed() {
 
   let lapsed = [];
   try {
-    const bundle = await api('getRecruitmentBundle', { season: season });
-    if (bundle && bundle.lapsed) {
-      lapsed       = bundle.lapsed;
-      plData       = bundle.playerData || plData;
-      _lapsedCache = lapsed;
-      if (!plSeason) plSeason = season;
+    // Use dedicated SMS endpoint — phones are never stripped here
+    const res = await api('getLapsedForSMS', { season: season });
+    if (res && res.contacts) {
+      lapsed = res.contacts;
     }
-  } catch(e) { /* fall back to cache */ lapsed = _lapsedCache || []; }
+  } catch(e) { lapsed = _lapsedCache || []; }
 
   // Build recipient list
   const numMap = {};
