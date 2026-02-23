@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.1.3</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.1.5</span></small>
       </div>
     </div>
     <div class="hright">
@@ -929,6 +929,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button class="dtab" data-admintab="groups" onclick="switchAdminTab(this,'groups')"><span class="dtab-icon">🔐</span><span class="dtab-lbl">Access Groups</span></button>
       <button class="dtab" data-admintab="log" onclick="switchAdminTab(this,'log')"><span class="dtab-icon">📋</span><span class="dtab-lbl">Activity Log</span></button>
       <button class="dtab" data-admintab="about" onclick="switchAdminTab(this,'about')"><span class="dtab-icon">ℹ️</span><span class="dtab-lbl">About</span></button>
+      <button class="dtab" data-admintab="messaging" id="admin-tab-messaging" onclick="switchAdminTab(this,'messaging')" style="display:none;"><span class="dtab-icon">💬</span><span class="dtab-lbl">Messaging</span></button>
     </div>
   </div>
 
@@ -1358,6 +1359,16 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div id="um-access-note" style="display:none;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--text-dim);line-height:1.6;">
         🔐 <strong style="color:var(--text);">Dashboard access</strong> is managed by an Admin.<br>
         Sign in is via Google — only Google accounts that have been added to the dashboard by an admin can access it. Contact your admin to change your access level.
+      </div>
+      <!-- SMS access toggle — admin only -->
+      <div id="um-sms-row" style="display:none;margin-top:10px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="um-cansms" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;">
+          <span>
+            <span style="font-size:13px;font-weight:700;">💬 SMS Messaging access</span><br>
+            <span style="font-size:11px;color:var(--text-dim);">Allows this user to send SMS campaigns via the Messaging tab. Off by default.</span>
+          </span>
+        </label>
       </div>
     </div>
     <div class="mactions">
@@ -1803,7 +1814,7 @@ async function handleGoogleCredential(response) {
     return;
   }
   token = result.token;
-  me = { email: result.email, name: result.name, role: result.role, edit: result.edit, admin: result.admin, picture: result.picture, dashboards: result.dashboards || [] };
+  me = { email: result.email, name: result.name, role: result.role, edit: result.edit, admin: result.admin, picture: result.picture, dashboards: result.dashboards || [], canSMS: !!result.canSMS };
   saveSession(token, me);
   showApp();
 
@@ -3431,6 +3442,10 @@ async function loadAdminTab(tab, containerId) {
     </table></div>`;
     return;
   }
+  if (tab==='messaging') {
+    renderMessagingTab(body);
+    return;
+  }
   if (tab==='about') {
     body.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;">Loading…</div>';
     const usageRes = await api('getAIUsage');
@@ -3513,6 +3528,7 @@ async function loadAdminTab(tab, containerId) {
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;">
               <span style="font-size:10px;font-weight:800;color:${accessColor[acc]||'var(--text-dim)'};background:var(--bg);border:1.5px solid var(--border);padding:2px 8px;border-radius:10px;white-space:nowrap;">${accessLabel[acc]||acc}</span>
               ${grpLabel ? '<span style="font-size:9px;color:var(--green);background:var(--green-light);padding:1px 6px;border-radius:8px;white-space:nowrap;">🔐 ' + grpLabel + '</span>' : ''}
+              ${u.canSMS ? '<span style="font-size:9px;color:#0d47a1;background:#e8f0fe;padding:1px 6px;border-radius:8px;white-space:nowrap;">💬 SMS</span>' : ''}
             </div>
             <button class="actbtn" onclick='openUserModal(${JSON.stringify(u).replace(/'/g,"&#39;")})'>Edit</button>
           </div>`;
@@ -3564,6 +3580,14 @@ function openUserModal(u) {
     accNote.style.display = 'block';
   }
 
+  // canSMS toggle — only visible to admins
+  const smsRow = document.getElementById('um-sms-row');
+  if (smsRow) {
+    smsRow.style.display = viewerIsAdmin ? 'block' : 'none';
+    const smsCb = document.getElementById('um-cansms');
+    if (smsCb) smsCb.checked = !!(u && u.canSMS);
+  }
+
   // Only admins can save; non-admins see read-only profile info
   const saveBtn = document.getElementById('user-modal').querySelector('.mprimary');
   if (saveBtn) saveBtn.style.display = viewerIsAdmin ? '' : 'none';
@@ -3594,15 +3618,14 @@ async function confirmEditUser() {
     const selectedGroup = grpSel ? grpSel.value : '';
     const builtinIds = ['admin', 'edit', 'readonly'];
     if (builtinIds.includes(selectedGroup)) {
-      // Builtin group selected — set access to match and clear group column
-      // so verifyToken derives permissions from access level cleanly
       payload.access = selectedGroup;
       payload.group  = '';
     } else {
-      // Custom group or "use default" — keep access dropdown value, set group
       payload.access = document.getElementById('um-access').value;
       payload.group  = selectedGroup;
     }
+    const smsCb = document.getElementById('um-cansms');
+    payload.canSMS = smsCb ? smsCb.checked : false;
   }
 
   const btn = document.getElementById('user-modal').querySelector('.mprimary');
@@ -4304,6 +4327,226 @@ let plDetailId   = null;  // profileId of open player detail
 
 // ── OPEN / CLOSE ─────────────────────────────────────────────────
 // ── HAMBURGER MENU ───────────────────────────────────────────────
+// ── MESSAGING TAB ─────────────────────────────────────────────────────────────
+let _smsHistory = [];
+
+async function renderMessagingTab(body) {
+  body.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;">Loading…</div>';
+
+  // Load SMS history and player data in parallel
+  const [histRes, playerData] = await Promise.all([
+    api('getSMSLog'),
+    plData ? Promise.resolve(plData) : api('getPlayerData', { season: new Date().getFullYear() })
+  ]);
+  _smsHistory = Array.isArray(histRes) ? histRes : [];
+
+  body.innerHTML = `
+    <div style="max-width:760px;">
+
+      <!-- Composer card -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--green);">✉️ New Message</div>
+
+        <!-- Audience -->
+        <div style="margin-bottom:14px;">
+          <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Audience</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;" id="sms-audience-btns">
+            ${[
+              { key:'lapsed',    label:'Not Returned',   icon:'📋' },
+              { key:'unassigned',label:'No Team Yet',    icon:'⚠️' },
+              { key:'all',       label:'All Registered', icon:'👥' },
+            ].map(a => `<button class="sms-aud-btn${a.key==='lapsed'?' act':''}" data-aud="${a.key}"
+              onclick="_smsSelectAudience('${a.key}')"
+              style="padding:6px 12px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:700;cursor:pointer;">
+              ${a.icon} ${a.label}
+            </button>`).join('')}
+          </div>
+        </div>
+
+        <!-- Recipient summary -->
+        <div id="sms-recipient-summary" style="background:var(--green-light);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:14px;min-height:36px;"></div>
+
+        <!-- Message -->
+        <div style="margin-bottom:14px;">
+          <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Message</label>
+          <textarea id="sms-message" rows="4" oninput="_smsUpdateCount()"
+            placeholder="Type your message here…"
+            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;line-height:1.5;"></textarea>
+          <div style="display:flex;justify-content:space-between;margin-top:4px;">
+            <span id="sms-char-count" style="font-size:11px;color:var(--text-dim);">0 / 160 characters · 1 SMS per recipient</span>
+            <span style="font-size:11px;color:var(--text-dim);">≈ $0.05 per SMS (Notifyre)</span>
+          </div>
+        </div>
+
+        <!-- Send button -->
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <button onclick="_smsSend()" id="sms-send-btn"
+            style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer;">
+            📤 Send SMS
+          </button>
+          <span id="sms-send-status" style="font-size:12px;"></span>
+        </div>
+
+        <!-- Config notice -->
+        <div id="sms-config-notice" style="margin-top:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;font-size:11px;color:#92400e;display:none;">
+          ⚠️ SMS API token not configured. Ask your admin to add the Notifyre API token in Script Properties under the key <strong>NOTIFYRE_API_TOKEN</strong>, and set <strong>SMS_SENDER_ID</strong> to <strong>KinglakeJFC</strong> once approved.
+        </div>
+      </div>
+
+      <!-- Send history -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--green);">📜 Send History</div>
+        <div id="sms-history-body">
+          ${_smsHistory.length === 0
+            ? '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">No messages sent yet.</div>'
+            : `<table style="width:100%;font-size:12px;border-collapse:collapse;">
+                <thead><tr style="border-bottom:2px solid var(--border);">
+                  <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Date</th>
+                  <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Sent by</th>
+                  <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Audience</th>
+                  <th style="text-align:right;padding:6px 8px;color:var(--text-dim);font-weight:700;">Recipients</th>
+                  <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Message</th>
+                </tr></thead>
+                <tbody>${_smsHistory.map(r => `<tr style="border-bottom:1px solid var(--border);">
+                  <td style="padding:6px 8px;white-space:nowrap;">${fmtD(r.timestamp)}</td>
+                  <td style="padding:6px 8px;">${r.user||'—'}</td>
+                  <td style="padding:6px 8px;">${r.audience||'—'}</td>
+                  <td style="padding:6px 8px;text-align:right;font-weight:700;">${r.recipients||0}</td>
+                  <td style="padding:6px 8px;color:var(--text-dim);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(r.message||'').replace(/"/g,'&quot;')}">${r.message||''}</td>
+                </tr>`).join('')}</tbody>
+              </table>`}
+        </div>
+      </div>
+    </div>`;
+
+  // Init audience
+  _smsSelectAudience('lapsed');
+  // Check config
+  const configRes = await api('checkSMSConfig');
+  if (configRes && !configRes.configured) {
+    document.getElementById('sms-config-notice').style.display = 'block';
+  }
+}
+
+let _smsCurrentAudience = 'lapsed';
+let _smsRecipients = [];
+
+function _smsSelectAudience(key) {
+  _smsCurrentAudience = key;
+  document.querySelectorAll('.sms-aud-btn').forEach(b => {
+    const isAct = b.dataset.aud === key;
+    b.style.background    = isAct ? 'var(--green)'      : '#fff';
+    b.style.color         = isAct ? '#fff'              : 'var(--text)';
+    b.style.borderColor   = isAct ? 'var(--green)'      : 'var(--border)';
+  });
+  _smsBuildRecipients(key);
+}
+
+function _smsNormalisePhone(raw) {
+  if (!raw) return null;
+  let num = String(raw).replace(/\s/g,'');
+  if (num.startsWith('04') && num.length === 10) return num;
+  if (num.startsWith('614') && num.length === 11) return '0' + num.slice(2);
+  if (num.startsWith('+614') && num.length === 12) return '0' + num.slice(3);
+  return null; // not a recognisable Australian mobile
+}
+
+function _smsBuildRecipients(key) {
+  const rows   = plData ? (plData.seasons||[]).filter(s => +s.year === +plSeason) : [];
+  const pm     = plData ? plPlayerMap() : {};
+  const lapsed = _lapsedCache || [];
+  let pool = [];
+
+  if (key === 'lapsed') {
+    const lapsedIds = new Set(lapsed.map(p => p.profileId));
+    pool = rows.filter(r => lapsedIds.has(r.profileId));
+  } else if (key === 'unassigned') {
+    pool = rows.filter(r => !r.assignedTeam);
+  } else {
+    pool = rows;
+  }
+
+  // Collect all unique mobile numbers across both parents (and direct phone field)
+  // Each unique number gets one SMS regardless of how many players share it
+  const recipients = [];
+  const seenNums   = new Set();
+  let playersWithAtLeastOneNum = 0;
+
+  pool.forEach(r => {
+    const p = pm[r.profileId] || {};
+    const playerName = ((p.firstName||'') + ' ' + (p.lastName||'')).trim();
+    const contacts = [
+      { num: _smsNormalisePhone(p.parent1Phone), name: p.parent1Name || playerName },
+      { num: _smsNormalisePhone(p.parent2Phone), name: p.parent2Name || playerName },
+      { num: _smsNormalisePhone(p.phone),        name: playerName },
+    ].filter(c => c.num);
+
+    if (contacts.length) playersWithAtLeastOneNum++;
+    contacts.forEach(c => {
+      if (seenNums.has(c.num)) return;
+      seenNums.add(c.num);
+      recipients.push(c);
+    });
+  });
+
+  _smsRecipients = recipients;
+  const summaryEl = document.getElementById('sms-recipient-summary');
+  if (!summaryEl) return;
+  const noNum = pool.length - playersWithAtLeastOneNum;
+  summaryEl.innerHTML = recipients.length === 0
+    ? '<span style="color:#dc2626;">No mobile numbers found for this audience.</span>'
+    : `<strong style="color:var(--green);">${recipients.length} mobile number${recipients.length!==1?'s':''}</strong>`
+      + ` across ${pool.length} player${pool.length!==1?'s':''}`
+      + (noNum > 0 ? ` <span style="color:var(--text-dim);">(${noNum} without any mobile on file)</span>` : '');
+  _smsUpdateCount();
+}
+
+function _smsUpdateCount() {
+  const msg = (document.getElementById('sms-message')||{}).value || '';
+  const chars = msg.length;
+  const parts = chars <= 160 ? 1 : Math.ceil(chars / 153);
+  const count = _smsRecipients.length;
+  const cost  = (parts * count * 0.05).toFixed(2);
+  const el = document.getElementById('sms-char-count');
+  if (el) el.textContent = `${chars} / ${parts === 1 ? 160 : parts * 153} characters · ${parts} SMS part${parts!==1?'s':''} × ${count} recipient${count!==1?'s':''} = est. $${cost}`;
+}
+
+async function _smsSend() {
+  const msg = (document.getElementById('sms-message')||{}).value || '';
+  if (!msg.trim()) { alert('Please enter a message.'); return; }
+  if (_smsRecipients.length === 0) { alert('No recipients found for this audience.'); return; }
+
+  const parts = msg.length <= 160 ? 1 : Math.ceil(msg.length / 153);
+  const cost  = (parts * _smsRecipients.length * 0.05).toFixed(2);
+  const audienceLabel = { lapsed:'Not Returned', unassigned:'No Team Yet', all:'All Registered' }[_smsCurrentAudience] || _smsCurrentAudience;
+
+  if (!confirm(`Send to ${_smsRecipients.length} recipient${_smsRecipients.length!==1?'s':''} (${audienceLabel})?\n\nEstimated cost: $${cost} AUD\n\n"${msg.slice(0,100)}${msg.length>100?'…':''}"`)) return;
+
+  const btn = document.getElementById('sms-send-btn');
+  const statusEl = document.getElementById('sms-send-status');
+  if (btn) { btn.disabled = true; btn.textContent = '📤 Sending…'; }
+  if (statusEl) statusEl.textContent = '';
+
+  try {
+    const res = await api('sendSMS', {
+      message:   msg,
+      audience:  _smsCurrentAudience,
+      recipients: _smsRecipients.map(r => r.num),
+    });
+    if (res.error) throw new Error(res.error);
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--green);font-weight:700;">✓ Sent to ${res.sent||_smsRecipients.length} recipients</span>`;
+    document.getElementById('sms-message').value = '';
+    _smsUpdateCount();
+    // Refresh history
+    const histRes = await api('getSMSLog');
+    _smsHistory = Array.isArray(histRes) ? histRes : [];
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = `<span style="color:#dc2626;">❌ ${e.message}</span>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Send SMS'; }
+  }
+}
+
 function switchAdminTab(btn, tab) {
   document.querySelectorAll('#dash-sub-admin .dtab').forEach(b => b.classList.toggle('act', b === btn));
   renderAdminPanel(tab);
@@ -4317,7 +4560,7 @@ function renderAdminPanel(tab) {
   document.querySelectorAll('#dash-sub-admin .dtab').forEach(b => {
     b.classList.toggle('act', b.dataset.admintab === activetab);
   });
-  const _tabTitles = { users:'Manage Users', groups:'Access Groups', log:'Activity Log', about:'About' };
+  const _tabTitles = { users:'Manage Users', groups:'Access Groups', log:'Activity Log', about:'About', messaging:'Messaging' };
   el.innerHTML = '<div class="section-head" style="max-width:1440px;margin:0 auto;padding:0 16px;">'
     + '<h2 class="section-title">' + (_tabTitles[activetab] || activetab) + '</h2>'
     + '</div>'
@@ -4364,6 +4607,7 @@ function buildHamburgerMenu() {
     html += `<button class="hmenu-item" onclick="switchDashboard('admin-panel');renderAdminPanel('groups');toggleHamburger()">🔐 Access Groups</button>`;
     html += `<button class="hmenu-item" onclick="switchDashboard('admin-panel');renderAdminPanel('log');toggleHamburger()">📋 Activity Log</button>`;
     html += `<button class="hmenu-item" onclick="switchDashboard('admin-panel');renderAdminPanel('about');toggleHamburger()">ℹ️ About</button>`;
+    if (me && me.canSMS) html += `<button class="hmenu-item" onclick="switchDashboard('admin-panel');renderAdminPanel('messaging');toggleHamburger()">💬 Messaging</button>`;
   }
 
   html += `<div class="hmenu-divider"></div>`;
@@ -4430,6 +4674,9 @@ function switchDashboard(which) {
   document.getElementById('dash-sub-sponsors').style.display    = which === 'sponsors'    ? 'flex' : 'none';
   document.getElementById('dash-sub-recruitment').style.display = which === 'recruitment' ? 'flex' : 'none';
   document.getElementById('dash-sub-admin').style.display       = which === 'admin-panel' ? 'flex' : 'none';
+  // Show/hide Messaging tab based on canSMS permission
+  const _msgTab = document.getElementById('admin-tab-messaging');
+  if (_msgTab) _msgTab.style.display = (me && me.canSMS) ? '' : 'none';
 
   // Content panels
   document.getElementById('sponsor-content').style.display     = which === 'sponsors'    ? 'block' : 'none';
