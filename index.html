@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.2</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.3</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4429,7 +4429,7 @@ function _smsRenderPicker(body) {
             <div style="font-size:28px;">👪</div>
             <div>
               <div style="font-size:14px;font-weight:700;">All Parents &amp; Guardians</div>
-              <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Message every parent/guardian with a registered player in ${season}</div>
+              <div id="sms-pick-all-desc" style="font-size:12px;color:var(--text-dim);margin-top:2px;">Loading… ${season} season</div>
             </div>
           </div>
         </div>
@@ -4441,7 +4441,7 @@ function _smsRenderPicker(body) {
             <div style="font-size:28px;">🏟️</div>
             <div style="flex:1;">
               <div style="font-size:14px;font-weight:700;">By Team</div>
-              <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Select one or more teams</div>
+              <div id="sms-pick-team-desc" style="font-size:12px;color:var(--text-dim);margin-top:2px;">Loading…</div>
             </div>
             <div style="font-size:18px;color:var(--text-dim);" id="sms-pick-team-chevron">›</div>
           </div>
@@ -4505,10 +4505,18 @@ async function _smsLoadPickerPlayers(season) {
   if (res && res.contacts && res.contacts.length) {
     _smsPickerPlayers = res.contacts;
     _smsPickerTeams   = res.teams || [];
+    // Update picker card subtitles with live counts
+    const allDesc = document.getElementById('sms-pick-all-desc');
+    if (allDesc) allDesc.textContent = res.contacts.length + ' players · ' + _smsBuildRecipients(res.contacts).length + ' mobile numbers';
+    const teamDesc = document.getElementById('sms-pick-team-desc');
+    if (teamDesc) teamDesc.textContent = (res.teams||[]).length + ' teams';
+    // Render chips now only if panel is already open, otherwise they render on expand
     _smsRenderTeamChips();
   } else {
     const el = document.getElementById('sms-pick-team-list');
     if (el) el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">No players found for this season. Check that players are imported.</div>';
+    const allDesc = document.getElementById('sms-pick-all-desc');
+    if (allDesc) allDesc.textContent = 'No players found for ' + season;
   }
 }
 
