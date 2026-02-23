@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.3</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.4</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1730,7 +1730,7 @@ async function api(action, body = {}) {
     if (action === 'exchangeCode')       params.set('code', body.code || '');
     else if (action === 'getAudit')      params.set('id', body.id || '');
     else if (action === 'getContactLog') params.set('orgId', body.orgId || '');
-    else if (Object.keys(body).length > 0) params.set('payload', encodeURIComponent(payloadJson));
+    else if (Object.keys(body).length > 0) params.set('payload', encodeURIComponent(JSON.stringify(body)));
     const timer = setTimeout(() => { cleanup(); resolve({ error: 'Request timed out' }); }, 60000);
     function cleanup() { clearTimeout(timer); delete window[cbName]; const el=document.getElementById(cbName); if(el) el.remove(); }
     window[cbName] = (data) => {
