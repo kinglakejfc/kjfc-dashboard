@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.4.5</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.1</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4388,202 +4388,537 @@ async function openMessagingFromLapsed() {
 
 let _smsPendingRecipients = null; // set by openMessagingFromLapsed, consumed by renderMessagingTab
 
-let _smsHistory = [];
+let _smsHistory      = [];
+let _savedRegUrl     = 'https://www.playhq.com/afl/register/f72ea0';
 
 async function renderMessagingTab(body) {
   body.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;">Loading…</div>';
 
-  // Recipients and meta are set directly by openMessagingFromLapsed before navigation.
-  // If nothing is set (opened directly via Admin nav), leave empty.
-  if (!_smsAudienceMeta && !_smsRecipients.length) {
-    _smsAudienceMeta = null;
-    _smsRecipients   = [];
-  }
-
   const [histRes, clubSettings] = await Promise.all([api('getSMSLog'), api('getClubSettings')]);
-  _smsHistory = Array.isArray(histRes) ? histRes : [];
-  const _savedRegUrl = (clubSettings && clubSettings.registrationUrl) ? clubSettings.registrationUrl : 'https://www.playhq.com/afl/register/f72ea0';
+  _smsHistory  = Array.isArray(histRes) ? histRes : [];
+  _savedRegUrl = (clubSettings && clubSettings.registrationUrl) ? clubSettings.registrationUrl : 'https://www.playhq.com/afl/register/f72ea0';
   _smsExcluded = new Set((clubSettings && clubSettings.smsExcluded) ? clubSettings.smsExcluded : []);
 
-  const fromSlideover = !!_smsAudienceMeta;
+  if (_smsAudienceMeta) {
+    // Came from a slideover — skip picker, go straight to composer
+    await _smsRenderComposer(body);
+  } else {
+    // Opened directly — show audience picker
+    _smsRenderPicker(body);
+  }
+}
+
+// ── Audience Picker ──────────────────────────────────────────────────
+let _smsPickerPlayers = [];   // all registered players for current season
+let _smsPickerTeams   = [];   // unique team list
+
+function _smsRenderPicker(body) {
+  const season = plSeason || new Date().getFullYear();
+  body.innerHTML = `
+    <div style="max-width:700px;">
+      <div style="font-size:17px;font-weight:800;color:var(--green);margin-bottom:4px;">💬 New Message</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:20px;">${season} season</div>
+
+      <div style="display:grid;gap:12px;">
+
+        <!-- All parents -->
+        <div id="sms-pick-all" onclick="_smsPickAll()" style="background:#fff;border:2px solid var(--border);border-radius:12px;padding:18px 20px;cursor:pointer;transition:border-color .15s;"
+          onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="font-size:28px;">👪</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;">All Parents &amp; Guardians</div>
+              <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Message every parent/guardian with a registered player in ${season}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- By team -->
+        <div id="sms-pick-team-card" style="background:#fff;border:2px solid var(--border);border-radius:12px;padding:18px 20px;cursor:pointer;transition:border-color .15s;"
+          onclick="_smsPickTeamToggle()" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="font-size:28px;">🏟️</div>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:700;">By Team</div>
+              <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Select one or more teams</div>
+            </div>
+            <div style="font-size:18px;color:var(--text-dim);" id="sms-pick-team-chevron">›</div>
+          </div>
+          <div id="sms-pick-team-expand" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px;" onclick="event.stopPropagation()">
+            <div id="sms-pick-team-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+              <div style="color:var(--text-dim);font-size:12px;">Loading teams…</div>
+            </div>
+            <button onclick="_smsPickByTeam()" id="sms-pick-team-btn"
+              style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;opacity:.5;" disabled>
+              Message selected teams →
+            </button>
+          </div>
+        </div>
+
+        <!-- Specific player -->
+        <div id="sms-pick-player-card" style="background:#fff;border:2px solid var(--border);border-radius:12px;padding:18px 20px;cursor:pointer;transition:border-color .15s;"
+          onclick="_smsPickPlayerToggle()" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="font-size:28px;">🔍</div>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:700;">Specific Player's Parent</div>
+              <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Find a player and message their parent/guardian</div>
+            </div>
+            <div style="font-size:18px;color:var(--text-dim);" id="sms-pick-player-chevron">›</div>
+          </div>
+          <div id="sms-pick-player-expand" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px;" onclick="event.stopPropagation()">
+            <input id="sms-pick-player-search" type="text" placeholder="Search by player name…"
+              oninput="_smsPickPlayerSearch(this.value)"
+              style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+            <div id="sms-pick-player-results" style="margin-top:8px;max-height:200px;overflow-y:auto;"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Send history -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-top:20px;">
+        <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:12px;">📜 Send History</div>
+        ${_smsRenderHistory()}
+      </div>
+    </div>`;
+
+  // Load players in background for team/player pickers
+  _smsLoadPickerPlayers(season);
+}
+
+async function _smsLoadPickerPlayers(season) {
+  if (_smsPickerPlayers.length) return; // cached
+  const res = await api('getPlayersForSMS', { season });
+  if (res && res.contacts) {
+    _smsPickerPlayers = res.contacts;
+    _smsPickerTeams   = res.teams || [];
+    _smsRenderTeamChips();
+  }
+}
+
+function _smsRenderTeamChips() {
+  const el = document.getElementById('sms-pick-team-list');
+  if (!el) return;
+  if (!_smsPickerTeams.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">No teams found for this season</div>';
+    return;
+  }
+  el.innerHTML = _smsPickerTeams.map(t => `
+    <label style="display:flex;align-items:center;gap:6px;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;user-select:none;"
+      onclick="event.stopPropagation()">
+      <input type="checkbox" value="${t}" onchange="_smsTeamChipChange()" style="accent-color:var(--green);cursor:pointer;">
+      ${t}
+    </label>`).join('');
+}
+
+function _smsTeamChipChange() {
+  const checked = document.querySelectorAll('#sms-pick-team-list input:checked').length;
+  const btn = document.getElementById('sms-pick-team-btn');
+  if (btn) { btn.disabled = checked === 0; btn.style.opacity = checked ? '1' : '.5'; }
+}
+
+function _smsPickTeamToggle() {
+  const exp = document.getElementById('sms-pick-team-expand');
+  const chev = document.getElementById('sms-pick-team-chevron');
+  if (!exp) return;
+  const open = exp.style.display !== 'none';
+  exp.style.display = open ? 'none' : 'block';
+  if (chev) chev.textContent = open ? '›' : '˅';
+  // Trigger player load if not yet done
+  if (!open) _smsLoadPickerPlayers(plSeason || new Date().getFullYear());
+}
+
+function _smsPickPlayerToggle() {
+  const exp = document.getElementById('sms-pick-player-expand');
+  const chev = document.getElementById('sms-pick-player-chevron');
+  if (!exp) return;
+  const open = exp.style.display !== 'none';
+  exp.style.display = open ? 'none' : 'block';
+  if (chev) chev.textContent = open ? '›' : '˅';
+  if (!open) {
+    _smsLoadPickerPlayers(plSeason || new Date().getFullYear());
+    const inp = document.getElementById('sms-pick-player-search');
+    if (inp) { inp.value = ''; setTimeout(() => inp.focus(), 50); }
+    document.getElementById('sms-pick-player-results').innerHTML = '';
+  }
+}
+
+function _smsPickPlayerSearch(q) {
+  const el = document.getElementById('sms-pick-player-results');
+  if (!el) return;
+  if (!q.trim()) { el.innerHTML = ''; return; }
+  const lq = q.toLowerCase();
+  const matches = _smsPickerPlayers.filter(p =>
+    (p.firstName + ' ' + p.lastName).toLowerCase().includes(lq)
+  ).slice(0, 12);
+  if (!matches.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:6px 0;">No players found</div>';
+    return;
+  }
+  el.innerHTML = matches.map((p, i) => {
+    const parents = [p.parent1Name, p.parent2Name].filter(Boolean);
+    const hasBoth = parents.length > 1;
+    return `
+    <div onclick="_smsPickOnePlayer(${i})" data-idx="${i}"
+      style="padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:8px;"
+      onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background=''">
+      <div style="flex:1;min-width:0;">
+        <span style="font-weight:700;">${p.firstName} ${p.lastName}</span>
+        <span style="color:var(--text-dim);font-size:11px;margin-left:8px;">${p.team||''}</span>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${parents.join(' &amp; ') || '—'}</div>
+      </div>
+      <span style="font-size:16px;color:var(--text-dim);">${hasBoth ? '›' : '→'}</span>
+    </div>`;
+  }).join('');
+  // Store matches for click handler
+  window._smsPickerMatches = matches;
+}
+
+// ── Audience builders ────────────────────────────────────────────────
+
+function _smsBuildRecipients(players) {
+  const numMap = {};
+  players.forEach(p => {
+    const playerFullName = (p.firstName + ' ' + p.lastName).trim();
+    [
+      { phone: p.parent1Phone, name: p.parent1Name },
+      { phone: p.parent2Phone, name: p.parent2Name },
+    ].forEach(({ phone, name }) => {
+      const num = _smsNormalisePhone(phone);
+      if (!num) return;
+      if (!numMap[num]) numMap[num] = { num, parentName: name||'', playerNames: [], profileIds: [] };
+      if (!numMap[num].playerNames.includes(playerFullName)) {
+        numMap[num].playerNames.push(playerFullName);
+        numMap[num].profileIds.push(p.profileId);
+      }
+    });
+  });
+  return Object.values(numMap);
+}
+
+async function _smsPickAll() {
+  const season = plSeason || new Date().getFullYear();
+  const body   = document.getElementById('admin-panel-body');
+  if (body) body.innerHTML = '<div style="padding:20px;color:var(--text-dim);font-size:13px;">Loading contacts…</div>';
+  if (!_smsPickerPlayers.length) {
+    const res = await api('getPlayersForSMS', { season });
+    if (res && res.contacts) { _smsPickerPlayers = res.contacts; _smsPickerTeams = res.teams || []; }
+  }
+  _smsRecipients   = _smsBuildRecipients(_smsPickerPlayers);
+  _smsAudienceMeta = {
+    audience:    'All Parents ' + season,
+    season:      season,
+    label:       'All Parents &amp; Guardians — ' + season + ' season',
+    playerCount: _smsPickerPlayers.length,
+    backLabel:   '← Back to Messaging',
+    backAction:  '_smsResetToPickerAndRender()',
+  };
+  if (body) await _smsRenderComposer(body);
+}
+
+async function _smsPickByTeam() {
+  const season   = plSeason || new Date().getFullYear();
+  const selected = Array.from(document.querySelectorAll('#sms-pick-team-list input:checked')).map(cb => cb.value);
+  if (!selected.length) return;
+  const body = document.getElementById('admin-panel-body');
+  if (body) body.innerHTML = '<div style="padding:20px;color:var(--text-dim);font-size:13px;">Loading contacts…</div>';
+  const players  = _smsPickerPlayers.filter(p => selected.includes(p.team));
+  _smsRecipients = _smsBuildRecipients(players);
+  _smsAudienceMeta = {
+    audience:    selected.join(', ') + ' ' + season,
+    season:      season,
+    label:       selected.join(', ') + ' — ' + season + ' season',
+    playerCount: players.length,
+    backLabel:   '← Back to Messaging',
+    backAction:  '_smsResetToPickerAndRender()',
+  };
+  if (body) await _smsRenderComposer(body);
+}
+
+function _smsPickOnePlayer(idx) {
+  const p = (window._smsPickerMatches || [])[idx];
+  if (!p) return;
+
+  const p1 = p.parent1Name && p.parent1Phone ? { name: p.parent1Name, phone: p.parent1Phone } : null;
+  const p2 = p.parent2Name && p.parent2Phone ? { name: p.parent2Name, phone: p.parent2Phone } : null;
+
+  // Only one parent on file — go straight to composer
+  if (!p1 || !p2) {
+    _smsPickOnePlayerConfirm(p, [p1 || p2]);
+    return;
+  }
+
+  // Two parents — show inline selector in the results area
+  const el = document.getElementById('sms-pick-player-results');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-top:4px;">
+      <div style="font-size:12px;font-weight:700;margin-bottom:10px;">
+        <span style="color:var(--green);">✓ ${p.firstName} ${p.lastName}</span>
+        <span style="color:var(--text-dim);font-weight:400;margin-left:6px;">— who should receive this message?</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:#fff;"
+          onclick="event.stopPropagation()">
+          <input type="radio" name="sms-parent-sel" value="1" style="accent-color:var(--green);" checked>
+          <div><div style="font-weight:600;">${p1.name}</div><div style="font-size:11px;color:var(--text-dim);">Parent / Guardian 1 · ${p1.phone}</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:#fff;"
+          onclick="event.stopPropagation()">
+          <input type="radio" name="sms-parent-sel" value="2" style="accent-color:var(--green);">
+          <div><div style="font-weight:600;">${p2.name}</div><div style="font-size:11px;color:var(--text-dim);">Parent / Guardian 2 · ${p2.phone}</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:#fff;"
+          onclick="event.stopPropagation()">
+          <input type="radio" name="sms-parent-sel" value="both" style="accent-color:var(--green);">
+          <div><div style="font-weight:600;">Both parents</div><div style="font-size:11px;color:var(--text-dim);">${p1.name} &amp; ${p2.name}</div></div>
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button onclick="event.stopPropagation();_smsConfirmParentSel(${idx})"
+          style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:700;cursor:pointer;">
+          Message →
+        </button>
+        <button onclick="event.stopPropagation();_smsPickPlayerSearch(document.getElementById('sms-pick-player-search').value)"
+          style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;color:var(--text-dim);">
+          ← Back
+        </button>
+      </div>
+    </div>`;
+}
+
+function _smsConfirmParentSel(idx) {
+  const p   = (window._smsPickerMatches || [])[idx];
+  if (!p) return;
+  const sel = (document.querySelector('input[name="sms-parent-sel"]:checked') || {}).value || '1';
+  const p1  = p.parent1Name && p.parent1Phone ? { name: p.parent1Name, phone: p.parent1Phone } : null;
+  const p2  = p.parent2Name && p.parent2Phone ? { name: p.parent2Name, phone: p.parent2Phone } : null;
+  const chosen = sel === 'both' ? [p1, p2].filter(Boolean)
+               : sel === '2'   ? [p2].filter(Boolean)
+               :                 [p1].filter(Boolean);
+  _smsPickOnePlayerConfirm(p, chosen);
+}
+
+function _smsPickOnePlayerConfirm(p, chosenParents) {
+  const season = plSeason || new Date().getFullYear();
+  const body   = document.getElementById('admin-panel-body');
+
+  // Build recipients from chosen parents only
+  const numMap = {};
+  const playerFullName = (p.firstName + ' ' + p.lastName).trim();
+  (chosenParents || []).forEach(function(par) {
+    const num = _smsNormalisePhone(par.phone);
+    if (!num) return;
+    if (!numMap[num]) numMap[num] = { num, parentName: par.name||'', playerNames: [], profileIds: [] };
+    if (!numMap[num].playerNames.includes(playerFullName)) {
+      numMap[num].playerNames.push(playerFullName);
+      numMap[num].profileIds.push(p.profileId);
+    }
+  });
+  _smsRecipients = Object.values(numMap);
+
+  const parentLabel = (chosenParents||[]).map(p => p.name).filter(Boolean).join(' & ') || 'Parent';
+  _smsAudienceMeta = {
+    audience:    p.firstName + ' ' + p.lastName + ' Parent ' + season,
+    season:      season,
+    label:       p.firstName + ' ' + p.lastName + ' — ' + parentLabel,
+    playerCount: 1,
+    backLabel:   '← Back to Messaging',
+    backAction:  '_smsResetToPickerAndRender()',
+  };
+  if (body) _smsRenderComposer(body);
+}
+
+function _smsResetToPickerAndRender() {
+  _smsAudienceMeta = null;
+  _smsRecipients   = [];
+  _smsAllLapsed    = [];
+  const body = document.getElementById('admin-panel-body');
+  if (body) _smsRenderPicker(body);
+}
+
+// ── History helper (shared between picker and composer) ───────────────
+function _smsRenderHistory() {
+  if (!_smsHistory.length) return '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">No messages sent yet.</div>';
+  return '<table style="width:100%;font-size:12px;border-collapse:collapse;">'
+    + '<thead><tr style="border-bottom:2px solid var(--border);">'
+    + '<th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Date</th>'
+    + '<th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Sent by</th>'
+    + '<th style="text-align:right;padding:6px 8px;color:var(--text-dim);font-weight:700;">Recipients</th>'
+    + '<th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Status</th>'
+    + '<th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Message</th>'
+    + '</tr></thead><tbody>'
+    + _smsHistory.map(function(r) {
+        const sched = r.status === 'scheduled';
+        const badge = sched
+          ? '<span style="background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:4px;font-weight:700;">🕐 Scheduled' + (r.scheduledAt ? ' · ' + fmtD(r.scheduledAt) : '') + '</span>'
+          : (r.status||'').indexOf('error') >= 0
+            ? '<span style="background:#fee2e2;color:#dc2626;padding:1px 7px;border-radius:4px;font-weight:700;">✗ Failed</span>'
+            : '<span style="background:#dcfce7;color:#16a34a;padding:1px 7px;border-radius:4px;font-weight:700;">✓ Sent</span>';
+        return '<tr style="border-bottom:1px solid var(--border);">'
+          + '<td style="padding:6px 8px;white-space:nowrap;">' + fmtD(r.timestamp) + '</td>'
+          + '<td style="padding:6px 8px;">' + (r.user||'—') + '</td>'
+          + '<td style="padding:6px 8px;text-align:right;font-weight:700;">' + (r.recipients||0) + '</td>'
+          + '<td style="padding:6px 8px;">' + badge + '</td>'
+          + '<td style="padding:6px 8px;color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (r.message||'').replace(/"/g,'&quot;') + '">' + (r.message||'') + '</td>'
+          + '</tr>';
+      }).join('')
+    + '</tbody></table>';
+}
+
+// ── Composer (existing renderMessagingTab content, extracted) ─────────
+async function _smsRenderComposer(body) {
   const season        = _smsAudienceMeta ? _smsAudienceMeta.season     : (plSeason || new Date().getFullYear());
-  const audienceLabel = _smsAudienceMeta ? _smsAudienceMeta.label      : null;
+  const audienceLabel = _smsAudienceMeta ? _smsAudienceMeta.label      : 'Custom audience';
   const playerCount   = _smsAudienceMeta ? _smsAudienceMeta.playerCount : 0;
+  const backLabel     = (_smsAudienceMeta && _smsAudienceMeta.backLabel)  || '← Back to Recruitment';
+  const backAction    = (_smsAudienceMeta && _smsAudienceMeta.backAction) || "switchDashboard('recruitment')";
+  const isLapsed      = _smsAudienceMeta && (_smsAudienceMeta.audience||'').includes('Not Returned');
 
   body.innerHTML = `
     <div style="max-width:820px;">
 
-      <!-- Audience context banner — only shown when launched from a slideover -->
-      ${fromSlideover ? `
+      <!-- Audience banner -->
       <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <div style="font-size:22px;">⚠️</div>
+        <div style="font-size:22px;">${isLapsed ? '⚠️' : '💬'}</div>
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;">${audienceLabel}</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${playerCount} players · ${_smsRecipients.length} mobile number${_smsRecipients.length!==1?'s':''} loaded</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${playerCount} player${playerCount!==1?'s':''} · <span id="sms-recipient-count">loading…</span></div>
         </div>
-        <button onclick="switchDashboard('recruitment')" style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;color:var(--text-dim);white-space:nowrap;">← Back to Recruitment</button>
-      </div>` : ''}
+        <button onclick="${backAction}" style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;color:var(--text-dim);white-space:nowrap;">${backLabel}</button>
+      </div>
 
       <!-- Composer card -->
       <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:20px;">
         <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:14px;">✉️ Compose Message</div>
 
-        <!-- Recipient summary -->
-        <div id="sms-recipient-summary" style="background:var(--green-light);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:14px;">
-          ${fromSlideover ? '' : '<span style="color:var(--text-dim);">Select an audience from Recruitment to load recipients.</span>'}
-        </div>
-
-        <!-- Message -->
-        <div style="margin-bottom:14px;">
-          <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Message</label>
-          ${fromSlideover ? `<div style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px 8px 0 0;padding:8px 12px;font-size:12px;color:var(--text-dim);border-bottom:none;">
-            <span style="font-weight:700;color:var(--text);">Kinglake JFC</span>
-            · Re: <span style="font-weight:700;color:var(--text);">${season} Season Registration</span>
-            · <span style="font-style:italic;">Not returned from ${season - 1}</span>
-          </div>` : ''}
-          <textarea id="sms-message" rows="4" oninput="_smsUpdateCount()"
-            placeholder="Type your message here…"
-            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:${fromSlideover ? '0 0 8px 8px' : '8px'};font-size:13px;font-family:inherit;resize:vertical;line-height:1.5;"></textarea>
-          <div style="display:flex;justify-content:space-between;margin-top:4px;">
-            <span id="sms-char-count" style="font-size:11px;color:var(--text-dim);">0 / 160 characters · 1 SMS per recipient</span>
-            <span style="font-size:11px;color:var(--text-dim);">≈ $0.05 per SMS (Notifyre)</span>
-          </div>
-        </div>
-
         <!-- Registration URL -->
-        <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;">Registration Link</label>
-          <input id="sms-reg-url" type="url" placeholder="https://www.playhq.com/afl/register/…"
-            style="flex:1;min-width:200px;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;"
-            onchange="_smsSaveRegUrl(this.value)">
-          <span id="sms-reg-url-status" style="font-size:11px;color:var(--text-dim);"></span>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Registration Link</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="sms-reg-url" type="url" placeholder="https://www.playhq.com/afl/register/…"
+              style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;"
+              onchange="_smsSaveRegUrl(this.value)">
+            <span id="sms-reg-url-status" style="font-size:11px;color:var(--text-dim);white-space:nowrap;"></span>
+          </div>
         </div>
 
-        <!-- AI suggest -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-          <button onclick="_smsAISuggest()" id="sms-ai-btn"
-            style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">
-            ✨ Suggest message
-          </button>
-        </div>
-
-        <!-- Recipient preview — always visible when recipients loaded -->
-        <div id="sms-preview-list" style="margin-bottom:14px;"></div>
-
-        <!-- Send buttons -->
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;margin-bottom:0;">
-          <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Before sending to everyone</div>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
-            <input id="sms-test-number" type="tel" placeholder="Your mobile e.g. 0412 345 678"
-              style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;width:200px;">
-            <button onclick="_smsTestSend()" id="sms-test-btn"
-              style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;">
-              🧪 Send test to my number
+        <!-- Message textarea -->
+        <div style="margin-bottom:10px;">
+          <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Message</label>
+          <div style="position:relative;">
+            <textarea id="sms-message" rows="4" oninput="_smsUpdateCount()"
+              placeholder="Type your message here, or use ✨ AI Suggest below…"
+              style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;flex-wrap:wrap;gap:4px;">
+            <span id="sms-char-count" style="font-size:11px;color:var(--text-dim);">0 / 160 characters · 1 SMS per recipient</span>
+            <button onclick="_smsAISuggest()" id="sms-ai-btn"
+              style="background:var(--green);color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">
+              ✨ AI Suggest
             </button>
-            <span id="sms-test-status" style="font-size:12px;"></span>
-          </div>
-          <div style="font-size:11px;color:var(--text-dim);">
-            Sends one SMS to your number using a real recipient's data so you see exactly what parents will receive. Prefixed with <strong>[TEST]</strong>.
           </div>
         </div>
 
-        <div style="margin-top:14px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px 16px;">
-          <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Send</div>
-
-          <!-- Schedule toggle -->
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer;user-select:none;">
-              <input type="checkbox" id="sms-schedule-toggle" onchange="_smsToggleSchedule()"
-                style="width:14px;height:14px;cursor:pointer;accent-color:var(--green);">
-              Schedule for later
-            </label>
-            <div id="sms-schedule-fields" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
-              <input type="datetime-local" id="sms-schedule-dt" onchange="_smsUpdateScheduleHint()"
-                style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">
-              <span id="sms-schedule-hint" style="font-size:11px;color:var(--text-dim);"></span>
-            </div>
-          </div>
-
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <button onclick="_smsSend()" id="sms-send-btn"
-              style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer;">
-              📤 Send to all 0 recipients
-            </button>
-            <span id="sms-send-status" style="font-size:12px;"></span>
-          </div>
-
-          <div style="margin-top:8px;font-size:11px;color:var(--text-dim);">
-            Scheduled sends appear in your <a href="https://app.notifyre.com" target="_blank" style="color:var(--green);">Notifyre dashboard</a> where you can review and cancel before they fire.
-          </div>
-        </div>
-
-        <!-- Config notice -->
-        <div id="sms-config-notice" style="margin-top:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;font-size:11px;color:#92400e;display:none;">
-          ⚠️ SMS API token not configured. Add <strong>NOTIFYRE_API_TOKEN</strong> and <strong>SMS_SENDER_ID</strong> to Script Properties.
+        <!-- [NAME] badge -->
+        <div id="sms-name-badge" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:5px 10px;font-size:11px;color:#16a34a;margin-bottom:10px;">
+          ✓ [NAME] personalised per recipient
         </div>
       </div>
 
-      <!-- Exclusions panel -->
+      <!-- Preview table -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:12px;">👁 Preview</div>
+        <div id="sms-preview-list"></div>
+      </div>
+
+      ${isLapsed ? `
+      <!-- Exclusions — only shown for Not Returned audience -->
       <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:20px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-          <div style="font-size:13px;font-weight:700;color:var(--green);">🚫 Won't Return — Exclusions</div>
-          <button onclick="_smsToggleExclusions()" id="sms-excl-toggle-btn"
-            style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;color:var(--text-dim);">
-            ▼ Show
+          <div style="font-size:13px;font-weight:700;color:#dc2626;">🚫 Won't Return — Exclusions</div>
+          <button onclick="_smsToggleExclusionPanel()" id="sms-excl-toggle-btn"
+            style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;">▼ Show</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">Tick players you know won't return — they'll be removed from the recipient list and remembered for this season.</div>
+        <div id="sms-excl-panel" style="display:none;">
+          <div id="sms-excl-list" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;"></div>
+          <div id="sms-excl-count" style="font-size:11px;color:var(--text-dim);margin-top:6px;"></div>
+        </div>
+      </div>` : ''}
+
+      <!-- Test send -->
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Before sending to everyone</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+          <input id="sms-test-number" type="tel" placeholder="Your mobile e.g. 0412 345 678"
+            style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;width:200px;">
+          <button onclick="_smsTestSend()" id="sms-test-btn"
+            style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;">
+            🧪 Send test to my number
           </button>
+          <span id="sms-test-status" style="font-size:12px;"></span>
         </div>
-        <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">
-          Tick players you know won't return — they'll be removed from the recipient list and remembered for this season.
+        <div style="font-size:11px;color:var(--text-dim);">
+          Sends one SMS to your number using a real recipient's data. Prefixed with <strong>[TEST]</strong>.
         </div>
-        <div id="sms-excl-body" style="display:none;"></div>
-        <div id="sms-excl-count" style="font-size:11px;color:var(--text-dim);margin-top:6px;"></div>
+      </div>
+
+      <!-- Send panel -->
+      <div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px 16px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Send</div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer;user-select:none;">
+            <input type="checkbox" id="sms-schedule-toggle" onchange="_smsToggleSchedule()"
+              style="width:14px;height:14px;cursor:pointer;accent-color:var(--green);">
+            Schedule for later
+          </label>
+          <div id="sms-schedule-fields" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input type="datetime-local" id="sms-schedule-dt" onchange="_smsUpdateScheduleHint()"
+              style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">
+            <span id="sms-schedule-hint" style="font-size:11px;color:var(--text-dim);"></span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <button onclick="_smsSend()" id="sms-send-btn"
+            style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer;">
+            📤 Send to all 0 recipients
+          </button>
+          <span id="sms-send-status" style="font-size:12px;"></span>
+        </div>
+
+        <div style="margin-top:8px;font-size:11px;color:var(--text-dim);">
+          Scheduled sends appear in your <a href="https://app.notifyre.com" target="_blank" style="color:var(--green);">Notifyre dashboard</a> where you can review and cancel before they fire.
+        </div>
+      </div>
+
+      <!-- Config notice -->
+      <div id="sms-config-notice" style="margin-top:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;font-size:11px;color:#92400e;display:none;">
+        ⚠️ SMS API token not configured. Add <strong>NOTIFYRE_API_TOKEN</strong> and <strong>SMS_SENDER_ID</strong> to Script Properties.
       </div>
 
       <!-- Send history -->
-      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--green);">📜 Send History</div>
-        <div id="sms-history-body">
-          ${_smsHistory.length === 0
-            ? '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">No messages sent yet.</div>'
-            : '<table style="width:100%;font-size:12px;border-collapse:collapse;">'
-              + '<thead><tr style="border-bottom:2px solid var(--border);">'
-              + '<th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Date</th>'
-              + '<th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Sent by</th>'
-              + '<th style="text-align:right;padding:6px 8px;color:var(--text-dim);font-weight:700;">Recipients</th>'
-              + '<th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Status</th>'
-              + '<th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Message</th>'
-              + '</tr></thead><tbody>'
-              + _smsHistory.map(function(r) {
-                  const sched = r.status === 'scheduled';
-                  const badge = sched
-                    ? '<span style="background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:4px;font-weight:700;">🕐 Scheduled' + (r.scheduledAt ? ' · ' + fmtD(r.scheduledAt) : '') + '</span>'
-                    : (r.status||'').indexOf('error') >= 0
-                      ? '<span style="background:#fee2e2;color:#dc2626;padding:1px 7px;border-radius:4px;font-weight:700;">✗ Failed</span>'
-                      : '<span style="background:#dcfce7;color:#16a34a;padding:1px 7px;border-radius:4px;font-weight:700;">✓ Sent</span>';
-                  return '<tr style="border-bottom:1px solid var(--border);">'
-                    + '<td style="padding:6px 8px;white-space:nowrap;">' + fmtD(r.timestamp) + '</td>'
-                    + '<td style="padding:6px 8px;">' + (r.user||'—') + '</td>'
-                    + '<td style="padding:6px 8px;text-align:right;font-weight:700;">' + (r.recipients||0) + '</td>'
-                    + '<td style="padding:6px 8px;">' + badge + '</td>'
-                    + '<td style="padding:6px 8px;color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (r.message||'').replace(/"/g,'&quot;') + '">' + (r.message||'') + '</td>'
-                    + '</tr>';
-                }).join('')
-              + '</tbody></table>'}
-        </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-top:20px;">
+        <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:12px;">📜 Send History</div>
+        <div id="sms-history-body">${_smsRenderHistory()}</div>
       </div>
+
     </div>`;
 
-  // Update summary — recipients already set from slideover, or empty if opened directly
-  if (_smsRecipients.length > 0) {
-    _smsUpdateSummary();
-  }
-  // If no recipients (opened directly via Admin tab), leave placeholder message in summary
-
-  // Populate registration URL field
+  // Populate registration URL
   const regInput = document.getElementById('sms-reg-url');
   if (regInput) regInput.value = _savedRegUrl;
 
-  // Check config
+  // Update counts and preview
+  _smsUpdateSummary();
+
+  // Populate exclusion list if lapsed audience
+  if (isLapsed) _smsRenderExclusions();
+
+  // Check SMS config
   const configRes = await api('checkSMSConfig');
   if (configRes && !configRes.configured) {
     const n = document.getElementById('sms-config-notice');
@@ -4646,18 +4981,20 @@ function _smsBuildRecipients() {
 }
 
 function _smsUpdateSummary() {
-  const meta = _smsAudienceMeta;
-  const summaryEl = document.getElementById('sms-recipient-summary');
-  if (!summaryEl) return;
-  const active = _smsActiveRecipients();
+  const meta    = _smsAudienceMeta;
+  const active  = _smsActiveRecipients();
   const excluded = _smsRecipients.length - active.length;
-  const noNum = meta ? (meta.playerCount - new Set(_smsRecipients.map(r=>r.num)).size) : 0;
-  summaryEl.innerHTML = _smsRecipients.length === 0
-    ? '<span style="color:#dc2626;">No mobile numbers found. Check that parent phone numbers are imported.</span>'
+  const noNum   = meta ? (meta.playerCount - new Set(_smsRecipients.map(r=>r.num)).size) : 0;
+  const summary = _smsRecipients.length === 0
+    ? '<span style="color:#dc2626;">No mobile numbers found.</span>'
     : `<strong style="color:var(--green);">${active.length} mobile number${active.length!==1?'s':''}</strong>`
-      + (meta ? ` across <strong>${meta.playerCount}</strong> not-returned player${meta.playerCount!==1?'s':''}` : '')
-      + (noNum > 0 ? ` <span style="color:#dc2626;">(${noNum} without any mobile on file)</span>` : '')
-      + (excluded > 0 ? ` <span style="color:#dc2626;"> · ${excluded} excluded</span>` : '');
+      + (noNum > 0 ? ` <span style="color:#dc2626;">(${noNum} without mobile)</span>` : '')
+      + (excluded > 0 ? ` · <span style="color:#dc2626;">${excluded} excluded</span>` : '');
+  // Update both possible elements
+  const summaryEl = document.getElementById('sms-recipient-summary');
+  if (summaryEl) summaryEl.innerHTML = summary;
+  const countEl = document.getElementById('sms-recipient-count');
+  if (countEl) countEl.innerHTML = summary;
   _smsUpdateCount();
   _smsRenderPreview();
   _smsUpdateExclCount();
