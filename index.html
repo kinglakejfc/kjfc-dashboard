@@ -717,7 +717,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
 .pl-tab{padding:10px 16px;background:transparent;border:none;border-bottom:3px solid transparent;font-size:12px;font-weight:700;cursor:pointer;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);white-space:nowrap;transition:all .15s;}
 .pl-tab:hover{color:var(--text);background:var(--green-light);}
 .pl-tab.act{color:var(--green);border-bottom-color:var(--green);background:#fff;}
-.pl-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.pl-kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;}
 @media(max-width:600px){
   .pl-kpi-grid{grid-template-columns:repeat(2,1fr) !important;}
   #overview-charts-grid{grid-template-columns:1fr !important;}
@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.0.8</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.1.0</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4859,7 +4859,7 @@ function _renderOverviewHTML() {
   const disp   = rows.filter(r => r.dispensation === true || r.dispensation === 'true').length;
   const lapsed = _lapsedCache || [];
   // Average age (natural age = calcAge on Jan 1 of season)
-  const _ageVals = rows.map(r => r.calcAge != null ? +r.calcAge - 1 : null).filter(v => v !== null && v >= 5 && v <= 18);
+  const _ageVals = rows.map(r => r.calcAge != null ? +r.calcAge : null).filter(v => v !== null && v >= 5 && v <= 18);
   const avgAge   = _ageVals.length ? _ageVals.reduce((a,b)=>a+b,0)/_ageVals.length : 0;
 
 
@@ -4891,6 +4891,19 @@ function _renderOverviewHTML() {
       </div>`;
     }
   }
+
+  // Unassigned players — not yet placed on a team
+  const unassignedRows = rows.filter(r => !r.assignedTeam);
+  const unassignedCount = unassignedRows.length;
+  const unassignedByAG = {};
+  unassignedRows.forEach(r => {
+    const ag = r.calcAge ? +r.calcAge : null;
+    if (ag) unassignedByAG[ag] = (unassignedByAG[ag]||0)+1;
+  });
+  const agOrder = [9,10,11,12,13,14,15,16,17];
+  const unassignedChips = agOrder.filter(ag => unassignedByAG[ag]).map(ag =>
+    `<span style="background:#fff;border:1.5px solid #f59e0b;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#92400e;">Age ${ag}: ${unassignedByAG[ag]}</span>`
+  ).join('');
 
   // Schools count
   const schools = new Set(rows.map(r => seasonSchool(r, pm)).filter(Boolean)).size;
@@ -4974,10 +4987,9 @@ function _renderOverviewHTML() {
     <div style="padding:0 0 24px;">
       ${freshnessHTML}
 
-      <!-- KPI CARDS — 4 col desktop, 2 col mobile
-           Order: Registered, Not Returned, New to Club, Dispensations,
-                  Gender Split (full row), Schools, Avg Age -->
-      <div class="pl-kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;align-items:start;">
+      <!-- KPI CARDS — 5 col desktop, 2 col mobile
+           Order: Registered, Not Returned, New to Club, Dispensations, Unassigned -->
+      <div class="pl-kpi-grid" style="grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:12px;align-items:start;">
         <div class="pl-kpi" onclick="openRegisteredSlideover()" style="cursor:pointer;">
           <div class="pl-kpi-label">Registered ${plSeason}</div>
           <div class="pl-kpi-val">${total}</div>
@@ -4985,7 +4997,7 @@ function _renderOverviewHTML() {
         </div>
         <div class="pl-kpi" onclick="openLapsedSlideover()" style="cursor:pointer;">
           <div class="pl-kpi-label">Not Returned</div>
-          <div class="pl-kpi-val" style="color:${lapsed.length>0?'var(--red)':'var(--green-bright)'}">${lapsed.length}</div>
+          <div class="pl-kpi-val" style="color:${lapsed.length>0?'var(--red)':'var(--green-bright)'}">$\{lapsed.length}</div>
           <div class="pl-kpi-sub">from last season →</div>
         </div>
         <div class="pl-kpi" onclick="openNewPlayersSlideover()" style="cursor:pointer;">
@@ -4998,7 +5010,22 @@ function _renderOverviewHTML() {
           <div class="pl-kpi-val" style="color:var(--yellow-dark)">${disp}</div>
           <div class="pl-kpi-sub">age override →</div>
         </div>
+        <div class="pl-kpi" onclick="switchPlTab(document.querySelector('.dtab[data-tab=\"teams\"]'),'teams')" style="cursor:pointer;${unassignedCount>0?'border-color:#f59e0b;background:#fffbeb;':''}" title="Go to Teams tab to assign players">
+          <div class="pl-kpi-label" style="${unassignedCount>0?'color:#92400e;':''}">Unassigned</div>
+          <div class="pl-kpi-val" style="color:${unassignedCount>0?'#ca8a04':'var(--green-bright)'};">${unassignedCount}</div>
+          <div class="pl-kpi-sub" style="${unassignedCount>0?'color:#b45309;':''}">no team yet${unassignedCount>0?' →':''}</div>
+        </div>
       </div>
+
+      ${unassignedCount > 0 ? `
+      <div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:10px;">
+        <span style="font-size:18px;">⚠️</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:4px;">${unassignedCount} player${unassignedCount!==1?'s':''} imported but not yet assigned to a team</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">${unassignedChips}</div>
+        </div>
+        <button onclick="switchPlTab(document.querySelector('.dtab[data-tab=\"teams\"]'),'teams')" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Assign in Teams →</button>
+      </div>` : ''}
 
       <!-- CHARTS SECTION -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;" id="overview-charts-grid">
@@ -6480,13 +6507,36 @@ function renderPlTeams() {
   const pm          = plPlayerMap();
   const teamCount   = {};
   allRows.forEach(s => { if (s.assignedTeam) teamCount[s.assignedTeam] = (teamCount[s.assignedTeam]||0)+1; });
-  const unassigned  = allRows.filter(s => !s.assignedTeam).length;
+  const unassigned     = allRows.filter(s => !s.assignedTeam).length;
+  const unassignedRows = allRows.filter(s => !s.assignedTeam);
+
+  // Build unassigned breakdown by natural age group
+  const unassignedByAG = {};
+  unassignedRows.forEach(r => {
+    const ag = r.calcAge ? +r.calcAge : null;
+    if (ag) unassignedByAG[ag] = (unassignedByAG[ag]||0)+1;
+  });
+  const agOrder = [9,10,11,12,13,14,15,16,17];
+  const unassignedChips = agOrder.filter(ag => unassignedByAG[ag]).map(ag =>
+    `<span style="background:#fff;border:1.5px solid #f59e0b;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#92400e;">Age ${ag}: ${unassignedByAG[ag]}</span>`
+  ).join('');
+
+  const unassignedBanner = unassigned > 0 ? `
+    <div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:10px;">
+      <span style="font-size:18px;">⚠️</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:4px;">${unassigned} player${unassigned!==1?'s':''} not assigned to a team</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">${unassignedChips}</div>
+      </div>
+      <button onclick="_teamSlideFilter='unassigned'" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Assign Players →</button>
+    </div>` : '';
 
   body.innerHTML = `
     <div style="padding:16px 20px;">
       <div style="margin-bottom:16px;">
         <div style="font-size:14px;font-weight:700;margin-bottom:4px;">${plSeason} Teams</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">${teams.length} team${teams.length!==1?'s':''} · ${allRows.length} registered · ${unassigned} unassigned</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">${teams.length} team${teams.length!==1?'s':''} · ${allRows.length} registered · <span style="color:${unassigned>0?'#ca8a04':'var(--text-dim)'};">${unassigned} unassigned</span></div>
+        ${unassignedBanner}
         <button class="mprimary" onclick="openTeamModal(null)" style="font-size:12px;padding:7px 14px;">+ Add Team</button>
       </div>
 
