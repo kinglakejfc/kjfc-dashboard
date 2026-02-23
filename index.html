@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.3.4</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.3.6</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4601,39 +4601,51 @@ function _smsRenderPreview() {
   }
 
   const msg = (document.getElementById('sms-message')||{}).value || '';
+  const hasNameTag = msg.includes('[NAME]');
+
+  // Substitute [NAME] with player first name(s) for each recipient
+  function resolveMsg(template, r) {
+    if (!template) return '';
+    const firstNames = (r.playerNames || []).map(function(n){ return n.split(' ')[0]; });
+    const nameStr = firstNames.length === 0 ? ''
+      : firstNames.length === 1 ? firstNames[0]
+      : firstNames.slice(0,-1).join(', ') + ' and ' + firstNames[firstNames.length-1];
+    return template.split('[NAME]').join(nameStr || '[NAME]');
+  }
 
   el.innerHTML = `
-    <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">
-      Preview — ${_smsRecipients.length} message${_smsRecipients.length!==1?'s':''}
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;">
+        Preview — ${_smsRecipients.length} message${_smsRecipients.length!==1?'s':''}
+      </div>
+      ${hasNameTag ? '<span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:700;">[NAME] personalised per recipient ✓</span>' : ''}
     </div>
     <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
-      <div style="display:grid;grid-template-columns:140px 130px 1fr;background:var(--bg);padding:6px 10px;border-bottom:2px solid var(--border);font-size:11px;font-weight:700;color:var(--text-dim);">
-        <div>Parent</div>
+      <div style="display:grid;grid-template-columns:150px 120px 1fr;background:var(--bg);padding:6px 10px;border-bottom:2px solid var(--border);font-size:11px;font-weight:700;color:var(--text-dim);">
+        <div>Parent · Player(s)</div>
         <div>Mobile</div>
-        <div>Message preview</div>
+        <div>${hasNameTag ? 'Message (personalised)' : 'Message'}</div>
       </div>
-      <div style="max-height:320px;overflow-y:auto;">
-        ${_smsRecipients.map((r, i) => {
+      <div style="max-height:360px;overflow-y:auto;">
+        ${_smsRecipients.map(function(r, i) {
           const names = r.playerNames || [];
           const playerDesc = names.length === 0 ? '—'
             : names.length === 1 ? names[0]
             : names.slice(0,-1).join(', ') + ' and ' + names[names.length-1];
-          const parentDisplay = r.parentName || playerDesc;
-          const childNote = names.length > 1
-            ? `<div style="font-size:10px;color:var(--text-dim);">${playerDesc}</div>`
-            : `<div style="font-size:10px;color:var(--text-dim);">${playerDesc}</div>`;
-          const msgPreview = msg
-            ? `<span style="color:var(--text);">${msg.length > 80 ? msg.slice(0,80)+'…' : msg}</span>`
-            : `<span style="color:var(--text-dim);font-style:italic;">No message yet</span>`;
+          const parentDisplay = r.parentName || (names[0] || '—');
+          const resolved = resolveMsg(msg, r);
+          const msgPreview = resolved
+            ? '<span style="color:var(--text);">' + (resolved.length > 120 ? resolved.slice(0,120)+'…' : resolved) + '</span>'
+            : '<span style="color:var(--text-dim);font-style:italic;">No message yet</span>';
           const bg = i % 2 === 0 ? '#fff' : 'var(--bg)';
-          return `<div style="display:grid;grid-template-columns:140px 130px 1fr;padding:7px 10px;border-bottom:1px solid var(--border);background:${bg};align-items:start;">
-            <div>
-              <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${parentDisplay}</div>
-              ${childNote}
-            </div>
-            <div style="font-family:monospace;font-size:11px;color:var(--text-dim);padding-top:2px;">${_fmtMobile(r.num)}</div>
-            <div style="font-size:11px;line-height:1.4;">${msgPreview}</div>
-          </div>`;
+          return '<div style="display:grid;grid-template-columns:150px 120px 1fr;padding:7px 10px;border-bottom:1px solid var(--border);background:'+bg+';align-items:start;gap:4px;">'
+            + '<div>'
+            + '<div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+parentDisplay+'</div>'
+            + '<div style="font-size:10px;color:var(--text-dim);">'+playerDesc+'</div>'
+            + '</div>'
+            + '<div style="font-family:monospace;font-size:11px;color:var(--text-dim);padding-top:2px;">'+_fmtMobile(r.num)+'</div>'
+            + '<div style="font-size:11px;line-height:1.4;">'+msgPreview+'</div>'
+            + '</div>';
         }).join('')}
       </div>
     </div>`;
@@ -4684,19 +4696,29 @@ async function _smsAISuggest() {
 
   if (btn) { btn.disabled = true; btn.textContent = '✨ Thinking…'; }
 
-  const prompt = `You are helping Kinglake Junior Football Club write a friendly SMS to send to ${_smsRecipients.length} parents of ${totalPlayers} players who played last season (${season-1}) but haven't yet registered for ${season}.
+  // Build a few example name combinations to show Claude
+  const exampleSingle = _smsRecipients.find(r => r.playerNames && r.playerNames.length === 1);
+  const exampleMulti  = _smsRecipients.find(r => r.playerNames && r.playerNames.length > 1);
+  const exampleNames  = exampleSingle ? exampleSingle.playerNames[0].split(' ')[0]
+                        : (exampleMulti ? exampleMulti.playerNames.map(n=>n.split(' ')[0]).join(' and ') : 'the kids');
 
-${childContext}
+  const prompt = `Write an SMS from Kinglake Junior Football Club (nicknamed "the Lakers") to parents of players who played in ${season-1} but haven't yet registered for ${season}.
 
-Write a single warm, concise SMS template (under 160 characters ideally, 200 max) that works for both single and multiple children — use phrasing like "your child/children" or "your kids" so it reads naturally for both cases.
+Use [NAME] as a placeholder for the player's first name(s). For one child [NAME] becomes e.g. "Jim", for two children it becomes "Jim and John".
 
-The message must:
-- Be warm and friendly
-- Reference ${season} season registration
-- Include this link: ${regUrl}
-- End with "Kinglake JFC"
+Match this tone and structure closely:
+"We'd love to have [NAME] back at the Lakers in ${season}! Registrations close soon. Register here: ${regUrl} Go Lakers! - Kinglake JFC"
 
-Reply with ONLY the SMS message text, no explanation, no quotes around it.`;
+Rules:
+- Use [NAME] exactly once, near the start
+- Under 160 characters if possible (200 max)
+- Mention registrations closing soon
+- Include the link: ${regUrl}
+- End with "Go Lakers! - Kinglake JFC"
+- Warm, energetic, footy-club feel
+- Vary the wording slightly from the example so it feels fresh
+
+Reply with ONLY the SMS text, nothing else.`;
 
   try {
     const res = await api('suggestSMS', { prompt });
@@ -4730,10 +4752,12 @@ async function _smsSend() {
   if (statusEl) statusEl.textContent = '';
 
   try {
+    const hasNameTag = msg.includes('[NAME]');
     const res = await api('sendSMS', {
-      message:    msg,
-      audience:   'Not Returned ' + plSeason,
-      recipients: _smsRecipients.map(r => r.num),
+      message:          msg,
+      audience:         (_smsAudienceMeta ? _smsAudienceMeta.audience : 'SMS') + ' ' + (plSeason||''),
+      recipients:       _smsRecipients.map(r => r.num),
+      recipientObjects: hasNameTag ? _smsRecipients.map(r => ({ num: r.num, playerNames: r.playerNames })) : null,
     });
     if (res.error) throw new Error(res.error);
     if (statusEl) statusEl.innerHTML = `<span style="color:var(--green);font-weight:700;">✓ Sent to ${res.sent||_smsRecipients.length} recipients</span>`;
