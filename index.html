@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.2.2</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.2.3</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4331,8 +4331,6 @@ let plDetailId   = null;  // profileId of open player detail
 // ── MESSAGING TAB ─────────────────────────────────────────────────────────────
 // Called from slideover — pre-loads messaging centre with lapsed player contacts
 function openMessagingFromLapsed() {
-  closePlayerSlideover();
-
   const lapsed = _lapsedCache || [];
   const season = plSeason || new Date().getFullYear();
 
@@ -4351,13 +4349,21 @@ function openMessagingFromLapsed() {
     });
   });
 
-  _smsPendingRecipients = {
-    recipients: Object.values(numMap),
-    audience:   'Not Returned ' + season,
-    season:     season,
-    label:      'Not Returned — ' + season + ' season',
+  const recipients = Object.values(numMap);
+
+  // Set recipients directly on the module vars BEFORE navigating
+  // (avoids any timing issue with _smsPendingRecipients being cleared early)
+  _smsRecipients   = recipients;
+  _smsAudienceMeta = {
+    recipients:  recipients,
+    audience:    'Not Returned ' + season,
+    season:      season,
+    label:       'Not Returned — ' + season + ' season',
     playerCount: lapsed.length,
   };
+  _smsPendingRecipients = null; // clear pending — already applied above
+
+  closePlayerSlideover();
 
   // Navigate to Admin > Messaging
   switchDashboard('admin-panel');
@@ -4371,28 +4377,11 @@ let _smsHistory = [];
 async function renderMessagingTab(body) {
   body.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;">Loading…</div>';
 
-  // Consume pre-built recipients if coming from a slideover button
-  if (_smsPendingRecipients) {
-    _smsRecipients  = _smsPendingRecipients.recipients;
-    _smsAudienceMeta = _smsPendingRecipients;
-    _smsPendingRecipients = null;
-  } else {
-    // Ensure recruitment data is loaded — may not be if user came straight to Admin tab
-    const season = plSeason || new Date().getFullYear();
-    if (!_lapsedCache || !plData) {
-      body.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;">Loading player data…</div>';
-      try {
-        const bundle = await api('getRecruitmentBundle', { season: season });
-        if (bundle && bundle.playerData) {
-          plData       = bundle.playerData;
-          _lapsedCache = bundle.lapsed || [];
-          if (!plSeason) plSeason = season;
-        }
-      } catch(e) { /* proceed with empty cache */ }
-    }
-    // Build from lapsed cache
+  // Recipients and meta are set directly by openMessagingFromLapsed before navigation.
+  // If nothing is set (opened directly via Admin nav), leave empty.
+  if (!_smsAudienceMeta && !_smsRecipients.length) {
     _smsAudienceMeta = null;
-    _smsRecipients = [];
+    _smsRecipients   = [];
   }
 
   const [histRes] = await Promise.all([api('getSMSLog')]);
