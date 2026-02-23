@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.4.1</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.4.2</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4936,7 +4936,7 @@ function _smsUpdateScheduleHint() {
   const dt   = document.getElementById('sms-schedule-dt');
   if (!hint || !dt || !dt.value) return;
   const d = new Date(dt.value);
-  hint.textContent = 'Will send ' + d.toLocaleString('en-AU', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit', hour12:true });
+  hint.textContent = 'Will send ' + d.toLocaleString('en-AU', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit', hour12:true, timeZone:'Australia/Melbourne' }) + ' AEST/AEDT';
 }
 
 async function _smsTestSend() {
@@ -4999,7 +4999,22 @@ async function _smsSend() {
   const active      = _smsActiveRecipients();
   const isScheduled = document.getElementById('sms-schedule-toggle') && document.getElementById('sms-schedule-toggle').checked;
   const dtInput     = document.getElementById('sms-schedule-dt');
-  const scheduledAt = isScheduled && dtInput && dtInput.value ? new Date(dtInput.value).toISOString() : null;
+  // datetime-local has no timezone — interpret as Australia/Melbourne time
+  // by formatting the value with the correct AEST/AEDT offset via Intl
+  let scheduledAt = null;
+  if (isScheduled && dtInput && dtInput.value) {
+    // Parse the local datetime string as a Melbourne-timezone moment
+    const localStr  = dtInput.value; // e.g. "2026-03-01T09:00"
+    // Use a known Melbourne date to detect current UTC offset (handles DST automatically)
+    const melbOffset = (() => {
+      const d    = new Date(localStr);
+      const utc  = new Date(d.toLocaleString('en-US', { timeZone: 'UTC' }));
+      const melb = new Date(d.toLocaleString('en-US', { timeZone: 'Australia/Melbourne' }));
+      return (melb - utc) / 60000; // offset in minutes
+    })();
+    const melbMs = new Date(localStr).getTime() - melbOffset * 60000;
+    scheduledAt  = new Date(melbMs).toISOString();
+  }
 
   const confirmMsg = scheduledAt
     ? `Schedule to ${active.length} recipient${active.length!==1?'s':''} for ${new Date(dtInput.value).toLocaleString('en-AU', {weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit',hour12:true})}?\n\nYou can review and cancel in your Notifyre dashboard before it fires.`
