@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.2.8</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.3.3</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4398,8 +4398,9 @@ async function renderMessagingTab(body) {
     _smsRecipients   = [];
   }
 
-  const [histRes] = await Promise.all([api('getSMSLog')]);
+  const [histRes, clubSettings] = await Promise.all([api('getSMSLog'), api('getClubSettings')]);
   _smsHistory = Array.isArray(histRes) ? histRes : [];
+  const _savedRegUrl = (clubSettings && clubSettings.registrationUrl) ? clubSettings.registrationUrl : 'https://www.playhq.com/afl/register/f72ea0';
 
   const fromSlideover = !!_smsAudienceMeta;
   const season        = _smsAudienceMeta ? _smsAudienceMeta.season     : (plSeason || new Date().getFullYear());
@@ -4446,14 +4447,25 @@ async function renderMessagingTab(body) {
           </div>
         </div>
 
-        <!-- Preview toggle -->
-        <div style="margin-bottom:14px;">
-          <button onclick="_smsTogglePreview()" id="sms-preview-btn"
-            style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text);">
-            👁 Show recipient list
+        <!-- Registration URL -->
+        <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;">Registration Link</label>
+          <input id="sms-reg-url" type="url" placeholder="https://www.playhq.com/afl/register/…"
+            style="flex:1;min-width:200px;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;"
+            onchange="_smsSaveRegUrl(this.value)">
+          <span id="sms-reg-url-status" style="font-size:11px;color:var(--text-dim);"></span>
+        </div>
+
+        <!-- AI suggest -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+          <button onclick="_smsAISuggest()" id="sms-ai-btn"
+            style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">
+            ✨ Suggest message
           </button>
         </div>
-        <div id="sms-preview-list" style="display:none;margin-bottom:14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;max-height:260px;overflow-y:auto;font-size:12px;"></div>
+
+        <!-- Recipient preview — always visible when recipients loaded -->
+        <div id="sms-preview-list" style="margin-bottom:14px;"></div>
 
         <!-- Send button -->
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -4499,6 +4511,10 @@ async function renderMessagingTab(body) {
     _smsUpdateSummary();
   }
   // If no recipients (opened directly via Admin tab), leave placeholder message in summary
+
+  // Populate registration URL field
+  const regInput = document.getElementById('sms-reg-url');
+  if (regInput) regInput.value = _savedRegUrl;
 
   // Check config
   const configRes = await api('checkSMSConfig');
@@ -4558,8 +4574,6 @@ function _smsBuildRecipients() {
       + ` across <strong>${lapsed.length}</strong> not-returned player${lapsed.length!==1?'s':''}`
       + (noNum > 0 ? ` <span style="color:#dc2626;">(${noNum} without any mobile on file)</span>` : '');
   _smsUpdateCount();
-  const previewList = document.getElementById('sms-preview-list');
-  if (previewList && previewList.style.display !== 'none') _smsRenderPreview();
 }
 
 function _smsUpdateSummary() {
@@ -4574,40 +4588,55 @@ function _smsUpdateSummary() {
       + (meta ? ` across <strong>${meta.playerCount}</strong> not-returned player${meta.playerCount!==1?'s':''}` : '')
       + (noNum > 0 ? ` <span style="color:#dc2626;">(${noNum} without any mobile on file)</span>` : '');
   _smsUpdateCount();
-}
-
-function _smsTogglePreview() {
-  const el  = document.getElementById('sms-preview-list');
-  const btn = document.getElementById('sms-preview-btn');
-  if (!el) return;
-  const showing = el.style.display !== 'none';
-  el.style.display = showing ? 'none' : 'block';
-  btn.textContent  = showing ? '👁 Show recipient list' : '🙈 Hide recipient list';
-  if (!showing) _smsRenderPreview();
+  _smsRenderPreview();
 }
 
 function _smsRenderPreview() {
   const el = document.getElementById('sms-preview-list');
   if (!el) return;
+
   if (_smsRecipients.length === 0) {
-    el.innerHTML = '<div style="color:var(--text-dim);">No recipients.</div>';
+    el.innerHTML = '';
     return;
   }
-  el.innerHTML = _smsRecipients.map(r => {
-    // Build a natural-language player description
-    // e.g. "Jim" or "Jim and Jane" for multiple kids
-    const names = r.playerNames;
-    const playerDesc = names.length === 1
-      ? names[0]
-      : names.slice(0,-1).join(', ') + ' and ' + names[names.length-1];
-    const label = r.parentName
-      ? `<strong>${r.parentName}</strong> <span style="color:var(--text-dim);">(${playerDesc} has not returned)</span>`
-      : `<strong>${playerDesc}</strong> <span style="color:var(--text-dim);">has not returned</span>`;
-    return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--border);">
-      <div>${label}</div>
-      <div style="font-family:monospace;color:var(--text-dim);font-size:11px;margin-left:12px;white-space:nowrap;">${_fmtMobile(r.num)}</div>
+
+  const msg = (document.getElementById('sms-message')||{}).value || '';
+
+  el.innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">
+      Preview — ${_smsRecipients.length} message${_smsRecipients.length!==1?'s':''}
+    </div>
+    <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+      <div style="display:grid;grid-template-columns:140px 130px 1fr;background:var(--bg);padding:6px 10px;border-bottom:2px solid var(--border);font-size:11px;font-weight:700;color:var(--text-dim);">
+        <div>Parent</div>
+        <div>Mobile</div>
+        <div>Message preview</div>
+      </div>
+      <div style="max-height:320px;overflow-y:auto;">
+        ${_smsRecipients.map((r, i) => {
+          const names = r.playerNames || [];
+          const playerDesc = names.length === 0 ? '—'
+            : names.length === 1 ? names[0]
+            : names.slice(0,-1).join(', ') + ' and ' + names[names.length-1];
+          const parentDisplay = r.parentName || playerDesc;
+          const childNote = names.length > 1
+            ? `<div style="font-size:10px;color:var(--text-dim);">${playerDesc}</div>`
+            : `<div style="font-size:10px;color:var(--text-dim);">${playerDesc}</div>`;
+          const msgPreview = msg
+            ? `<span style="color:var(--text);">${msg.length > 80 ? msg.slice(0,80)+'…' : msg}</span>`
+            : `<span style="color:var(--text-dim);font-style:italic;">No message yet</span>`;
+          const bg = i % 2 === 0 ? '#fff' : 'var(--bg)';
+          return `<div style="display:grid;grid-template-columns:140px 130px 1fr;padding:7px 10px;border-bottom:1px solid var(--border);background:${bg};align-items:start;">
+            <div>
+              <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${parentDisplay}</div>
+              ${childNote}
+            </div>
+            <div style="font-family:monospace;font-size:11px;color:var(--text-dim);padding-top:2px;">${_fmtMobile(r.num)}</div>
+            <div style="font-size:11px;line-height:1.4;">${msgPreview}</div>
+          </div>`;
+        }).join('')}
+      </div>
     </div>`;
-  }).join('');
 }
 
 function _smsUpdateCount() {
@@ -4618,6 +4647,82 @@ function _smsUpdateCount() {
   const cost  = (parts * count * 0.05).toFixed(2);
   const el = document.getElementById('sms-char-count');
   if (el) el.textContent = `${chars} / ${parts === 1 ? 160 : parts * 153} characters · ${parts} SMS part${parts!==1?'s':''} × ${count} recipient${count!==1?'s':''} = est. $${cost}`;
+  _smsRenderPreview();
+}
+
+async function _smsSaveRegUrl(val) {
+  const status = document.getElementById('sms-reg-url-status');
+  if (status) status.textContent = 'Saving…';
+  const res = await api('setClubSettings', { registrationUrl: val });
+  if (status) status.textContent = res && res.ok ? '✓ Saved' : '✗ Failed';
+  setTimeout(() => { if (status) status.textContent = ''; }, 2000);
+}
+
+async function _smsAISuggest() {
+  const btn = document.getElementById('sms-ai-btn');
+  const textarea = document.getElementById('sms-message');
+  if (!textarea) return;
+
+  const meta    = _smsAudienceMeta;
+  const season  = meta ? meta.season  : (plSeason || new Date().getFullYear());
+  const regUrl  = (document.getElementById('sms-reg-url')||{}).value || 'https://www.playhq.com/afl/register/f72ea0';
+
+  // Work out single-child vs multi-child breakdown from recipient list
+  const singleChild = _smsRecipients.filter(r => r.playerNames && r.playerNames.length === 1).length;
+  const multiChild  = _smsRecipients.filter(r => r.playerNames && r.playerNames.length > 1).length;
+  const totalPlayers = meta ? meta.playerCount : _smsRecipients.length;
+
+  // Build a child context string for the prompt
+  let childContext = '';
+  if (multiChild > 0 && singleChild > 0) {
+    childContext = `${singleChild} parent${singleChild!==1?'s':''} have one child returning, and ${multiChild} parent${multiChild!==1?'s':''} have multiple children returning.`;
+  } else if (multiChild > 0) {
+    childContext = `All parents have multiple children returning.`;
+  } else {
+    childContext = `All parents have one child returning.`;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = '✨ Thinking…'; }
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `You are helping Kinglake Junior Football Club write a friendly SMS to send to ${_smsRecipients.length} parents of ${totalPlayers} players who played last season (${season-1}) but haven't yet registered for ${season}.
+
+${childContext}
+
+Write a single warm, concise SMS template (under 160 characters ideally, 200 max) that works for both single and multiple children — use phrasing like "your child/children" or "your kids" so it reads naturally for both cases.
+
+The message must:
+- Be warm and friendly
+- Reference ${season} season registration
+- Include this link: ${regUrl}
+- End with "Kinglake JFC"
+
+Reply with ONLY the SMS message text, no explanation, no quotes around it.`
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content && data.content[0] && data.content[0].text;
+    if (text) {
+      textarea.value = text.trim();
+      _smsUpdateCount();
+    } else {
+      alert('Could not generate a suggestion. Please type your message manually.');
+    }
+  } catch(e) {
+    alert('AI suggestion failed: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✨ Suggest message'; }
+  }
 }
 
 async function _smsSend() {
