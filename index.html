@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.4.0</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.4.1</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4820,11 +4820,24 @@ function _smsUpdateExclCount() {
 }
 
 function _smsActiveRecipients() {
-  // Filter out recipients where ALL their players are excluded
-  return _smsRecipients.filter(r => {
-    if (!r.profileIds || r.profileIds.length === 0) return true;
-    return r.profileIds.some(id => !_smsExcluded.has(id));
+  // Strip excluded players from each recipient's name list.
+  // Drop the recipient entirely only if ALL their players are excluded.
+  const result = [];
+  _smsRecipients.forEach(function(r) {
+    if (!r.profileIds || r.profileIds.length === 0) { result.push(r); return; }
+    const keepIdx = r.profileIds.reduce(function(acc, id, i) {
+      if (!_smsExcluded.has(id)) acc.push(i);
+      return acc;
+    }, []);
+    if (keepIdx.length === 0) return; // all excluded — drop
+    if (keepIdx.length === r.profileIds.length) { result.push(r); return; } // none excluded — use as-is
+    // Partial exclusion — return a trimmed copy
+    result.push(Object.assign({}, r, {
+      playerNames: keepIdx.map(function(i) { return r.playerNames[i]; }),
+      profileIds:  keepIdx.map(function(i) { return r.profileIds[i]; }),
+    }));
   });
+  return result;
 }
 
 async function _smsSaveRegUrl(val) {
