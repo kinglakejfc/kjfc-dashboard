@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.2.6</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.2.8</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4514,11 +4514,15 @@ let _smsAudienceMeta = null; // set when navigating from a slideover
 
 function _smsNormalisePhone(raw) {
   if (!raw) return null;
-  let num = String(raw).replace(/\s/g,'');
-  if (num.startsWith('04') && num.length === 10) return num;
-  if (num.startsWith('614') && num.length === 11) return '0' + num.slice(2);
-  if (num.startsWith('+614') && num.length === 12) return '0' + num.slice(3);
-  return null; // not a recognisable Australian mobile — excludes landlines
+  // Strip everything except digits
+  let num = String(raw).replace(/[^\d]/g, '');
+  // +61XXXXXXXXX or 61XXXXXXXXX (11 digits) → 04XXXXXXXX
+  if (num.startsWith('61') && num.length === 11) num = '0' + num.slice(2);
+  // 9-digit mobile missing leading 0: 4XXXXXXXX → 04XXXXXXXX
+  if (/^4\d{8}$/.test(num)) num = '0' + num;
+  // Must now be 04XXXXXXXX (10 digits) to be a valid mobile
+  if (/^04\d{8}$/.test(num)) return num;
+  return null; // landline or unrecognised
 }
 
 function _fmtMobile(num) {
