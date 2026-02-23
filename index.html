@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.2.3</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.2.4</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4330,11 +4330,29 @@ let plDetailId   = null;  // profileId of open player detail
 // ── HAMBURGER MENU ───────────────────────────────────────────────
 // ── MESSAGING TAB ─────────────────────────────────────────────────────────────
 // Called from slideover — pre-loads messaging centre with lapsed player contacts
-function openMessagingFromLapsed() {
-  const lapsed = _lapsedCache || [];
+async function openMessagingFromLapsed() {
   const season = plSeason || new Date().getFullYear();
 
-  // Build recipient list directly from lapsed cache
+  closePlayerSlideover();
+  switchDashboard('admin-panel');
+  renderAdminPanel('messaging'); // renders immediately with empty state + loading msg
+
+  // Always fetch a fresh bundle so phones aren't stale from a previous session cache
+  const body = document.getElementById('admin-panel-body');
+  if (body) body.innerHTML = '<div style="padding:20px;color:var(--text-dim);font-size:13px;">Loading player contacts…</div>';
+
+  let lapsed = [];
+  try {
+    const bundle = await api('getRecruitmentBundle', { season: season });
+    if (bundle && bundle.lapsed) {
+      lapsed       = bundle.lapsed;
+      plData       = bundle.playerData || plData;
+      _lapsedCache = lapsed;
+      if (!plSeason) plSeason = season;
+    }
+  } catch(e) { /* fall back to cache */ lapsed = _lapsedCache || []; }
+
+  // Build recipient list
   const numMap = {};
   lapsed.forEach(p => {
     const playerFullName = ((p.firstName||'') + ' ' + (p.lastName||'')).trim();
@@ -4349,25 +4367,16 @@ function openMessagingFromLapsed() {
     });
   });
 
-  const recipients = Object.values(numMap);
-
-  // Set recipients directly on the module vars BEFORE navigating
-  // (avoids any timing issue with _smsPendingRecipients being cleared early)
-  _smsRecipients   = recipients;
+  _smsRecipients   = Object.values(numMap);
   _smsAudienceMeta = {
-    recipients:  recipients,
     audience:    'Not Returned ' + season,
     season:      season,
     label:       'Not Returned — ' + season + ' season',
     playerCount: lapsed.length,
   };
-  _smsPendingRecipients = null; // clear pending — already applied above
 
-  closePlayerSlideover();
-
-  // Navigate to Admin > Messaging
-  switchDashboard('admin-panel');
-  renderAdminPanel('messaging');
+  // Now re-render the messaging tab with real data
+  if (body) await renderMessagingTab(body);
 }
 
 let _smsPendingRecipients = null; // set by openMessagingFromLapsed, consumed by renderMessagingTab
