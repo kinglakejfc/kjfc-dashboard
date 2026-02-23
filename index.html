@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.1.1</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.1.2</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4647,6 +4647,11 @@ function switchPlTab(btn, tab) {
   renderPlTab();
 }
 
+function goToTeamsTab() {
+  const btn = document.querySelector('#dash-sub-recruitment .dtab[data-tab="teams"]');
+  switchPlTab(btn, 'teams');
+}
+
 function renderPlTab() {
   if (!plData) { loadPlayerData(); return; }
   // Always keep the section heading in sync with the active season
@@ -5010,7 +5015,7 @@ function _renderOverviewHTML() {
           <div class="pl-kpi-val" style="color:var(--yellow-dark)">${disp}</div>
           <div class="pl-kpi-sub">age override →</div>
         </div>
-        <div class="pl-kpi" onclick="switchPlTab(document.querySelector('.dtab[data-tab=\"teams\"]'),'teams')" style="cursor:pointer;${unassignedCount>0?'border-color:#f59e0b;background:#fffbeb;':''}" title="Go to Teams tab to assign players">
+        <div class="pl-kpi" onclick="goToTeamsTab()" style="cursor:pointer;${unassignedCount>0?'border-color:#f59e0b;background:#fffbeb;':''}" title="Go to Teams tab to assign players">
           <div class="pl-kpi-label" style="${unassignedCount>0?'color:#92400e;':''}">Unassigned</div>
           <div class="pl-kpi-val" style="color:${unassignedCount>0?'#ca8a04':'var(--green-bright)'};">${unassignedCount}</div>
           <div class="pl-kpi-sub" style="${unassignedCount>0?'color:#b45309;':''}">no team yet${unassignedCount>0?' →':''}</div>
@@ -5024,7 +5029,7 @@ function _renderOverviewHTML() {
           <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:4px;">${unassignedCount} player${unassignedCount!==1?'s':''} imported but not yet assigned to a team</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;">${unassignedChips}</div>
         </div>
-        <button onclick="switchPlTab(document.querySelector('.dtab[data-tab=\"teams\"]'),'teams')" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Assign in Teams →</button>
+        <button onclick="goToTeamsTab()" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Assign in Teams →</button>
       </div>` : ''}
 
       <!-- CHARTS SECTION -->
