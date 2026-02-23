@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.4</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.5</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4506,8 +4506,11 @@ async function _smsLoadPickerPlayers(season) {
     _smsPickerPlayers = res.contacts;
     _smsPickerTeams   = res.teams || [];
     // Update picker card subtitles with live counts
+    // Count unique mobiles inline — avoid calling _smsBuildRecipients which normalises phones
+    const _phones = new Set();
+    res.contacts.forEach(function(p) { if (p.parent1Phone) _phones.add(p.parent1Phone); if (p.parent2Phone) _phones.add(p.parent2Phone); });
     const allDesc = document.getElementById('sms-pick-all-desc');
-    if (allDesc) allDesc.textContent = res.contacts.length + ' players · ' + _smsBuildRecipients(res.contacts).length + ' mobile numbers';
+    if (allDesc) allDesc.textContent = res.contacts.length + ' players · ~' + _phones.size + ' mobile numbers';
     const teamDesc = document.getElementById('sms-pick-team-desc');
     if (teamDesc) teamDesc.textContent = (res.teams||[]).length + ' teams';
     // Render chips now only if panel is already open, otherwise they render on expand
