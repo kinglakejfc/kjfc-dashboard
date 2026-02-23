@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.0.7</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.0.8</span></small>
       </div>
     </div>
     <div class="hright">
@@ -6666,7 +6666,7 @@ function _renderTeamSlide() {
     ...agGroups.map(ag => {
       // Convert UXX → "Age X on Dec 31" for display
       const agNum = parseInt(ag.slice(1));
-      const displayLabel = isNaN(agNum) ? ag : 'Age ' + (agNum - 1);
+      const displayLabel = isNaN(agNum) ? ag : 'Age ' + agNum;
       return { key: 'ag:' + ag, label: displayLabel + ' (' + players.filter(e=>e.ag===ag).length + ')' };
     })
   ].map(f => `<button class="pl-tab${_teamSlideFilter===f.key?' act':''}"
