@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.1</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.2</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4413,7 +4413,8 @@ let _smsPickerPlayers = [];   // all registered players for current season
 let _smsPickerTeams   = [];   // unique team list
 
 function _smsRenderPicker(body) {
-  const season = plSeason || new Date().getFullYear();
+  // Ensure season is always a valid integer — plSeason may be null if recruitment tab not yet visited
+  const season = +plSeason || new Date().getFullYear();
   body.innerHTML = `
     <div style="max-width:700px;">
       <div style="font-size:17px;font-weight:800;color:var(--green);margin-bottom:4px;">💬 New Message</div>
@@ -4483,17 +4484,31 @@ function _smsRenderPicker(body) {
       </div>
     </div>`;
 
-  // Load players in background for team/player pickers
+  // Start loading players immediately — renders into team chips once ready
+  _smsPickerPlayers = []; // reset cache so fresh load always happens on re-render
+  _smsPickerTeams   = [];
   _smsLoadPickerPlayers(season);
 }
 
 async function _smsLoadPickerPlayers(season) {
-  if (_smsPickerPlayers.length) return; // cached
+  if (_smsPickerPlayers.length) {
+    // Already loaded — just re-render chips in case DOM was rebuilt
+    _smsRenderTeamChips();
+    return;
+  }
   const res = await api('getPlayersForSMS', { season });
-  if (res && res.contacts) {
+  if (res && res.error) {
+    const el = document.getElementById('sms-pick-team-list');
+    if (el) el.innerHTML = '<div style="color:#dc2626;font-size:12px;">Error: ' + res.error + '</div>';
+    return;
+  }
+  if (res && res.contacts && res.contacts.length) {
     _smsPickerPlayers = res.contacts;
     _smsPickerTeams   = res.teams || [];
     _smsRenderTeamChips();
+  } else {
+    const el = document.getElementById('sms-pick-team-list');
+    if (el) el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">No players found for this season. Check that players are imported.</div>';
   }
 }
 
@@ -4548,6 +4563,11 @@ function _smsPickPlayerSearch(q) {
   const el = document.getElementById('sms-pick-player-results');
   if (!el) return;
   if (!q.trim()) { el.innerHTML = ''; return; }
+  if (!_smsPickerPlayers.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:6px 0;">Loading players…</div>';
+    _smsLoadPickerPlayers(plSeason || new Date().getFullYear()).then(() => _smsPickPlayerSearch(q));
+    return;
+  }
   const lq = q.toLowerCase();
   const matches = _smsPickerPlayers.filter(p =>
     (p.firstName + ' ' + p.lastName).toLowerCase().includes(lq)
