@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.3.6</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.3.7</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4357,7 +4357,7 @@ async function openMessagingFromLapsed() {
     lapsed = _lapsedCache || [];
   }
 
-  // Build recipient list
+  // Build recipient list — track profileIds per phone number for exclusion support
   const numMap = {};
   lapsed.forEach(p => {
     const playerFullName = ((p.firstName||'') + ' ' + (p.lastName||'')).trim();
@@ -4367,12 +4367,16 @@ async function openMessagingFromLapsed() {
     ].forEach(({ phone, name }) => {
       const num = _smsNormalisePhone(phone);
       if (!num) return;
-      if (!numMap[num]) numMap[num] = { num, parentName: name||'', playerNames: [] };
-      if (!numMap[num].playerNames.includes(playerFullName)) numMap[num].playerNames.push(playerFullName);
+      if (!numMap[num]) numMap[num] = { num, parentName: name||'', playerNames: [], profileIds: [] };
+      if (!numMap[num].playerNames.includes(playerFullName)) {
+        numMap[num].playerNames.push(playerFullName);
+        numMap[num].profileIds.push(p.profileId);
+      }
     });
   });
 
-  _smsRecipients   = Object.values(numMap);
+  _smsAllLapsed  = lapsed;
+  _smsRecipients = Object.values(numMap);
   _smsAudienceMeta = {
     audience:    'Not Returned ' + season,
     season:      season,
@@ -4401,6 +4405,7 @@ async function renderMessagingTab(body) {
   const [histRes, clubSettings] = await Promise.all([api('getSMSLog'), api('getClubSettings')]);
   _smsHistory = Array.isArray(histRes) ? histRes : [];
   const _savedRegUrl = (clubSettings && clubSettings.registrationUrl) ? clubSettings.registrationUrl : 'https://www.playhq.com/afl/register/f72ea0';
+  _smsExcluded = new Set((clubSettings && clubSettings.smsExcluded) ? clubSettings.smsExcluded : []);
 
   const fromSlideover = !!_smsAudienceMeta;
   const season        = _smsAudienceMeta ? _smsAudienceMeta.season     : (plSeason || new Date().getFullYear());
@@ -4482,6 +4487,22 @@ async function renderMessagingTab(body) {
         </div>
       </div>
 
+      <!-- Exclusions panel -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <div style="font-size:13px;font-weight:700;color:var(--green);">🚫 Won't Return — Exclusions</div>
+          <button onclick="_smsToggleExclusions()" id="sms-excl-toggle-btn"
+            style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;color:var(--text-dim);">
+            ▼ Show
+          </button>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">
+          Tick players you know won't return — they'll be removed from the recipient list and remembered for this season.
+        </div>
+        <div id="sms-excl-body" style="display:none;"></div>
+        <div id="sms-excl-count" style="font-size:11px;color:var(--text-dim);margin-top:6px;"></div>
+      </div>
+
       <!-- Send history -->
       <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;">
         <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--green);">📜 Send History</div>
@@ -4527,6 +4548,8 @@ async function renderMessagingTab(body) {
 let _smsCurrentAudience = 'lapsed';
 let _smsRecipients   = []; // [{ num, parentName, playerNames[] }]
 let _smsAudienceMeta = null; // set when navigating from a slideover
+let _smsExcluded     = new Set(); // profileIds excluded from current send
+let _smsAllLapsed    = []; // full lapsed list for exclusion management
 
 function _smsNormalisePhone(raw) {
   if (!raw) return null;
@@ -4577,18 +4600,21 @@ function _smsBuildRecipients() {
 }
 
 function _smsUpdateSummary() {
-  // Update summary display when recipients are pre-loaded (from slideover)
   const meta = _smsAudienceMeta;
   const summaryEl = document.getElementById('sms-recipient-summary');
   if (!summaryEl) return;
+  const active = _smsActiveRecipients();
+  const excluded = _smsRecipients.length - active.length;
   const noNum = meta ? (meta.playerCount - new Set(_smsRecipients.map(r=>r.num)).size) : 0;
   summaryEl.innerHTML = _smsRecipients.length === 0
     ? '<span style="color:#dc2626;">No mobile numbers found. Check that parent phone numbers are imported.</span>'
-    : `<strong style="color:var(--green);">${_smsRecipients.length} mobile number${_smsRecipients.length!==1?'s':''}</strong>`
+    : `<strong style="color:var(--green);">${active.length} mobile number${active.length!==1?'s':''}</strong>`
       + (meta ? ` across <strong>${meta.playerCount}</strong> not-returned player${meta.playerCount!==1?'s':''}` : '')
-      + (noNum > 0 ? ` <span style="color:#dc2626;">(${noNum} without any mobile on file)</span>` : '');
+      + (noNum > 0 ? ` <span style="color:#dc2626;">(${noNum} without any mobile on file)</span>` : '')
+      + (excluded > 0 ? ` <span style="color:#dc2626;"> · ${excluded} excluded</span>` : '');
   _smsUpdateCount();
   _smsRenderPreview();
+  _smsUpdateExclCount();
 }
 
 function _smsRenderPreview() {
@@ -4627,7 +4653,7 @@ function _smsRenderPreview() {
         <div>${hasNameTag ? 'Message (personalised)' : 'Message'}</div>
       </div>
       <div style="max-height:360px;overflow-y:auto;">
-        ${_smsRecipients.map(function(r, i) {
+        ${_smsActiveRecipients().map(function(r, i) {
           const names = r.playerNames || [];
           const playerDesc = names.length === 0 ? '—'
             : names.length === 1 ? names[0]
@@ -4655,11 +4681,92 @@ function _smsUpdateCount() {
   const msg = (document.getElementById('sms-message')||{}).value || '';
   const chars = msg.length;
   const parts = chars <= 160 ? 1 : Math.ceil(chars / 153);
-  const count = _smsRecipients.length;
+  const count = _smsActiveRecipients().length;
   const cost  = (parts * count * 0.05).toFixed(2);
   const el = document.getElementById('sms-char-count');
   if (el) el.textContent = `${chars} / ${parts === 1 ? 160 : parts * 153} characters · ${parts} SMS part${parts!==1?'s':''} × ${count} recipient${count!==1?'s':''} = est. $${cost}`;
   _smsRenderPreview();
+}
+
+function _smsToggleExclusions() {
+  const body = document.getElementById('sms-excl-body');
+  const btn  = document.getElementById('sms-excl-toggle-btn');
+  if (!body) return;
+  const showing = body.style.display !== 'none';
+  body.style.display = showing ? 'none' : 'block';
+  btn.textContent = showing ? '▼ Show' : '▲ Hide';
+  if (!showing) _smsRenderExclusions();
+}
+
+function _smsRenderExclusions() {
+  const body = document.getElementById('sms-excl-body');
+  if (!body) return;
+  const all = _smsAllLapsed || [];
+  if (all.length === 0) {
+    body.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">No players loaded.</div>';
+    return;
+  }
+
+  // Sort: excluded first, then alphabetical
+  const sorted = [...all].sort((a, b) => {
+    const aEx = _smsExcluded.has(a.profileId);
+    const bEx = _smsExcluded.has(b.profileId);
+    if (aEx !== bEx) return aEx ? -1 : 1;
+    return (a.lastName||'').localeCompare(b.lastName||'');
+  });
+
+  body.innerHTML = `
+    <div style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+      ${sorted.map((p, i) => {
+        const excluded = _smsExcluded.has(p.profileId);
+        const name = ((p.firstName||'') + ' ' + (p.lastName||'')).trim();
+        const bg = excluded ? '#fef2f2' : (i % 2 === 0 ? '#fff' : 'var(--bg)');
+        return `<label style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);background:${bg};cursor:pointer;">
+          <input type="checkbox" ${excluded ? 'checked' : ''} onchange="_smsToggleExclusion('${p.profileId}', this.checked)"
+            style="width:14px;height:14px;cursor:pointer;accent-color:#dc2626;">
+          <div style="flex:1;">
+            <span style="font-size:12px;font-weight:${excluded?'700':'400'};color:${excluded?'#dc2626':'var(--text)'};">${name}</span>
+            ${excluded ? '<span style="font-size:10px;color:#dc2626;margin-left:6px;">excluded</span>' : ''}
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);">${p.lastAgeGroup||''}</div>
+        </label>`;
+      }).join('')}
+    </div>`;
+  _smsUpdateExclCount();
+}
+
+async function _smsToggleExclusion(profileId, exclude) {
+  if (exclude) {
+    _smsExcluded.add(profileId);
+  } else {
+    _smsExcluded.delete(profileId);
+  }
+  _smsUpdateExclCount();
+  _smsUpdateSummary();
+
+  // Re-render exclusion list to update row styling
+  const body = document.getElementById('sms-excl-body');
+  if (body && body.style.display !== 'none') _smsRenderExclusions();
+
+  // Save to backend
+  const season = _smsAudienceMeta ? _smsAudienceMeta.season : (plSeason || new Date().getFullYear());
+  await api('setClubSettings', { smsExcluded: [..._smsExcluded], season: season });
+}
+
+function _smsUpdateExclCount() {
+  const el = document.getElementById('sms-excl-count');
+  if (!el) return;
+  const n = _smsExcluded.size;
+  el.textContent = n === 0 ? '' : `${n} player${n!==1?'s':''} excluded from messaging this season`;
+  el.style.color = n > 0 ? '#dc2626' : 'var(--text-dim)';
+}
+
+function _smsActiveRecipients() {
+  // Filter out recipients where ALL their players are excluded
+  return _smsRecipients.filter(r => {
+    if (!r.profileIds || r.profileIds.length === 0) return true;
+    return r.profileIds.some(id => !_smsExcluded.has(id));
+  });
 }
 
 async function _smsSaveRegUrl(val) {
@@ -4752,12 +4859,13 @@ async function _smsSend() {
   if (statusEl) statusEl.textContent = '';
 
   try {
+    const active = _smsActiveRecipients();
     const hasNameTag = msg.includes('[NAME]');
     const res = await api('sendSMS', {
       message:          msg,
       audience:         (_smsAudienceMeta ? _smsAudienceMeta.audience : 'SMS') + ' ' + (plSeason||''),
-      recipients:       _smsRecipients.map(r => r.num),
-      recipientObjects: hasNameTag ? _smsRecipients.map(r => ({ num: r.num, playerNames: r.playerNames })) : null,
+      recipients:       active.map(r => r.num),
+      recipientObjects: hasNameTag ? active.map(r => ({ num: r.num, playerNames: r.playerNames })) : null,
     });
     if (res.error) throw new Error(res.error);
     if (statusEl) statusEl.innerHTML = `<span style="color:var(--green);font-weight:700;">✓ Sent to ${res.sent||_smsRecipients.length} recipients</span>`;
