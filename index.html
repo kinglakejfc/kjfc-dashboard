@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.3.7</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.4.0</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4472,13 +4472,51 @@ async function renderMessagingTab(body) {
         <!-- Recipient preview — always visible when recipients loaded -->
         <div id="sms-preview-list" style="margin-bottom:14px;"></div>
 
-        <!-- Send button -->
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-          <button onclick="_smsSend()" id="sms-send-btn"
-            style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer;">
-            📤 Send SMS
-          </button>
-          <span id="sms-send-status" style="font-size:12px;"></span>
+        <!-- Send buttons -->
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;margin-bottom:0;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Before sending to everyone</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+            <input id="sms-test-number" type="tel" placeholder="Your mobile e.g. 0412 345 678"
+              style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;width:200px;">
+            <button onclick="_smsTestSend()" id="sms-test-btn"
+              style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;">
+              🧪 Send test to my number
+            </button>
+            <span id="sms-test-status" style="font-size:12px;"></span>
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);">
+            Sends one SMS to your number using a real recipient's data so you see exactly what parents will receive. Prefixed with <strong>[TEST]</strong>.
+          </div>
+        </div>
+
+        <div style="margin-top:14px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px 16px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Send</div>
+
+          <!-- Schedule toggle -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer;user-select:none;">
+              <input type="checkbox" id="sms-schedule-toggle" onchange="_smsToggleSchedule()"
+                style="width:14px;height:14px;cursor:pointer;accent-color:var(--green);">
+              Schedule for later
+            </label>
+            <div id="sms-schedule-fields" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+              <input type="datetime-local" id="sms-schedule-dt" onchange="_smsUpdateScheduleHint()"
+                style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">
+              <span id="sms-schedule-hint" style="font-size:11px;color:var(--text-dim);"></span>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <button onclick="_smsSend()" id="sms-send-btn"
+              style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer;">
+              📤 Send to all 0 recipients
+            </button>
+            <span id="sms-send-status" style="font-size:12px;"></span>
+          </div>
+
+          <div style="margin-top:8px;font-size:11px;color:var(--text-dim);">
+            Scheduled sends appear in your <a href="https://app.notifyre.com" target="_blank" style="color:var(--green);">Notifyre dashboard</a> where you can review and cancel before they fire.
+          </div>
         </div>
 
         <!-- Config notice -->
@@ -4509,20 +4547,30 @@ async function renderMessagingTab(body) {
         <div id="sms-history-body">
           ${_smsHistory.length === 0
             ? '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">No messages sent yet.</div>'
-            : `<table style="width:100%;font-size:12px;border-collapse:collapse;">
-                <thead><tr style="border-bottom:2px solid var(--border);">
-                  <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Date</th>
-                  <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Sent by</th>
-                  <th style="text-align:right;padding:6px 8px;color:var(--text-dim);font-weight:700;">Recipients</th>
-                  <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Message</th>
-                </tr></thead>
-                <tbody>${_smsHistory.map(r => `<tr style="border-bottom:1px solid var(--border);">
-                  <td style="padding:6px 8px;white-space:nowrap;">${fmtD(r.timestamp)}</td>
-                  <td style="padding:6px 8px;">${r.user||'—'}</td>
-                  <td style="padding:6px 8px;text-align:right;font-weight:700;">${r.recipients||0}</td>
-                  <td style="padding:6px 8px;color:var(--text-dim);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(r.message||'').replace(/"/g,'&quot;')}">${r.message||''}</td>
-                </tr>`).join('')}</tbody>
-              </table>`}
+            : '<table style="width:100%;font-size:12px;border-collapse:collapse;">'
+              + '<thead><tr style="border-bottom:2px solid var(--border);">'
+              + '<th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Date</th>'
+              + '<th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Sent by</th>'
+              + '<th style="text-align:right;padding:6px 8px;color:var(--text-dim);font-weight:700;">Recipients</th>'
+              + '<th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Status</th>'
+              + '<th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Message</th>'
+              + '</tr></thead><tbody>'
+              + _smsHistory.map(function(r) {
+                  const sched = r.status === 'scheduled';
+                  const badge = sched
+                    ? '<span style="background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:4px;font-weight:700;">🕐 Scheduled' + (r.scheduledAt ? ' · ' + fmtD(r.scheduledAt) : '') + '</span>'
+                    : (r.status||'').indexOf('error') >= 0
+                      ? '<span style="background:#fee2e2;color:#dc2626;padding:1px 7px;border-radius:4px;font-weight:700;">✗ Failed</span>'
+                      : '<span style="background:#dcfce7;color:#16a34a;padding:1px 7px;border-radius:4px;font-weight:700;">✓ Sent</span>';
+                  return '<tr style="border-bottom:1px solid var(--border);">'
+                    + '<td style="padding:6px 8px;white-space:nowrap;">' + fmtD(r.timestamp) + '</td>'
+                    + '<td style="padding:6px 8px;">' + (r.user||'—') + '</td>'
+                    + '<td style="padding:6px 8px;text-align:right;font-weight:700;">' + (r.recipients||0) + '</td>'
+                    + '<td style="padding:6px 8px;">' + badge + '</td>'
+                    + '<td style="padding:6px 8px;color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (r.message||'').replace(/"/g,'&quot;') + '">' + (r.message||'') + '</td>'
+                    + '</tr>';
+                }).join('')
+              + '</tbody></table>'}
         </div>
       </div>
     </div>`;
@@ -4685,6 +4733,16 @@ function _smsUpdateCount() {
   const cost  = (parts * count * 0.05).toFixed(2);
   const el = document.getElementById('sms-char-count');
   if (el) el.textContent = `${chars} / ${parts === 1 ? 160 : parts * 153} characters · ${parts} SMS part${parts!==1?'s':''} × ${count} recipient${count!==1?'s':''} = est. $${cost}`;
+  // Keep send button count and schedule state in sync
+  const sendBtn  = document.getElementById('sms-send-btn');
+  const scheduled = document.getElementById('sms-schedule-toggle') && document.getElementById('sms-schedule-toggle').checked;
+  if (sendBtn && !sendBtn.disabled) {
+    sendBtn.textContent = scheduled
+      ? `🕐 Schedule to ${count} recipients`
+      : `📤 Send to all ${count} recipients`;
+  }
+  // Update schedule hint if visible
+  _smsUpdateScheduleHint && _smsUpdateScheduleHint();
   _smsRenderPreview();
 }
 
@@ -4843,6 +4901,73 @@ Reply with ONLY the SMS text, nothing else.`;
   }
 }
 
+function _smsToggleSchedule() {
+  const checked = document.getElementById('sms-schedule-toggle').checked;
+  const fields  = document.getElementById('sms-schedule-fields');
+  const dt      = document.getElementById('sms-schedule-dt');
+  fields.style.display = checked ? 'flex' : 'none';
+  if (checked && !dt.value) {
+    // Default to tomorrow 9am AEST
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(9, 0, 0, 0);
+    // Format for datetime-local: YYYY-MM-DDTHH:MM
+    const pad = n => String(n).padStart(2,'0');
+    dt.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T09:00`;
+  }
+  _smsUpdateScheduleHint();
+}
+
+function _smsUpdateScheduleHint() {
+  const hint = document.getElementById('sms-schedule-hint');
+  const dt   = document.getElementById('sms-schedule-dt');
+  if (!hint || !dt || !dt.value) return;
+  const d = new Date(dt.value);
+  hint.textContent = 'Will send ' + d.toLocaleString('en-AU', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit', hour12:true });
+}
+
+async function _smsTestSend() {
+  const btn      = document.getElementById('sms-test-btn');
+  const statusEl = document.getElementById('sms-test-status');
+  const numInput = document.getElementById('sms-test-number');
+  const msg      = (document.getElementById('sms-message')||{}).value || '';
+
+  if (!msg.trim()) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626;">Write a message first.</span>';
+    return;
+  }
+  const testNum = _smsNormalisePhone((numInput||{}).value || '');
+  if (!testNum) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626;">Enter a valid Australian mobile number.</span>';
+    return;
+  }
+
+  // Pick a real recipient to use as the example — prefer one with multiple kids for a good test
+  const active   = _smsActiveRecipients();
+  const sample   = active.find(r => r.playerNames && r.playerNames.length > 1) || active[0];
+  const names    = sample ? (sample.playerNames||[]).map(n=>n.split(' ')[0]) : ['TestPlayer'];
+  const nameStr  = names.length === 1 ? names[0] : names.slice(0,-1).join(', ') + ' and ' + names[names.length-1];
+  const resolved = '[TEST] ' + msg.split('[NAME]').join(nameStr);
+
+  if (btn) { btn.disabled = true; btn.textContent = '🧪 Sending…'; }
+  if (statusEl) statusEl.innerHTML = '';
+
+  try {
+    const res = await api('sendSMS', {
+      message:    resolved,
+      audience:   'TEST',
+      recipients: [testNum],
+    });
+    if (res && res.error) throw new Error(res.error);
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--green);font-weight:700;">✓ Test sent to ${testNum.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3')}</span>
+      <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Sample used: ${sample ? (sample.parentName||nameStr) : '—'} · ${nameStr}</div>`;
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = `<span style="color:#dc2626;">Failed: ${e.message}</span>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🧪 Send test to my number'; }
+  }
+}
+
 async function _smsSend() {
   const msg = (document.getElementById('sms-message')||{}).value || '';
   if (!msg.trim()) { alert('Please enter a message.'); return; }
@@ -4858,17 +4983,30 @@ async function _smsSend() {
   if (btn) { btn.disabled = true; btn.textContent = '📤 Sending…'; }
   if (statusEl) statusEl.textContent = '';
 
+  const active      = _smsActiveRecipients();
+  const isScheduled = document.getElementById('sms-schedule-toggle') && document.getElementById('sms-schedule-toggle').checked;
+  const dtInput     = document.getElementById('sms-schedule-dt');
+  const scheduledAt = isScheduled && dtInput && dtInput.value ? new Date(dtInput.value).toISOString() : null;
+
+  const confirmMsg = scheduledAt
+    ? `Schedule to ${active.length} recipient${active.length!==1?'s':''} for ${new Date(dtInput.value).toLocaleString('en-AU', {weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit',hour12:true})}?\n\nYou can review and cancel in your Notifyre dashboard before it fires.`
+    : `Send to ${active.length} recipient${active.length!==1?'s':''}?\n\nThis will send real SMS messages to real parents. Make sure you've sent a test first.`;
+  if (!confirm(confirmMsg)) return;
+
   try {
-    const active = _smsActiveRecipients();
     const hasNameTag = msg.includes('[NAME]');
     const res = await api('sendSMS', {
       message:          msg,
       audience:         (_smsAudienceMeta ? _smsAudienceMeta.audience : 'SMS') + ' ' + (plSeason||''),
       recipients:       active.map(r => r.num),
       recipientObjects: hasNameTag ? active.map(r => ({ num: r.num, playerNames: r.playerNames })) : null,
+      scheduledAt:      scheduledAt,
     });
     if (res.error) throw new Error(res.error);
-    if (statusEl) statusEl.innerHTML = `<span style="color:var(--green);font-weight:700;">✓ Sent to ${res.sent||_smsRecipients.length} recipients</span>`;
+    const sentCount = res.sent || active.length;
+    if (statusEl) statusEl.innerHTML = scheduledAt
+      ? `<span style="color:var(--green);font-weight:700;">✓ Scheduled ${sentCount} messages — check <a href="https://app.notifyre.com" target="_blank" style="color:var(--green);">Notifyre dashboard</a> to confirm</span>`
+      : `<span style="color:var(--green);font-weight:700;">✓ Sent to ${sentCount} recipients</span>`;
     document.getElementById('sms-message').value = '';
     _smsUpdateCount();
     // Refresh history
