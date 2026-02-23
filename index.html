@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.1.5</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.1.8</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4333,34 +4333,21 @@ let _smsHistory = [];
 async function renderMessagingTab(body) {
   body.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;">Loading…</div>';
 
-  // Load SMS history and player data in parallel
-  const [histRes, playerData] = await Promise.all([
-    api('getSMSLog'),
-    plData ? Promise.resolve(plData) : api('getPlayerData', { season: new Date().getFullYear() })
-  ]);
+  // Ensure player data is loaded
+  if (!plData && plSeason) await loadPlayerData();
+  const histRes = await api('getSMSLog');
   _smsHistory = Array.isArray(histRes) ? histRes : [];
 
+  const season = plSeason || new Date().getFullYear();
+
   body.innerHTML = `
-    <div style="max-width:760px;">
+    <div style="max-width:820px;">
 
       <!-- Composer card -->
       <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:20px;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--green);">✉️ New Message</div>
-
-        <!-- Audience -->
-        <div style="margin-bottom:14px;">
-          <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Audience</label>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;" id="sms-audience-btns">
-            ${[
-              { key:'lapsed',    label:'Not Returned',   icon:'📋' },
-              { key:'unassigned',label:'No Team Yet',    icon:'⚠️' },
-              { key:'all',       label:'All Registered', icon:'👥' },
-            ].map(a => `<button class="sms-aud-btn${a.key==='lapsed'?' act':''}" data-aud="${a.key}"
-              onclick="_smsSelectAudience('${a.key}')"
-              style="padding:6px 12px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:700;cursor:pointer;">
-              ${a.icon} ${a.label}
-            </button>`).join('')}
-          </div>
+        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--green);">✉️ New Message</div>
+          <div style="font-size:11px;color:var(--text-dim);">Season: <strong style="color:var(--text);">${season}</strong></div>
         </div>
 
         <!-- Recipient summary -->
@@ -4378,6 +4365,15 @@ async function renderMessagingTab(body) {
           </div>
         </div>
 
+        <!-- Preview toggle -->
+        <div style="margin-bottom:14px;">
+          <button onclick="_smsTogglePreview()" id="sms-preview-btn"
+            style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text);">
+            👁 Show recipient list
+          </button>
+        </div>
+        <div id="sms-preview-list" style="display:none;margin-bottom:14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;max-height:260px;overflow-y:auto;font-size:12px;"></div>
+
         <!-- Send button -->
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
           <button onclick="_smsSend()" id="sms-send-btn"
@@ -4389,7 +4385,7 @@ async function renderMessagingTab(body) {
 
         <!-- Config notice -->
         <div id="sms-config-notice" style="margin-top:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;font-size:11px;color:#92400e;display:none;">
-          ⚠️ SMS API token not configured. Ask your admin to add the Notifyre API token in Script Properties under the key <strong>NOTIFYRE_API_TOKEN</strong>, and set <strong>SMS_SENDER_ID</strong> to <strong>KinglakeJFC</strong> once approved.
+          ⚠️ SMS API token not configured. Add <strong>NOTIFYRE_API_TOKEN</strong> and <strong>SMS_SENDER_ID</strong> to Script Properties.
         </div>
       </div>
 
@@ -4403,14 +4399,12 @@ async function renderMessagingTab(body) {
                 <thead><tr style="border-bottom:2px solid var(--border);">
                   <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Date</th>
                   <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Sent by</th>
-                  <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Audience</th>
                   <th style="text-align:right;padding:6px 8px;color:var(--text-dim);font-weight:700;">Recipients</th>
                   <th style="text-align:left;padding:6px 8px;color:var(--text-dim);font-weight:700;">Message</th>
                 </tr></thead>
                 <tbody>${_smsHistory.map(r => `<tr style="border-bottom:1px solid var(--border);">
                   <td style="padding:6px 8px;white-space:nowrap;">${fmtD(r.timestamp)}</td>
                   <td style="padding:6px 8px;">${r.user||'—'}</td>
-                  <td style="padding:6px 8px;">${r.audience||'—'}</td>
                   <td style="padding:6px 8px;text-align:right;font-weight:700;">${r.recipients||0}</td>
                   <td style="padding:6px 8px;color:var(--text-dim);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(r.message||'').replace(/"/g,'&quot;')}">${r.message||''}</td>
                 </tr>`).join('')}</tbody>
@@ -4419,28 +4413,20 @@ async function renderMessagingTab(body) {
       </div>
     </div>`;
 
-  // Init audience
-  _smsSelectAudience('lapsed');
+  // Build recipients from lapsed cache
+  _smsCurrentAudience = 'lapsed';
+  _smsBuildRecipients();
+
   // Check config
   const configRes = await api('checkSMSConfig');
   if (configRes && !configRes.configured) {
-    document.getElementById('sms-config-notice').style.display = 'block';
+    const n = document.getElementById('sms-config-notice');
+    if (n) n.style.display = 'block';
   }
 }
 
 let _smsCurrentAudience = 'lapsed';
-let _smsRecipients = [];
-
-function _smsSelectAudience(key) {
-  _smsCurrentAudience = key;
-  document.querySelectorAll('.sms-aud-btn').forEach(b => {
-    const isAct = b.dataset.aud === key;
-    b.style.background    = isAct ? 'var(--green)'      : '#fff';
-    b.style.color         = isAct ? '#fff'              : 'var(--text)';
-    b.style.borderColor   = isAct ? 'var(--green)'      : 'var(--border)';
-  });
-  _smsBuildRecipients(key);
-}
+let _smsRecipients = []; // [{ num, parentName, playerNames[] }]
 
 function _smsNormalisePhone(raw) {
   if (!raw) return null;
@@ -4448,57 +4434,92 @@ function _smsNormalisePhone(raw) {
   if (num.startsWith('04') && num.length === 10) return num;
   if (num.startsWith('614') && num.length === 11) return '0' + num.slice(2);
   if (num.startsWith('+614') && num.length === 12) return '0' + num.slice(3);
-  return null; // not a recognisable Australian mobile
+  return null; // not a recognisable Australian mobile — excludes landlines
 }
 
-function _smsBuildRecipients(key) {
-  const rows   = plData ? (plData.seasons||[]).filter(s => +s.year === +plSeason) : [];
-  const pm     = plData ? plPlayerMap() : {};
+function _fmtMobile(num) {
+  // 0412345678 → 0412 345 678
+  if (!num) return '';
+  return num.replace(/^(\d{4})(\d{3})(\d{3})$/, '$1 $2 $3');
+}
+
+function _smsBuildRecipients() {
   const lapsed = _lapsedCache || [];
-  let pool = [];
 
-  if (key === 'lapsed') {
-    const lapsedIds = new Set(lapsed.map(p => p.profileId));
-    pool = rows.filter(r => lapsedIds.has(r.profileId));
-  } else if (key === 'unassigned') {
-    pool = rows.filter(r => !r.assignedTeam);
-  } else {
-    pool = rows;
-  }
+  // Map: phone number → { parentName, playerNames[] }
+  const numMap = {};
 
-  // Collect all unique mobile numbers across both parents (and direct phone field)
-  // Each unique number gets one SMS regardless of how many players share it
-  const recipients = [];
-  const seenNums   = new Set();
-  let playersWithAtLeastOneNum = 0;
+  lapsed.forEach(p => {
+    const playerFullName = ((p.firstName||'') + ' ' + (p.lastName||'')).trim();
 
-  pool.forEach(r => {
-    const p = pm[r.profileId] || {};
-    const playerName = ((p.firstName||'') + ' ' + (p.lastName||'')).trim();
-    const contacts = [
-      { num: _smsNormalisePhone(p.parent1Phone), name: p.parent1Name || playerName },
-      { num: _smsNormalisePhone(p.parent2Phone), name: p.parent2Name || playerName },
-      { num: _smsNormalisePhone(p.phone),        name: playerName },
-    ].filter(c => c.num);
-
-    if (contacts.length) playersWithAtLeastOneNum++;
-    contacts.forEach(c => {
-      if (seenNums.has(c.num)) return;
-      seenNums.add(c.num);
-      recipients.push(c);
+    [
+      { phone: p.parent1Phone, name: p.parent1Name },
+      { phone: p.parent2Phone, name: p.parent2Name },
+    ].forEach(({ phone, name }) => {
+      const num = _smsNormalisePhone(phone);
+      if (!num) return; // skip blanks and landlines
+      if (!numMap[num]) {
+        numMap[num] = { num, parentName: name || '', playerNames: [] };
+      }
+      // Add player name if not already listed under this number
+      if (!numMap[num].playerNames.includes(playerFullName)) {
+        numMap[num].playerNames.push(playerFullName);
+      }
     });
   });
 
-  _smsRecipients = recipients;
+  _smsRecipients = Object.values(numMap);
+
   const summaryEl = document.getElementById('sms-recipient-summary');
   if (!summaryEl) return;
-  const noNum = pool.length - playersWithAtLeastOneNum;
-  summaryEl.innerHTML = recipients.length === 0
-    ? '<span style="color:#dc2626;">No mobile numbers found for this audience.</span>'
-    : `<strong style="color:var(--green);">${recipients.length} mobile number${recipients.length!==1?'s':''}</strong>`
-      + ` across ${pool.length} player${pool.length!==1?'s':''}`
-      + (noNum > 0 ? ` <span style="color:var(--text-dim);">(${noNum} without any mobile on file)</span>` : '');
+
+  const withNum  = new Set(lapsed.filter(p => _smsNormalisePhone(p.parent1Phone) || _smsNormalisePhone(p.parent2Phone)).map(p => p.profileId)).size;
+  const noNum    = lapsed.length - withNum;
+
+  summaryEl.innerHTML = _smsRecipients.length === 0
+    ? '<span style="color:#dc2626;">No mobile numbers found. Check that parent phone numbers are imported.</span>'
+    : `<strong style="color:var(--green);">${_smsRecipients.length} mobile number${_smsRecipients.length!==1?'s':''}</strong>`
+      + ` across <strong>${lapsed.length}</strong> not-returned player${lapsed.length!==1?'s':''}`
+      + (noNum > 0 ? ` <span style="color:#dc2626;">(${noNum} without any mobile on file)</span>` : '');
+
   _smsUpdateCount();
+  // Refresh preview if open
+  const previewList = document.getElementById('sms-preview-list');
+  if (previewList && previewList.style.display !== 'none') _smsRenderPreview();
+}
+
+function _smsTogglePreview() {
+  const el  = document.getElementById('sms-preview-list');
+  const btn = document.getElementById('sms-preview-btn');
+  if (!el) return;
+  const showing = el.style.display !== 'none';
+  el.style.display = showing ? 'none' : 'block';
+  btn.textContent  = showing ? '👁 Show recipient list' : '🙈 Hide recipient list';
+  if (!showing) _smsRenderPreview();
+}
+
+function _smsRenderPreview() {
+  const el = document.getElementById('sms-preview-list');
+  if (!el) return;
+  if (_smsRecipients.length === 0) {
+    el.innerHTML = '<div style="color:var(--text-dim);">No recipients.</div>';
+    return;
+  }
+  el.innerHTML = _smsRecipients.map(r => {
+    // Build a natural-language player description
+    // e.g. "Jim" or "Jim and Jane" for multiple kids
+    const names = r.playerNames;
+    const playerDesc = names.length === 1
+      ? names[0]
+      : names.slice(0,-1).join(', ') + ' and ' + names[names.length-1];
+    const label = r.parentName
+      ? `<strong>${r.parentName}</strong> <span style="color:var(--text-dim);">(${playerDesc} has not returned)</span>`
+      : `<strong>${playerDesc}</strong> <span style="color:var(--text-dim);">has not returned</span>`;
+    return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--border);">
+      <div>${label}</div>
+      <div style="font-family:monospace;color:var(--text-dim);font-size:11px;margin-left:12px;white-space:nowrap;">${_fmtMobile(r.num)}</div>
+    </div>`;
+  }).join('');
 }
 
 function _smsUpdateCount() {
@@ -4518,9 +4539,8 @@ async function _smsSend() {
 
   const parts = msg.length <= 160 ? 1 : Math.ceil(msg.length / 153);
   const cost  = (parts * _smsRecipients.length * 0.05).toFixed(2);
-  const audienceLabel = { lapsed:'Not Returned', unassigned:'No Team Yet', all:'All Registered' }[_smsCurrentAudience] || _smsCurrentAudience;
 
-  if (!confirm(`Send to ${_smsRecipients.length} recipient${_smsRecipients.length!==1?'s':''} (${audienceLabel})?\n\nEstimated cost: $${cost} AUD\n\n"${msg.slice(0,100)}${msg.length>100?'…':''}"`)) return;
+  if (!confirm(`Send to ${_smsRecipients.length} mobile number${_smsRecipients.length!==1?'s':''} (${_smsRecipients.length} contacts, Not Returned — ${plSeason} season)?\n\nEstimated cost: $${cost} AUD\n\n"${msg.slice(0,120)}${msg.length>120?'…':''}"`)) return;
 
   const btn = document.getElementById('sms-send-btn');
   const statusEl = document.getElementById('sms-send-status');
@@ -4529,8 +4549,8 @@ async function _smsSend() {
 
   try {
     const res = await api('sendSMS', {
-      message:   msg,
-      audience:  _smsCurrentAudience,
+      message:    msg,
+      audience:   'Not Returned ' + plSeason,
       recipients: _smsRecipients.map(r => r.num),
     });
     if (res.error) throw new Error(res.error);
