@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.2.5</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.2.6</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4343,12 +4343,19 @@ async function openMessagingFromLapsed() {
 
   let lapsed = [];
   try {
-    // Use dedicated SMS endpoint — phones are never stripped here
+    // Use dedicated SMS endpoint — phones always included, no private-field stripping
     const res = await api('getLapsedForSMS', { season: season });
+    if (res && res.error) {
+      if (body) body.innerHTML = `<div style="padding:20px;color:#dc2626;font-size:13px;">❌ Error loading contacts: ${res.error}</div>`;
+      return;
+    }
     if (res && res.contacts) {
       lapsed = res.contacts;
     }
-  } catch(e) { lapsed = _lapsedCache || []; }
+  } catch(e) {
+    // Fall back to cache if API fails
+    lapsed = _lapsedCache || [];
+  }
 
   // Build recipient list
   const numMap = {};
