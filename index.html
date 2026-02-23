@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.4.2</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.4.5</span></small>
       </div>
     </div>
     <div class="hright">
@@ -1730,13 +1730,11 @@ async function api(action, body = {}) {
     if (action === 'exchangeCode')       params.set('code', body.code || '');
     else if (action === 'getAudit')      params.set('id', body.id || '');
     else if (action === 'getContactLog') params.set('orgId', body.orgId || '');
-    else if (Object.keys(body).length > 0) params.set('payload', encodeURIComponent(JSON.stringify(body)));
-    const timer = setTimeout(() => { cleanup(); resolve({ error: 'Request timed out' }); }, 30000);
+    else if (Object.keys(body).length > 0) params.set('payload', encodeURIComponent(payloadJson));
+    const timer = setTimeout(() => { cleanup(); resolve({ error: 'Request timed out' }); }, 60000);
     function cleanup() { clearTimeout(timer); delete window[cbName]; const el=document.getElementById(cbName); if(el) el.remove(); }
     window[cbName] = (data) => {
       cleanup();
-      // Force sign out if server returns an auth/permission error while already logged in
-      // Excludes exchangeCode (login attempt) — those errors should show on the login screen
       if (action !== 'exchangeCode' && data && data.error && (
         data.error.toLowerCase().includes('unauthori') ||
         data.error.toLowerCase().includes('not authorised') ||
@@ -4726,13 +4724,33 @@ function _smsRenderPreview() {
 }
 
 function _smsUpdateCount() {
-  const msg = (document.getElementById('sms-message')||{}).value || '';
-  const chars = msg.length;
-  const parts = chars <= 160 ? 1 : Math.ceil(chars / 153);
-  const count = _smsActiveRecipients().length;
-  const cost  = (parts * count * 0.05).toFixed(2);
-  const el = document.getElementById('sms-char-count');
-  if (el) el.textContent = `${chars} / ${parts === 1 ? 160 : parts * 153} characters · ${parts} SMS part${parts!==1?'s':''} × ${count} recipient${count!==1?'s':''} = est. $${cost}`;
+  const msg    = (document.getElementById('sms-message')||{}).value || '';
+  const chars  = msg.length;
+  // Detect emojis / non-GSM7 characters — triggers Unicode encoding (70 chars/part not 160)
+  const hasEmoji = /[^\u0000-\u007F\u00A0-\u00FF\u0020-\u007E]/.test(msg) ||
+                   /[\u{1F000}-\u{1FFFF}\u{2600}-\u{27FF}]/u.test(msg);
+  const singleLimit  = hasEmoji ? 70  : 160;
+  const multiLimit   = hasEmoji ? 67  : 153;
+  const parts  = chars <= singleLimit ? 1 : Math.ceil(chars / multiLimit);
+  const count  = _smsActiveRecipients().length;
+  const cost   = (parts * count * 0.05).toFixed(2);
+  const el     = document.getElementById('sms-char-count');
+  const limit  = parts === 1 ? singleLimit : parts * multiLimit;
+  if (el) {
+    el.textContent = `${chars} / ${limit} characters · ${parts} SMS part${parts!==1?'s':''} × ${count} recipient${count!==1?'s':''} = est. $${cost}`;
+    el.style.color = hasEmoji ? '#92400e' : '';
+  }
+  // Show/hide emoji Unicode warning
+  let warn = document.getElementById('sms-emoji-warn');
+  if (!warn) {
+    warn = document.createElement('div');
+    warn.id = 'sms-emoji-warn';
+    warn.style.cssText = 'font-size:11px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:4px 10px;margin-top:4px;display:none;';
+    warn.textContent = '⚠️ Message contains emojis — sends as Unicode (70 chars/part instead of 160). Delete emojis to halve costs.';
+    const countEl = document.getElementById('sms-char-count');
+    if (countEl && countEl.parentNode) countEl.parentNode.insertBefore(warn, countEl.nextSibling);
+  }
+  warn.style.display = hasEmoji ? 'block' : 'none';
   // Keep send button count and schedule state in sync
   const sendBtn  = document.getElementById('sms-send-btn');
   const scheduled = document.getElementById('sms-schedule-toggle') && document.getElementById('sms-schedule-toggle').checked;
@@ -4885,16 +4903,21 @@ async function _smsAISuggest() {
 Use [NAME] as a placeholder for the player's first name(s). For one child [NAME] becomes e.g. "Jim", for two children it becomes "Jim and John".
 
 Match this tone and structure closely:
-"We'd love to have [NAME] back at the Lakers in ${season}! Registrations close soon. Register here: ${regUrl} Go Lakers! - Kinglake JFC"
+"🟢 We'd love to have [NAME] back at the Lakers in ${season}! Don't miss out — register now: ${regUrl} Go Lakers! 🏆 - Kinglake JFC"
 
 Rules:
 - Use [NAME] exactly once, near the start
-- Under 160 characters if possible (200 max)
+- Include 1-2 emojis that suit Kinglake JFC's green and gold club colours and footy spirit
+- Approved emojis only: 🟢 🟡 🏆 ⭐ 🌟 📣 👟 🏉
+  - 🏉 (rugby ball) is acceptable as the closest to an AFL ball
+  - DO NOT use ⚽ (soccer) 🏈 (american football) 🎾 (tennis) or any other sport ball
+  - DO NOT use 🎽 (jersey) — Kinglake's colours are green and gold but the jersey emoji renders blue
+- Keep total message under 160 characters if possible (emojis trigger Unicode — 70 chars per SMS part)
 - Mention registrations closing soon
 - Include the link: ${regUrl}
 - End with "Go Lakers! - Kinglake JFC"
-- Warm, energetic, footy-club feel
-- Vary the wording slightly from the example so it feels fresh
+- Warm, energetic, community footy-club feel
+- Vary the wording from the example so it feels fresh
 
 Reply with ONLY the SMS text, nothing else.`;
 
@@ -4986,7 +5009,10 @@ async function _smsSend() {
   if (!msg.trim()) { alert('Please enter a message.'); return; }
   if (_smsRecipients.length === 0) { alert('No recipients found for this audience.'); return; }
 
-  const parts = msg.length <= 160 ? 1 : Math.ceil(msg.length / 153);
+  const hasEmoji = /[^\u0000-\u007F\u00A0-\u00FF\u0020-\u007E]/.test(msg) || /[\u{1F000}-\u{1FFFF}\u{2600}-\u{27FF}]/u.test(msg);
+  const singleLim = hasEmoji ? 70 : 160;
+  const multiLim  = hasEmoji ? 67 : 153;
+  const parts = msg.length <= singleLim ? 1 : Math.ceil(msg.length / multiLim);
   const cost  = (parts * _smsRecipients.length * 0.05).toFixed(2);
 
   if (!confirm(`Send to ${_smsRecipients.length} mobile number${_smsRecipients.length!==1?'s':''} (${_smsRecipients.length} contacts, Not Returned — ${plSeason} season)?\n\nEstimated cost: $${cost} AUD\n\n"${msg.slice(0,120)}${msg.length>120?'…':''}"`)) return;
@@ -5023,13 +5049,35 @@ async function _smsSend() {
 
   try {
     const hasNameTag = msg.includes('[NAME]');
-    const res = await api('sendSMS', {
+    const smsPayload = {
       message:          msg,
       audience:         (_smsAudienceMeta ? _smsAudienceMeta.audience : 'SMS') + ' ' + (plSeason||''),
       recipients:       active.map(r => r.num),
       recipientObjects: hasNameTag ? active.map(r => ({ num: r.num, playerNames: r.playerNames })) : null,
       scheduledAt:      scheduledAt,
-    });
+    };
+
+    // Large payload — use chunked upload (same pattern as CSV import) to stay within JSONP URL limits
+    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(smsPayload))));
+    const CHUNK = 2000;
+    const chunks = [];
+    for (let i = 0; i < b64.length; i += CHUNK) chunks.push(b64.slice(i, i + CHUNK));
+
+    const startRes = await api('startUpload', { totalChunks: chunks.length });
+    if (startRes.error) throw new Error(startRes.error);
+    const uploadId = startRes.uploadId;
+
+    // Send chunks in parallel batches of 8
+    const PARALLEL = 8;
+    for (let i = 0; i < chunks.length; i += PARALLEL) {
+      const batch = chunks.slice(i, i + PARALLEL);
+      const results = await Promise.all(
+        batch.map((data, j) => api('appendChunk', { uploadId, index: i + j, data }))
+      );
+      for (const r of results) if (r.error) throw new Error(r.error);
+    }
+
+    const res = await api('finaliseSMS', { uploadId });
     if (res.error) throw new Error(res.error);
     const sentCount = res.sent || active.length;
     if (statusEl) statusEl.innerHTML = scheduledAt
