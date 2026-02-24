@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.7.7</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.7.8</span></small>
       </div>
     </div>
     <div class="hright">
@@ -7105,8 +7105,12 @@ function _renderUnassignedSlideoverBody(filterAge) {
 
     const info = document.createElement('div');
     info.style.cssText = 'flex:1;min-width:0;cursor:pointer;';
+    const ineligReason = playerIneligibleReason(r, p);
     info.innerHTML = `<div style="font-weight:700;font-size:13px;">${name}</div>`
       + `<div style="font-size:11px;color:var(--text-dim);">${ageLabel(r)}</div>`
+      + (ineligReason
+          ? `<div style="font-size:11px;color:#dc2626;font-weight:600;">⚠ ${ineligReason}</div>`
+          : '')
       + `<div style="font-size:11px;color:var(--text-dim);">${seasonSchool(r,pm)||r.suburb||'—'}</div>`;
     info.addEventListener('mouseenter', () => info.style.opacity = '.7');
     info.addEventListener('mouseleave', () => info.style.opacity = '1');
@@ -7788,10 +7792,10 @@ async function savePlayerDetail() {
     Object.assign(ps, { dispensation, assignedTeam, dispensationNote: dispNote, notes });
   }
 
-  _invalidateRecruitCache(); // D: fresh data needed after player change
+  _invalidateRecruitCache();
   showToast('Player saved ✓');
   closePlayerDetail();
-  renderPlTab();
+  await loadPlayerData(); // re-fetch from server so all tabs show accurate data
 }
 
 // ── LAPSED / NOT RETURNED TAB ─────────────────────────────────────
