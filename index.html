@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.9</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.6.0</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4471,7 +4471,7 @@ function _smsRenderPicker(body) {
             <input id="sms-pick-player-search" type="text" placeholder="Search by player name…"
               oninput="_smsPickPlayerSearch(this.value)"
               style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;">
-            <div id="sms-pick-player-results" style="margin-top:8px;max-height:200px;overflow-y:auto;"></div>
+            <div id="sms-pick-player-results" style="margin-top:8px;max-height:340px;overflow-y:auto;"></div>
           </div>
         </div>
 
@@ -4851,16 +4851,19 @@ async function _smsRenderComposer(body) {
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;flex-wrap:wrap;gap:4px;">
             <span id="sms-char-count" style="font-size:11px;color:var(--text-dim);">0 / 160 characters · 1 SMS per recipient</span>
-            <button onclick="_smsAISuggest()" id="sms-ai-btn"
-              style="background:var(--green);color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">
-              ✨ AI Suggest
-            </button>
+            ${isLapsed ? '<button onclick="_smsAISuggest()" id="sms-ai-btn" style="background:var(--green);color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">✨ AI Suggest</button>' : ''}
           </div>
         </div>
 
-        <!-- [NAME] badge -->
-        <div id="sms-name-badge" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:5px 10px;font-size:11px;color:#16a34a;margin-bottom:10px;">
-          ✓ [NAME] personalised per recipient
+        <!-- Placeholder guide -->
+        <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.6;">
+          <span style="font-weight:700;color:var(--text);">Placeholders:</span>
+          <span style="background:#fef9c3;color:#854d0e;border-radius:4px;padding:1px 6px;font-weight:700;font-family:monospace;">[NAME]</span> → player first name(s)
+          &nbsp;·&nbsp;
+          <span style="background:#fef9c3;color:#854d0e;border-radius:4px;padding:1px 6px;font-weight:700;font-family:monospace;">[PARENT]</span> → parent first name
+          <div style="margin-top:3px;color:#6b7280;">
+            e.g. one child → <em>Jack</em> &nbsp;·&nbsp; two children → <em>Jack and Leelou</em> &nbsp;·&nbsp; parent → <em>Sarah</em>
+          </div>
         </div>
       </div>
 
@@ -5029,7 +5032,9 @@ function _smsRenderPreview() {
     const nameStr = firstNames.length === 0 ? ''
       : firstNames.length === 1 ? firstNames[0]
       : firstNames.slice(0,-1).join(', ') + ' and ' + firstNames[firstNames.length-1];
-    return template.split('[NAME]').join(nameStr || '[NAME]');
+    const parentFirst = (r.parentName || '').split(' ')[0];
+    return template.split('[NAME]').join(nameStr || '[NAME]')
+                   .split('[PARENT]').join(parentFirst || '[PARENT]');
   }
 
   el.innerHTML = `
@@ -5037,7 +5042,7 @@ function _smsRenderPreview() {
       <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;">
         Preview — ${_smsRecipients.length} message${_smsRecipients.length!==1?'s':''}
       </div>
-      ${hasNameTag ? '<span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:700;">[NAME] personalised per recipient ✓</span>' : ''}
+      ${(hasNameTag || msg.includes('[PARENT]')) ? '<span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:700;">' + (hasNameTag ? '[NAME] ' : '') + (msg.includes('[PARENT]') ? '[PARENT] ' : '') + 'personalised per recipient ✓</span>' : ''}
     </div>
     <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
       <div style="display:grid;grid-template-columns:150px 120px 1fr;background:var(--bg);padding:6px 10px;border-bottom:2px solid var(--border);font-size:11px;font-weight:700;color:var(--text-dim);">
@@ -5259,6 +5264,7 @@ Rules:
   - 🏉 (rugby ball) is acceptable as the closest to an AFL ball
   - DO NOT use ⚽ (soccer) 🏈 (american football) 🎾 (tennis) or any other sport ball
   - DO NOT use 🎽 (jersey) — Kinglake's colours are green and gold but the jersey emoji renders blue
+  - If you use 🟢 always pair it with 🟡 immediately next to it, and vice versa — they represent the club colours together
 - Keep total message under 160 characters if possible (emojis trigger Unicode — 70 chars per SMS part)
 - Mention registrations closing soon
 - Include the link: ${regUrl}
@@ -5330,7 +5336,8 @@ async function _smsTestSend() {
   const sample   = active.find(r => r.playerNames && r.playerNames.length > 1) || active[0];
   const names    = sample ? (sample.playerNames||[]).map(n=>n.split(' ')[0]) : ['TestPlayer'];
   const nameStr  = names.length === 1 ? names[0] : names.slice(0,-1).join(', ') + ' and ' + names[names.length-1];
-  const resolved = '[TEST] ' + msg.split('[NAME]').join(nameStr);
+  const parentFirst = (recipient.parentName || '').split(' ')[0];
+  const resolved = '[TEST] ' + msg.split('[NAME]').join(nameStr).split('[PARENT]').join(parentFirst || '[PARENT]');
 
   if (btn) { btn.disabled = true; btn.textContent = '🧪 Sending…'; }
   if (statusEl) statusEl.innerHTML = '';
