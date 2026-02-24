@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.7</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.8</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4526,6 +4526,7 @@ async function _smsLoadPickerPlayers(season) {
 
 function _smsRenderTeamChips() {
   const el = document.getElementById('sms-pick-team-list');
+  console.log('_smsRenderTeamChips: el=', !!el, 'teams=', JSON.stringify(_smsPickerTeams.slice(0,2)));
   if (!el) return;
   if (!_smsPickerTeams.length) {
     el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">No teams found for this season. Create teams on the Recruitment → Teams page first.</div>';
@@ -4534,7 +4535,7 @@ function _smsRenderTeamChips() {
   el.innerHTML = _smsPickerTeams.map(t => {
     const name = t.name || t; // handle both object and string
     const hasPlayers = t.hasPlayers !== false;
-    const count = _smsPickerPlayers.filter(p => p.team === name).length;
+    const count = t.count !== undefined ? t.count : _smsPickerPlayers.filter(p => p.team === name).length;
     return `<label style="display:flex;align-items:center;gap:6px;background:${hasPlayers?'#f0fdf4':'#f8fafc'};border:1.5px solid ${hasPlayers?'#bbf7d0':'var(--border)'};border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;user-select:none;"
       onclick="event.stopPropagation()">
       <input type="checkbox" value="${name}" onchange="_smsTeamChipChange()" style="accent-color:var(--green);cursor:pointer;" ${hasPlayers?'':'disabled title="No players assigned to this team yet"'}>
