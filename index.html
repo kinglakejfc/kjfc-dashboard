@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.7.8</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.7.9</span></small>
       </div>
     </div>
     <div class="hright">
@@ -6174,9 +6174,14 @@ function _renderOverviewHTML() {
     if (ag) unassignedByAG[ag] = (unassignedByAG[ag]||0)+1;
   });
   const agOrder = [9,10,11,12,13,14,15,16,17];
-  const unassignedChips = agOrder.filter(ag => unassignedByAG[ag]).map(ag =>
-    `<span style="background:#fff;border:1.5px solid #f59e0b;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#92400e;">Age ${ag}: ${unassignedByAG[ag]}</span>`
-  ).join('');
+  const allUnassignedAges = [...new Set([
+    ...Object.keys(unassignedByAG).map(Number).sort((a,b)=>a-b),
+    ...agOrder
+  ])].filter(a => unassignedByAG[a]);
+  const unassignedChips = allUnassignedAges.map(ag => {
+    const ineligible = ag < 8;
+    return `<span style="background:#fff;border:1.5px solid ${ineligible?'#dc2626':'#f59e0b'};border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:${ineligible?'#dc2626':'#92400e'};">Age ${ag}: ${unassignedByAG[ag]}${ineligible?' ⚠':''}</span>`;
+  }).join('');
 
   // Schools count
   const schools = new Set(rows.map(r => seasonSchool(r, pm)).filter(Boolean)).size;
@@ -7785,17 +7790,10 @@ async function savePlayerDetail() {
   btnLoading(btn, false);
   if (r1.error || r2?.error) { showToast('Save failed: '+(r1.error||r2?.error), 'err'); return; }
 
-  // Update local data
-  const p = (plData.players||[]).find(x=>x.profileId===plDetailId);
-  if (p) { p.photoUrl = photoUrl; p.photoConsent = photoConsent; }
-  if (ps.id) {
-    Object.assign(ps, { dispensation, assignedTeam, dispensationNote: dispNote, notes });
-  }
-
   _invalidateRecruitCache();
-  showToast('Player saved ✓');
   closePlayerDetail();
-  await loadPlayerData(); // re-fetch from server so all tabs show accurate data
+  showToast('Player saved ✓');
+  await loadPlayerData(); // re-fetch from server so all tabs reflect saved state
 }
 
 // ── LAPSED / NOT RETURNED TAB ─────────────────────────────────────
@@ -7889,13 +7887,15 @@ function renderPlTeams() {
     if (ag) unassignedByAG[ag] = (unassignedByAG[ag]||0)+1;
   });
   const agOrder = [9,10,11,12,13,14,15,16,17];
-  const unassignedChips = agOrder.filter(ag => unassignedByAG[ag]).map(ag =>
-    `<span style="background:#fff;border:1.5px solid #f59e0b;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#92400e;">Age ${ag}: ${unassignedByAG[ag]}</span>`
-  ).join('');
-
-  const unassignedChipsTeams = agOrder.filter(ag => unassignedByAG[ag]).map(ag =>
-    `<span style="background:#fff;border:1.5px solid #f59e0b;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#92400e;">${ag}: ${unassignedByAG[ag]}</span>`
-  ).join('');
+  const allUnassignedAges = [...new Set([
+    ...Object.keys(unassignedByAG).map(Number).sort((a,b)=>a-b),
+    ...agOrder
+  ])].filter(a => unassignedByAG[a]);
+  const unassignedChips = allUnassignedAges.map(ag => {
+    const ineligible = ag < 8;
+    return `<span style="background:#fff;border:1.5px solid ${ineligible?'#dc2626':'#f59e0b'};border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:${ineligible?'#dc2626':'#92400e'};">Age ${ag}: ${unassignedByAG[ag]}${ineligible?' ⚠':''}</span>`;
+  }).join('');
+  const unassignedChipsTeams = unassignedChips; // same chips reused in banner
   const unassignedBanner = unassigned > 0 ? `
     <div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:10px;cursor:pointer;" onclick="openUnassignedSlideover()">
       <span style="font-size:18px;">⚠️</span>
