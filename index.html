@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.6.0</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.6.1</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4844,9 +4844,19 @@ async function _smsRenderComposer(body) {
         <!-- Message textarea -->
         <div style="margin-bottom:10px;">
           <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Message</label>
+          <!-- Emoji + placeholder toolbar -->
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center;">
+            <span style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-right:2px;">Insert:</span>
+            <button onclick="_smsInsert('[NAME]')" title="Player first name(s) — e.g. Jack · Jack and Leelou"
+              style="background:#fef9c3;color:#854d0e;border:1.5px solid #fde68a;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;font-family:monospace;">[NAME]</button>
+            <button onclick="_smsInsert('[PARENT]')" title="Parent first name — e.g. Sarah"
+              style="background:#fef9c3;color:#854d0e;border:1.5px solid #fde68a;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;font-family:monospace;">[PARENT]</button>
+            <span style="width:1px;height:16px;background:var(--border);margin:0 2px;"></span>
+            ${['🟢🟡','🏆','⭐','🌟','📣','👟','🏉'].map(e => `<button onclick="_smsInsert('${e}')" style="background:#f8fafc;border:1.5px solid var(--border);border-radius:6px;padding:3px 7px;font-size:14px;cursor:pointer;line-height:1;">${e}</button>`).join('')}
+          </div>
           <div style="position:relative;">
             <textarea id="sms-message" rows="4" oninput="_smsUpdateCount()"
-              placeholder="Type your message here, or use ✨ AI Suggest below…"
+              placeholder="Type your message here…"
               style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;flex-wrap:wrap;gap:4px;">
@@ -4855,16 +4865,7 @@ async function _smsRenderComposer(body) {
           </div>
         </div>
 
-        <!-- Placeholder guide -->
-        <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.6;">
-          <span style="font-weight:700;color:var(--text);">Placeholders:</span>
-          <span style="background:#fef9c3;color:#854d0e;border-radius:4px;padding:1px 6px;font-weight:700;font-family:monospace;">[NAME]</span> → player first name(s)
-          &nbsp;·&nbsp;
-          <span style="background:#fef9c3;color:#854d0e;border-radius:4px;padding:1px 6px;font-weight:700;font-family:monospace;">[PARENT]</span> → parent first name
-          <div style="margin-top:3px;color:#6b7280;">
-            e.g. one child → <em>Jack</em> &nbsp;·&nbsp; two children → <em>Jack and Leelou</em> &nbsp;·&nbsp; parent → <em>Sarah</em>
-          </div>
-        </div>
+
       </div>
 
       <!-- Preview table -->
@@ -4878,11 +4879,11 @@ async function _smsRenderComposer(body) {
       <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:20px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
           <div style="font-size:13px;font-weight:700;color:#dc2626;">🚫 Won't Return — Exclusions</div>
-          <button onclick="_smsToggleExclusionPanel()" id="sms-excl-toggle-btn"
+          <button onclick="_smsToggleExclusions()" id="sms-excl-toggle-btn"
             style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;">▼ Show</button>
         </div>
         <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">Tick players you know won't return — they'll be removed from the recipient list and remembered for this season.</div>
-        <div id="sms-excl-panel" style="display:none;">
+        <div id="sms-excl-body" style="display:none;">
           <div id="sms-excl-list" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;"></div>
           <div id="sms-excl-count" style="font-size:11px;color:var(--text-dim);margin-top:6px;"></div>
         </div>
@@ -5073,6 +5074,21 @@ function _smsRenderPreview() {
         }).join('')}
       </div>
     </div>`;
+}
+
+function _smsInsert(text) {
+  const ta = document.getElementById('sms-message');
+  if (!ta) return;
+  const start = ta.selectionStart;
+  const end   = ta.selectionEnd;
+  const before = ta.value.substring(0, start);
+  const after  = ta.value.substring(end);
+  ta.value = before + text + after;
+  // Restore cursor position after inserted text
+  const pos = start + text.length;
+  ta.setSelectionRange(pos, pos);
+  ta.focus();
+  _smsUpdateCount();
 }
 
 function _smsUpdateCount() {
