@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.6.5</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.6.7</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4916,10 +4916,22 @@ async function _smsRenderComposer(body) {
               style="width:14px;height:14px;cursor:pointer;accent-color:var(--green);">
             Schedule for later
           </label>
-          <div id="sms-schedule-fields" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
-            <input type="datetime-local" id="sms-schedule-dt" onchange="_smsUpdateScheduleHint()"
-              style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">
-            <span id="sms-schedule-hint" style="font-size:11px;color:var(--text-dim);"></span>
+          <div id="sms-schedule-fields" style="display:none;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <input type="datetime-local" id="sms-schedule-dt" onchange="_smsUpdateScheduleHint()"
+                style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">
+              <span id="sms-schedule-hint" style="font-size:11px;color:var(--text-dim);"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <label style="font-size:11px;font-weight:700;color:var(--text-dim);white-space:nowrap;">
+                <input type="checkbox" id="sms-schedule-test-toggle" onchange="_smsScheduleTestToggle()"
+                  style="accent-color:#f59e0b;cursor:pointer;">
+                &nbsp;Test schedule — send to one number only
+              </label>
+              <input type="tel" id="sms-schedule-test-num" placeholder="e.g. 0412 345 678"
+                style="display:none;padding:5px 10px;border:1.5px solid #fde68a;border-radius:8px;font-size:12px;font-family:inherit;width:160px;background:#fefce8;">
+              <span id="sms-schedule-test-hint" style="display:none;font-size:11px;color:#92400e;font-weight:600;">⚠️ Will only schedule to this number</span>
+            </div>
           </div>
         </div>
 
@@ -4997,6 +5009,7 @@ function _fmtMobile(num) {
 function _smsUpdateSummary() {
   const meta    = _smsAudienceMeta;
   const active  = _smsActiveRecipients();
+
   // Count excluded players (profileIds) — not recipients, since a parent with 2 kids
   // where 1 is excluded stays in the list but has a player excluded
   const excludedPlayers = _smsExcluded.size;
@@ -5308,6 +5321,15 @@ Reply with ONLY the SMS text, nothing else.`;
   }
 }
 
+function _smsScheduleTestToggle() {
+  const on  = document.getElementById('sms-schedule-test-toggle').checked;
+  const inp = document.getElementById('sms-schedule-test-num');
+  const hint = document.getElementById('sms-schedule-test-hint');
+  inp.style.display  = on ? 'inline-block' : 'none';
+  hint.style.display = on ? 'inline' : 'none';
+  if (on) setTimeout(() => inp.focus(), 50);
+}
+
 function _smsToggleSchedule() {
   const checked = document.getElementById('sms-schedule-toggle').checked;
   const fields  = document.getElementById('sms-schedule-fields');
@@ -5396,16 +5418,48 @@ async function _smsSend() {
 
   const active      = _smsActiveRecipients();
   const isScheduled = document.getElementById('sms-schedule-toggle') && document.getElementById('sms-schedule-toggle').checked;
+
+  // Test schedule mode — send to one number only to verify timing
+  const schedTestToggle = document.getElementById('sms-schedule-test-toggle');
+  const schedTestNum    = document.getElementById('sms-schedule-test-num');
+  const isTestSchedule  = isScheduled && schedTestToggle && schedTestToggle.checked;
   const dtInput     = document.getElementById('sms-schedule-dt');
   // datetime-local has no timezone — interpret as Australia/Melbourne time
   // by formatting the value with the correct AEST/AEDT offset via Intl
   let scheduledAt = null;
   if (isScheduled && dtInput && dtInput.value) {
-    // Notifyre treats the Unix timestamp as Melbourne local time.
-    // So we must send the datetime-local value as if it were UTC —
-    // i.e. "2026-02-25T09:00" → parse as UTC → Unix seconds.
-    // Appending 'Z' forces Date to treat the naive string as UTC.
-    scheduledAt = new Date(dtInput.value + ':00Z').toISOString();
+    // Notifyre stores and displays in Melbourne local time.
+    // We must send the Unix timestamp FOR the Melbourne local moment.
+    // i.e. "2026-02-25T09:00 Melbourne" = "2026-02-24T22:00Z" (AEDT +11)
+    // Detect Melbourne's current offset (AEDT +11:00 or AEST +10:00)
+    const probe    = new Date(dtInput.value + 'Z'); // parse as UTC to get a valid Date
+    const utcMs    = new Date(probe.toLocaleString('en-US', { timeZone: 'UTC' })).getTime();
+    const melbMs   = new Date(probe.toLocaleString('en-US', { timeZone: 'Australia/Melbourne' })).getTime();
+    const offsetMs = melbMs - utcMs; // e.g. +11*3600000 for AEDT
+    // Subtract offset to go from Melbourne local → UTC
+    scheduledAt = new Date(probe.getTime() - offsetMs).toISOString();
+  }
+
+  // Test schedule: send to one number only to verify timing before bulk schedule
+  if (isTestSchedule && scheduledAt) {
+    const testNum = _smsNormalisePhone((schedTestNum||{}).value || '');
+    if (!testNum) { alert('Enter a mobile number for the test schedule.'); return; }
+    const sample      = active.find(r => r.playerNames && r.playerNames.length > 1) || active[0];
+    const names       = sample ? (sample.playerNames||[]).map(n=>n.split(' ')[0]) : ['TestPlayer'];
+    const nameStr     = names.length===1 ? names[0] : names.slice(0,-1).join(', ')+' and '+names[names.length-1];
+    const parentFirst = (sample ? sample.parentName||'' : '').split(' ')[0];
+    const resolved    = '[SCHED TEST] ' + msg.split('[NAME]').join(nameStr).split('[PARENT]').join(parentFirst||'[PARENT]');
+    const timeLabel   = new Date(dtInput.value).toLocaleString('en-AU', {weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit',hour12:true});
+    if (!confirm('Schedule TEST to ' + (schedTestNum.value||testNum) + ' for ' + timeLabel + '? Check Notifyre dashboard to confirm the time matches.')) return;
+    const btn = document.getElementById('sms-send-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Scheduling…'; }
+    try {
+      const res = await api('sendSMS', { message: resolved, audience: 'SCHED-TEST', recipients: [testNum], scheduledAt });
+      if (res && res.error) alert('❌ ' + res.error);
+      else alert('✅ Scheduled to ' + (schedTestNum.value||testNum) + ' for ' + timeLabel + '. Check Notifyre dashboard to confirm the time matches.');
+    } catch(e) { alert('❌ ' + e.message); }
+    finally { if (btn) { btn.disabled=false; _smsUpdateSendBtn(); } }
+    return;
   }
 
   const confirmMsg = scheduledAt
