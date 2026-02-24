@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.7.2</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.7.4</span></small>
       </div>
     </div>
     <div class="hright">
@@ -5734,7 +5734,7 @@ function openUntargetedGroup(evt, label, rowEl) {
     const nat      = ps ? playerNaturalAge(ps)          : null;
     const eligible = ps ? playerEligibleGroups(ps, p)   : [];
     const dob      = canSeePrivate('recruitment') ? (normaliseDobFE(p.dob) || p.dob || '—') : null;
-    const team     = ps && ps.assignedTeam ? (plTeamById(ps.assignedTeam)||{}).name : null;
+    const team     = ps && ps.assignedTeam && ps.assignedTeam !== 'no-team' ? (plTeamById(ps.assignedTeam)||{}).name : (ps && ps.assignedTeam === 'no-team' ? '—' : null);
     return `<div onclick="openPlayerDetailFromSlideover('${pid}')"
         style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;cursor:pointer;margin-bottom:6px;border:1.5px solid var(--border);background:#fff;"
         onmouseenter="this.style.background='var(--green-light)'"
@@ -6268,13 +6268,13 @@ function _renderOverviewHTML() {
       </div>
 
       ${unassignedCount > 0 ? `
-      <div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:10px;cursor:pointer;" onclick="openUnassignedSlideover()">
         <span style="font-size:18px;">⚠️</span>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:4px;">${unassignedCount} player${unassignedCount!==1?'s':''} imported but not yet assigned to a team</div>
+          <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:4px;">${unassignedCount} player${unassignedCount!==1?'s':''} not yet assigned to a team</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;">${unassignedChips}</div>
         </div>
-        <button onclick="goToTeamsTab()" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Assign in Teams →</button>
+        <span style="color:#92400e;font-size:16px;font-weight:700;">›</span>
       </div>` : ''}
 
       <!-- CHARTS SECTION -->
@@ -7041,6 +7041,16 @@ function openGenderSlideover() {
   _openSimpleSlideover(`Gender Split — ${plSeason}`, `${list.filter(l=>l.label==='Male').length} male · ${list.filter(l=>l.label==='Female').length} female`, list);
 }
 
+function openUnassignedSlideover(filterAge) {
+  const rows = plSeasonRows().filter(r => !r.assignedTeam && r.assignedTeam !== 'no-team');
+  const pm   = plPlayerMap();
+  const filtered = filterAge ? rows.filter(r => +r.calcAge === +filterAge) : rows;
+  const title = filterAge ? `Unassigned — Age ${filterAge} (${plSeason})` : `Unassigned Players — ${plSeason}`;
+  _openSimpleSlideover(title, `${filtered.length} player${filtered.length!==1?'s':''} without a team`,
+    filtered.map(r => ({ pid:r.profileId, label:ageLabel(r), sub:seasonSchool(r,pm)||r.suburb||'—' }))
+      .sort((a,b) => (plName(pm[a.pid]||{})).localeCompare(plName(pm[b.pid]||{}))));
+}
+
 function openNewPlayersSlideover() {
   const rows = plSeasonRows().filter(r=>r.newToClub==='Yes');
   const pm   = plPlayerMap();
@@ -7588,7 +7598,7 @@ function openPlayerDetail(profileId) {
       ${allPlayerSeasons.length ? `
         <div style="display:flex;flex-wrap:wrap;gap:6px;">
           ${allPlayerSeasons.map(s => {
-            const team = plTeamById(s.assignedTeam);
+            const team = s.assignedTeam && s.assignedTeam !== 'no-team' ? plTeamById(s.assignedTeam) : null;
             const isCur = +s.year === +plSeason;
             return `<div style="background:${isCur?'var(--green)':'#fff'};color:${isCur?'#fff':'var(--text)'};border:1.5px solid ${isCur?'var(--green)':'var(--border)'};border-radius:8px;padding:5px 10px;font-size:12px;">
               <div style="font-weight:700;">${s.year}</div>
@@ -7613,6 +7623,8 @@ function openPlayerDetail(profileId) {
           <option value="">— unassigned —</option>
           ${plSeasonTeams().map(t=>`<option value="${t.id}" ${ps.assignedTeam===t.id?'selected':''}>${t.name}</option>`).join('')}
           ${!plSeasonTeams().length ? '<option disabled style="color:#999;">No teams yet — set up in Teams tab</option>' : ''}
+          <option value="no-team" ${ps.assignedTeam==='no-team'?'selected':''} style="color:#6b7280;font-style:italic;">— no team needed —</option>
+          <option value="no-team" ${ps.assignedTeam==='no-team'?'selected':''} style="color:#6b7280;font-style:italic;">✓ No team needed (suppress warning)</option>
         </select>
       </div>
       <!-- Dispensation -->
@@ -7778,14 +7790,17 @@ function renderPlTeams() {
     `<span style="background:#fff;border:1.5px solid #f59e0b;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#92400e;">Age ${ag}: ${unassignedByAG[ag]}</span>`
   ).join('');
 
+  const unassignedChipsTeams = agOrder.filter(ag => unassignedByAG[ag]).map(ag =>
+    `<span style="background:#fff;border:1.5px solid #f59e0b;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#92400e;">${ag}: ${unassignedByAG[ag]}</span>`
+  ).join('');
   const unassignedBanner = unassigned > 0 ? `
-    <div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:10px;">
+    <div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:10px;cursor:pointer;" onclick="openUnassignedSlideover()">
       <span style="font-size:18px;">⚠️</span>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:4px;">${unassigned} player${unassigned!==1?'s':''} not assigned to a team</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;">${unassignedChips}</div>
+        <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:4px;">${unassigned} player${unassigned!==1?'s':''} not yet assigned to a team</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">${unassignedChipsTeams}</div>
       </div>
-
+      <span style="color:#92400e;font-size:16px;font-weight:700;">›</span>
     </div>` : '';
 
   body.innerHTML = `
@@ -7947,7 +7962,7 @@ function _renderTeamSlide() {
   const agGroups = [...new Set(players.map(e => e.ag).filter(Boolean))].sort();
   let visible = players;
   if (_teamSlideFilter === 'assigned')   visible = players.filter(e => e.assigned);
-  if (_teamSlideFilter === 'unassigned') visible = players.filter(e => !e.r.assignedTeam);
+  if (_teamSlideFilter === 'unassigned') visible = players.filter(e => !e.r.assignedTeam && e.r.assignedTeam !== 'no-team');
   if (_teamSlideFilter.startsWith('ag:')) {
     const filterAG = _teamSlideFilter.slice(3);
     visible = players.filter(e => e.ag === filterAG);
@@ -7957,7 +7972,7 @@ function _renderTeamSlide() {
 
   document.getElementById('tsl-title').textContent = team.name;
   document.getElementById('tsl-sub').textContent   = assignedCount + ' assigned · click player to toggle';
-  const totalUnassigned = allRows.filter(s => !s.assignedTeam).length;
+  const totalUnassigned = allRows.filter(s => !s.assignedTeam && s.assignedTeam !== 'no-team').length;
   document.getElementById('tsl-stats').innerHTML   = `
     <span><strong>${assignedCount}</strong> on this team</span>
     <span style="color:var(--text-dim);">|</span>
@@ -7969,7 +7984,7 @@ function _renderTeamSlide() {
   document.getElementById('tsl-filters').innerHTML = [
     { key: 'all',        label: `All (${players.length})` },
     { key: 'assigned',   label: `On team (${assignedCount})` },
-    { key: 'unassigned', label: `No team (${allRows.filter(s=>!s.assignedTeam).length})` },
+    { key: 'unassigned', label: `No team (${allRows.filter(s=>!s.assignedTeam && s.assignedTeam !== 'no-team').length})` },
     ...agGroups.map(ag => {
       // Convert UXX → "Age X on Dec 31" for display
       const agNum = parseInt(ag.slice(1));
