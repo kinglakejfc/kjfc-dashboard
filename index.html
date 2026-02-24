@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.1</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.2</span></small>
       </div>
     </div>
     <div class="hright">
@@ -8482,6 +8482,18 @@ function handleImportFile(file) {
       // Duplicate detection
       let dupType = null;
       if (!excludeReason) {
+        // Apply name+DOB fuzzy remap if profileId still not recognised — mirrors backend import
+        // This catches PlayHQ reassigning a new ID to an existing player
+        if (!pm[profileId] && !existingSeasonIds.has(profileId)) {
+          const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${normaliseDobFE(dob)||dob}`;
+          const fuzzyMatch = Object.entries(pm).find(([pid, p]) =>
+            `${(p.firstName||'').toLowerCase()}_${(p.lastName||'').toLowerCase()}_${normaliseDobFE(p.dob)||p.dob}` === nameKey
+          );
+          if (fuzzyMatch) {
+            profileId = fuzzyMatch[0]; // remap to existing ID
+          }
+        }
+
         if (existingSeasonIds.has(profileId)) {
           dupType = 'already_this_season';
         } else {
