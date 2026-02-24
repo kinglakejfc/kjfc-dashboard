@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.7.9</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.1</span></small>
       </div>
     </div>
     <div class="hright">
@@ -928,6 +928,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button class="dtab act" data-admintab="users" onclick="switchAdminTab(this,'users')"><span class="dtab-icon">👤</span><span class="dtab-lbl">Manage Users</span></button>
       <button class="dtab" data-admintab="groups" onclick="switchAdminTab(this,'groups')"><span class="dtab-icon">🔐</span><span class="dtab-lbl">Access Groups</span></button>
       <button class="dtab" data-admintab="log" onclick="switchAdminTab(this,'log')"><span class="dtab-icon">📋</span><span class="dtab-lbl">Activity Log</span></button>
+      <button class="dtab" data-admintab="aliases" onclick="switchAdminTab(this,'aliases')"><span class="dtab-icon">🔗</span><span class="dtab-lbl">ID Aliases</span></button>
       <button class="dtab" data-admintab="about" onclick="switchAdminTab(this,'about')"><span class="dtab-icon">ℹ️</span><span class="dtab-lbl">About</span></button>
       <button class="dtab" data-admintab="messaging" id="admin-tab-messaging" onclick="switchAdminTab(this,'messaging')" style="display:none;"><span class="dtab-icon">💬</span><span class="dtab-lbl">Messaging</span></button>
     </div>
@@ -3441,6 +3442,10 @@ async function loadAdminTab(tab, containerId) {
     </table></div>`;
     return;
   }
+  if (tab==='aliases') {
+    renderPlayerAliasesTab(body);
+    return;
+  }
   if (tab==='messaging') {
     renderMessagingTab(body);
     return;
@@ -3661,6 +3666,100 @@ let editPkgId = null;
 
 function openPackagesPanel() {
   openAdminModal('packages');
+}
+
+// ── PLAYER ID ALIASES ─────────────────────────────────────────────────────
+// Manages AppSettings rows with key = playerIdAlias_<oldId>, value = <keepId>
+// Used by the import to remap PlayHQ profile IDs that differ from our stored IDs
+
+async function renderPlayerAliasesTab(body) {
+  body.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px 0;">Loading…</div>';
+  const res = await api('getPlayerAliases');
+  if (res.error) { body.innerHTML = `<div style="color:var(--red)">${res.error}</div>`; return; }
+
+  const aliases = res.aliases || [];
+  const pm = plPlayerMap ? plPlayerMap() : {};
+
+  function playerLabel(id) {
+    const p = pm[id];
+    if (p) return `<strong>${plName(p)}</strong> <span style="color:var(--text-dim);font-size:11px;">${id.slice(0,8)}…</span>`;
+    return `<span style="color:var(--text-dim);font-size:12px;">${id}</span>`;
+  }
+
+  body.innerHTML = `
+    <div style="max-width:700px;">
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;background:#f0fdf4;border:1.5px solid var(--green-light);border-radius:8px;padding:10px 14px;">
+        <strong>What are ID aliases?</strong> When PlayHQ reassigns a new Profile ID to an existing player (e.g. due to a re-registration or data correction), the daily import won't recognise them and creates a duplicate. Add an alias here to tell the import <em>"if you see this old ID, treat it as the kept ID"</em>.
+      </div>
+
+      <!-- Add new alias -->
+      <div style="background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:10px;">Add New Alias</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
+          <div>
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">Old / Incoming PlayHQ ID</div>
+            <input id="alias-old-id" type="text" placeholder="e.g. af50a7fc-b5df-…" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:monospace;">
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:3px;">Kept / Correct ID in our system</div>
+            <input id="alias-keep-id" type="text" placeholder="e.g. 9b5cb8d3-27de-…" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:monospace;">
+          </div>
+          <button id="alias-add-btn" onclick="addPlayerAlias()" style="background:var(--green);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
+        </div>
+        <div id="alias-add-msg" style="font-size:11px;margin-top:6px;"></div>
+      </div>
+
+      <!-- Existing aliases -->
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px;">Active Aliases (${aliases.length})</div>
+      ${aliases.length ? `
+        <div style="display:flex;flex-direction:column;gap:6px;" id="alias-list">
+          ${aliases.map(a => `
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border:1.5px solid var(--border);border-radius:8px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:11px;color:var(--text-dim);margin-bottom:2px;">Incoming (old) ID</div>
+                <div style="font-family:monospace;font-size:11px;color:#dc2626;">${a.oldId}</div>
+              </div>
+              <div style="font-size:16px;color:var(--text-dim);">→</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:11px;color:var(--text-dim);margin-bottom:2px;">Kept ID</div>
+                <div style="font-family:monospace;font-size:11px;color:var(--green);">${a.keepId}</div>
+                <div style="margin-top:2px;">${playerLabel(a.keepId)}</div>
+              </div>
+              <button onclick="deletePlayerAlias('${a.oldId}', this)" style="background:var(--bg);border:1.5px solid var(--border);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;color:#dc2626;cursor:pointer;flex-shrink:0;">Remove</button>
+            </div>`).join('')}
+        </div>` :
+        '<div style="color:var(--text-dim);font-size:12px;padding:12px 0;">No aliases configured yet.</div>'
+      }
+    </div>`;
+}
+
+async function addPlayerAlias() {
+  const oldId  = (document.getElementById('alias-old-id')?.value  || '').trim();
+  const keepId = (document.getElementById('alias-keep-id')?.value || '').trim();
+  const msg    = document.getElementById('alias-add-msg');
+  const btn    = document.getElementById('alias-add-btn');
+  if (!oldId || !keepId) { msg.style.color='#dc2626'; msg.textContent='Both IDs are required.'; return; }
+  if (oldId === keepId)  { msg.style.color='#dc2626'; msg.textContent='Old and kept IDs must be different.'; return; }
+  btnLoading(btn, true);
+  const res = await api('savePlayerAlias', { oldId, keepId });
+  btnLoading(btn, false);
+  if (res.error) { msg.style.color='#dc2626'; msg.textContent='Error: ' + res.error; return; }
+  msg.style.color='var(--green)'; msg.textContent='Alias saved ✓';
+  document.getElementById('alias-old-id').value  = '';
+  document.getElementById('alias-keep-id').value = '';
+  setTimeout(() => { msg.textContent=''; }, 2000);
+  const body = document.getElementById('admin-panel-body') || document.getElementById('adm-body');
+  renderPlayerAliasesTab(body);
+}
+
+async function deletePlayerAlias(oldId, btn) {
+  if (!confirm('Remove alias for ' + oldId + '?')) return;
+  btnLoading(btn, true);
+  const res = await api('deletePlayerAlias', { oldId });
+  if (res.error) { btnLoading(btn, false); showToast('Error: ' + res.error, 'err'); return; }
+  showToast('Alias removed ✓');
+  const body = document.getElementById('admin-panel-body') || document.getElementById('adm-body');
+  renderPlayerAliasesTab(body);
 }
 
 function renderPackageManager() {
@@ -5549,7 +5648,7 @@ function renderAdminPanel(tab) {
   document.querySelectorAll('#dash-sub-admin .dtab').forEach(b => {
     b.classList.toggle('act', b.dataset.admintab === activetab);
   });
-  const _tabTitles = { users:'Manage Users', groups:'Access Groups', log:'Activity Log', about:'About', messaging:'Messaging' };
+  const _tabTitles = { users:'Manage Users', groups:'Access Groups', log:'Activity Log', aliases:'Player ID Aliases', about:'About', messaging:'Messaging' };
   el.innerHTML = '<div class="section-head" style="max-width:1440px;margin:0 auto;padding:0 16px;">'
     + '<h2 class="section-title">' + (_tabTitles[activetab] || activetab) + '</h2>'
     + '</div>'
@@ -8308,7 +8407,7 @@ function handleImportFile(file) {
   review.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:16px 0;">Reading file…</div>';
 
   const reader = new FileReader();
-  reader.onload = ev => {
+  reader.onload = async ev => {
     const allRows  = parseCSV(ev.target.result).filter(r => (r['First Name']||'').trim());
 
     // ── Auto-detect season from CSV's own Season column ──────────────
@@ -8340,13 +8439,25 @@ function handleImportFile(file) {
       (plData?.seasons||[]).filter(s=>+s.year===season).map(s=>s.profileId)
     );
 
+    // Load ID aliases so the preview applies the same remapping as the backend import
+    let idAliasMap = {};
+    try {
+      const aliasRes = await api('getPlayerAliases');
+      (aliasRes.aliases||[]).forEach(a => { idAliasMap[a.oldId] = a.keepId; });
+    } catch(e) { /* non-fatal — preview will just show unremapped IDs */ }
+
     // Categorise every row
     const categorised = allRows.map((r, idx) => {
       const firstName = toTitleCase((r['First Name']||'').trim());
       const lastName  = toTitleCase((r['Last Name']||'').trim());
       const dob       = normaliseDobFE((r['Date of Birth']||'').trim()) || (r['Date of Birth']||'').trim();
-      const profileId = (r['Profile ID']||'').trim() ||
+      let   profileId = (r['Profile ID']||'').trim() ||
                         'kjfc_'+firstName.toLowerCase()+'_'+lastName.toLowerCase()+'_'+dob.replace(/\//g,'');
+
+      // Apply ID alias remap — mirrors backend import logic
+      if (idAliasMap[profileId]) {
+        profileId = idAliasMap[profileId];
+      }
       // Age is always calculated against the SEASON year (what age they turn in that calendar year)
       const age       = calcAgeClient(dob, season);
       const ageGroup  = (r['Age Group']||'').toUpperCase();
