@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.7.0</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.7.1</span></small>
       </div>
     </div>
     <div class="hright">
@@ -5487,6 +5487,7 @@ async function _smsSend() {
     const rawVal = dtInput.value; // "YYYY-MM-DDTHH:MM" from hidden input
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(rawVal)) {
       alert('Please fill in all date and time fields before scheduling.');
+      if (btn) { btn.disabled = false; _smsUpdateSendBtn(); }
       return;
     }
     // Treat rawVal as Melbourne local time, convert to UTC
@@ -5498,6 +5499,7 @@ async function _smsSend() {
     // Validate at least 5 min in future
     if (new Date(scheduledAt).getTime() < Date.now() + 5 * 60000) {
       alert('Scheduled time must be at least 5 minutes in the future.');
+      if (btn) { btn.disabled = false; _smsUpdateSendBtn(); }
       return;
     }
   }
@@ -5511,10 +5513,9 @@ async function _smsSend() {
     const nameStr     = names.length===1 ? names[0] : names.slice(0,-1).join(', ')+' and '+names[names.length-1];
     const parentFirst = (sample ? sample.parentName||'' : '').split(' ')[0];
     const resolved    = '[SCHED TEST] ' + msg.split('[NAME]').join(nameStr).split('[PARENT]').join(parentFirst||'[PARENT]');
-    const timeLabel   = _fmtMelbDate(new Date(dtInput.value + '+00:00'));
-    if (!confirm('Schedule TEST to ' + (schedTestNum.value||testNum) + ' for ' + timeLabel + '? Check Notifyre dashboard to confirm the time matches.')) return;
-    const btn = document.getElementById('sms-send-btn');
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Scheduling…'; }
+    const timeLabel   = _fmtMelbDate(new Date(scheduledAt)); // scheduledAt is correct UTC
+    if (!confirm('Schedule TEST to ' + (schedTestNum.value||testNum) + ' for ' + timeLabel + '? Check Notifyre dashboard to confirm the time matches.')) { if (btn) { btn.disabled=false; _smsUpdateSendBtn(); } return; }
+    if (btn) { btn.textContent = '⏳ Scheduling…'; }
     try {
       const res = await api('sendSMS', { message: resolved, audience: 'SCHED-TEST', recipients: [testNum], scheduledAt });
       if (res && res.error) alert('❌ ' + res.error);
@@ -5525,7 +5526,7 @@ async function _smsSend() {
   }
 
   const confirmMsg = scheduledAt
-    ? `Schedule to ${active.length} recipient${active.length!==1?'s':''} for ${_fmtMelbDate(new Date(dtInput.value + '+00:00'))}?\n\nYou can review and cancel in your Notifyre dashboard before it fires.`
+    ? `Schedule to ${active.length} recipient${active.length!==1?'s':''} for ${_fmtMelbDate(new Date(scheduledAt))}?\n\nYou can review and cancel in your Notifyre dashboard before it fires.`
     : `Send to ${active.length} recipient${active.length!==1?'s':''}?\n\nThis will send real SMS messages to real parents. Make sure you've sent a test first.`;
   if (!confirm(confirmMsg)) return;
 
