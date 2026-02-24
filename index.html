@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.5</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.5.6</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4596,7 +4596,7 @@ function _smsPickPlayerSearch(q) {
       onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background=''">
       <div style="flex:1;min-width:0;">
         <span style="font-weight:700;">${p.firstName} ${p.lastName}</span>
-        <span style="color:var(--text-dim);font-size:11px;margin-left:8px;">${p.team||''}</span>
+        <span style="color:var(--text-dim);font-size:11px;margin-left:8px;">${p.team ? '· ' + p.team : ''}</span>
         <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${parents.join(' &amp; ') || '—'}</div>
       </div>
       <span style="font-size:16px;color:var(--text-dim);">${hasBoth ? '›' : '→'}</span>
@@ -4693,12 +4693,12 @@ function _smsPickOnePlayer(idx) {
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:#fff;"
           onclick="event.stopPropagation()">
           <input type="radio" name="sms-parent-sel" value="1" style="accent-color:var(--green);" checked>
-          <div><div style="font-weight:600;">${p1.name}</div><div style="font-size:11px;color:var(--text-dim);">Parent / Guardian 1 · ${p1.phone}</div></div>
+          <div><div style="font-weight:600;">${p1.name}</div><div style="font-size:11px;color:var(--text-dim);">Parent / Guardian 1 · ${_fmtMobile(_smsNormalisePhone(p1.phone)||p1.phone)}</div></div>
         </label>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:#fff;"
           onclick="event.stopPropagation()">
           <input type="radio" name="sms-parent-sel" value="2" style="accent-color:var(--green);">
-          <div><div style="font-weight:600;">${p2.name}</div><div style="font-size:11px;color:var(--text-dim);">Parent / Guardian 2 · ${p2.phone}</div></div>
+          <div><div style="font-weight:600;">${p2.name}</div><div style="font-size:11px;color:var(--text-dim);">Parent / Guardian 2 · ${_fmtMobile(_smsNormalisePhone(p2.phone)||p2.phone)}</div></div>
         </label>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:#fff;"
           onclick="event.stopPropagation()">
@@ -4982,34 +4982,7 @@ function _fmtMobile(num) {
   return num.replace(/^(\d{4})(\d{3})(\d{3})$/, '$1 $2 $3');
 }
 
-function _smsBuildRecipients() {
-  const lapsed = _lapsedCache || [];
-  const numMap = {};
-  lapsed.forEach(p => {
-    const playerFullName = ((p.firstName||'') + ' ' + (p.lastName||'')).trim();
-    [
-      { phone: p.parent1Phone, name: p.parent1Name },
-      { phone: p.parent2Phone, name: p.parent2Name },
-    ].forEach(({ phone, name }) => {
-      const num = _smsNormalisePhone(phone);
-      if (!num) return;
-      if (!numMap[num]) numMap[num] = { num, parentName: name||'', playerNames: [] };
-      if (!numMap[num].playerNames.includes(playerFullName)) numMap[num].playerNames.push(playerFullName);
-    });
-  });
-  _smsRecipients = Object.values(numMap);
-
-  const summaryEl = document.getElementById('sms-recipient-summary');
-  if (!summaryEl) return;
-  const withNum = new Set(lapsed.filter(p => _smsNormalisePhone(p.parent1Phone)||_smsNormalisePhone(p.parent2Phone)).map(p=>p.profileId)).size;
-  const noNum   = lapsed.length - withNum;
-  summaryEl.innerHTML = _smsRecipients.length === 0
-    ? '<span style="color:#dc2626;">No mobile numbers found. Check that parent phone numbers are imported.</span>'
-    : `<strong style="color:var(--green);">${_smsRecipients.length} mobile number${_smsRecipients.length!==1?'s':''}</strong>`
-      + ` across <strong>${lapsed.length}</strong> not-returned player${lapsed.length!==1?'s':''}`
-      + (noNum > 0 ? ` <span style="color:#dc2626;">(${noNum} without any mobile on file)</span>` : '');
-  _smsUpdateCount();
-}
+// _smsBuildRecipients (old duplicate removed — see new version above)
 
 function _smsUpdateSummary() {
   const meta    = _smsAudienceMeta;
