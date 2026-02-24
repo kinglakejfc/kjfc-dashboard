@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.6.3</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.6.5</span></small>
       </div>
     </div>
     <div class="hright">
@@ -5401,17 +5401,11 @@ async function _smsSend() {
   // by formatting the value with the correct AEST/AEDT offset via Intl
   let scheduledAt = null;
   if (isScheduled && dtInput && dtInput.value) {
-    // Parse the local datetime string as a Melbourne-timezone moment
-    const localStr  = dtInput.value; // e.g. "2026-03-01T09:00"
-    // Use a known Melbourne date to detect current UTC offset (handles DST automatically)
-    const melbOffset = (() => {
-      const d    = new Date(localStr);
-      const utc  = new Date(d.toLocaleString('en-US', { timeZone: 'UTC' }));
-      const melb = new Date(d.toLocaleString('en-US', { timeZone: 'Australia/Melbourne' }));
-      return (melb - utc) / 60000; // offset in minutes
-    })();
-    const melbMs = new Date(localStr).getTime() - melbOffset * 60000;
-    scheduledAt  = new Date(melbMs).toISOString();
+    // Notifyre treats the Unix timestamp as Melbourne local time.
+    // So we must send the datetime-local value as if it were UTC —
+    // i.e. "2026-02-25T09:00" → parse as UTC → Unix seconds.
+    // Appending 'Z' forces Date to treat the naive string as UTC.
+    scheduledAt = new Date(dtInput.value + ':00Z').toISOString();
   }
 
   const confirmMsg = scheduledAt
