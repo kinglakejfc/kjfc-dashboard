@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.6.2</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.6.3</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4997,13 +4997,15 @@ function _fmtMobile(num) {
 function _smsUpdateSummary() {
   const meta    = _smsAudienceMeta;
   const active  = _smsActiveRecipients();
-  const excluded = _smsRecipients.length - active.length;
+  // Count excluded players (profileIds) — not recipients, since a parent with 2 kids
+  // where 1 is excluded stays in the list but has a player excluded
+  const excludedPlayers = _smsExcluded.size;
   const noNum   = meta ? (meta.playerCount - new Set(_smsRecipients.map(r=>r.num)).size) : 0;
   const summary = _smsRecipients.length === 0
     ? '<span style="color:#dc2626;">No mobile numbers found.</span>'
     : `<strong style="color:var(--green);">${active.length} mobile number${active.length!==1?'s':''}</strong>`
       + (noNum > 0 ? ` <span style="color:#dc2626;">(${noNum} without mobile)</span>` : '')
-      + (excluded > 0 ? ` · <span style="color:#dc2626;">${excluded} excluded</span>` : '');
+      + (excludedPlayers > 0 ? ` · <span style="color:#dc2626;">${excludedPlayers} player${excludedPlayers!==1?'s':''} excluded</span>` : '');
   // Update both possible elements
   const summaryEl = document.getElementById('sms-recipient-summary');
   if (summaryEl) summaryEl.innerHTML = summary;
