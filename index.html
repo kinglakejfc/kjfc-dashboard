@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.6.9</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.7.0</span></small>
       </div>
     </div>
     <div class="hright">
@@ -5484,16 +5484,22 @@ async function _smsSend() {
   // by formatting the value with the correct AEST/AEDT offset via Intl
   let scheduledAt = null;
   if (isScheduled && dtInput && dtInput.value) {
-    // Notifyre stores and displays in Melbourne local time.
-    // We must send the Unix timestamp FOR the Melbourne local moment.
-    // i.e. "2026-02-25T09:00 Melbourne" = "2026-02-24T22:00Z" (AEDT +11)
-    // Detect Melbourne's current offset (AEDT +11:00 or AEST +10:00)
-    const probe    = new Date(dtInput.value + 'Z'); // parse as UTC to get a valid Date
+    const rawVal = dtInput.value; // "YYYY-MM-DDTHH:MM" from hidden input
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(rawVal)) {
+      alert('Please fill in all date and time fields before scheduling.');
+      return;
+    }
+    // Treat rawVal as Melbourne local time, convert to UTC
+    const probe    = new Date(rawVal + 'Z'); // parse as if UTC first
     const utcMs    = new Date(probe.toLocaleString('en-US', { timeZone: 'UTC' })).getTime();
     const melbMs   = new Date(probe.toLocaleString('en-US', { timeZone: 'Australia/Melbourne' })).getTime();
-    const offsetMs = melbMs - utcMs; // e.g. +11*3600000 for AEDT
-    // Subtract offset to go from Melbourne local → UTC
-    scheduledAt = new Date(probe.getTime() - offsetMs).toISOString();
+    const offsetMs = melbMs - utcMs; // +11h for AEDT, +10h for AEST
+    scheduledAt    = new Date(probe.getTime() - offsetMs).toISOString();
+    // Validate at least 5 min in future
+    if (new Date(scheduledAt).getTime() < Date.now() + 5 * 60000) {
+      alert('Scheduled time must be at least 5 minutes in the future.');
+      return;
+    }
   }
 
   // Test schedule: send to one number only to verify timing before bulk schedule
