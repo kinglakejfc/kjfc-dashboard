@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.6.7</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.6.9</span></small>
       </div>
     </div>
     <div class="hright">
@@ -4238,6 +4238,23 @@ function fmtPhone(p) {
 
 function cap(s)    { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
 function fmtTime(d){ return d.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' }); }
+function _fmtMelbDate(d) {
+  // Format a Date as Melbourne local time in unambiguous AU format: Wed 25 Feb 2026 9:00 am
+  const opts = { timeZone: 'Australia/Melbourne', hour12: true };
+  const melb = new Date(d.toLocaleString('en-US', { timeZone: 'Australia/Melbourne' }));
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dow  = days[melb.getDay()];
+  const day  = melb.getDate();
+  const mon  = months[melb.getMonth()];
+  const yr   = melb.getFullYear();
+  let   hr   = melb.getHours();
+  const min  = String(melb.getMinutes()).padStart(2,'0');
+  const ampm = hr < 12 ? 'am' : 'pm';
+  hr = hr % 12 || 12;
+  return dow + ' ' + day + ' ' + mon + ' ' + yr + ' ' + hr + ':' + min + ' ' + ampm;
+}
+
 function fmtD(iso) {
   if (!iso) return '';
   try { const d=new Date(iso); return d.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}); }
@@ -4918,8 +4935,29 @@ async function _smsRenderComposer(body) {
           </label>
           <div id="sms-schedule-fields" style="display:none;flex-direction:column;gap:8px;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <input type="datetime-local" id="sms-schedule-dt" onchange="_smsUpdateScheduleHint()"
-                style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">
+              <!-- Hidden input keeps YYYY-MM-DDTHH:MM value for all downstream code -->
+              <input type="hidden" id="sms-schedule-dt">
+              <div style="display:flex;align-items:center;gap:4px;">
+                <input type="number" id="sms-sched-day" placeholder="DD" min="1" max="31"
+                  style="width:46px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;text-align:center;"
+                  oninput="_smsSchedUpdate()">
+                <span style="color:var(--text-dim);font-size:12px;">/</span>
+                <input type="number" id="sms-sched-month" placeholder="MM" min="1" max="12"
+                  style="width:46px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;text-align:center;"
+                  oninput="_smsSchedUpdate()">
+                <span style="color:var(--text-dim);font-size:12px;">/</span>
+                <input type="number" id="sms-sched-year" placeholder="YYYY" min="2026" max="2030"
+                  style="width:62px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;text-align:center;"
+                  oninput="_smsSchedUpdate()">
+                <span style="color:var(--text-dim);font-size:12px;margin:0 2px;">at</span>
+                <input type="number" id="sms-sched-hour" placeholder="HH" min="0" max="23"
+                  style="width:46px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;text-align:center;"
+                  oninput="_smsSchedUpdate()">
+                <span style="color:var(--text-dim);font-size:12px;">:</span>
+                <input type="number" id="sms-sched-min" placeholder="MM" min="0" max="59"
+                  style="width:46px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;text-align:center;"
+                  oninput="_smsSchedUpdate()">
+              </div>
               <span id="sms-schedule-hint" style="font-size:11px;color:var(--text-dim);"></span>
             </div>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -5330,19 +5368,37 @@ function _smsScheduleTestToggle() {
   if (on) setTimeout(() => inp.focus(), 50);
 }
 
+function _smsSchedUpdate() {
+  const day   = parseInt(document.getElementById('sms-sched-day').value)||0;
+  const month = parseInt(document.getElementById('sms-sched-month').value)||0;
+  const year  = parseInt(document.getElementById('sms-sched-year').value)||0;
+  const hour  = document.getElementById('sms-sched-hour').value !== '' ? parseInt(document.getElementById('sms-sched-hour').value) : -1;
+  const min   = document.getElementById('sms-sched-min').value  !== '' ? parseInt(document.getElementById('sms-sched-min').value)  : -1;
+  const dt    = document.getElementById('sms-schedule-dt');
+  if (day && month && year > 2000 && hour >= 0 && min >= 0) {
+    const pad = n => String(n).padStart(2,'0');
+    dt.value = `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(min)}`;
+  } else {
+    dt.value = '';
+  }
+  _smsUpdateScheduleHint();
+}
+
 function _smsToggleSchedule() {
   const checked = document.getElementById('sms-schedule-toggle').checked;
   const fields  = document.getElementById('sms-schedule-fields');
   const dt      = document.getElementById('sms-schedule-dt');
   fields.style.display = checked ? 'flex' : 'none';
   if (checked && !dt.value) {
-    // Default to tomorrow 9am AEST
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    d.setHours(9, 0, 0, 0);
-    // Format for datetime-local: YYYY-MM-DDTHH:MM
-    const pad = n => String(n).padStart(2,'0');
-    dt.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T09:00`;
+    // Default to tomorrow 9am Melbourne time
+    const melb = new Date(new Date().toLocaleString('en-US', { timeZone: 'Australia/Melbourne' }));
+    melb.setDate(melb.getDate() + 1);
+    document.getElementById('sms-sched-day').value   = melb.getDate();
+    document.getElementById('sms-sched-month').value = melb.getMonth() + 1;
+    document.getElementById('sms-sched-year').value  = melb.getFullYear();
+    document.getElementById('sms-sched-hour').value  = 9;
+    document.getElementById('sms-sched-min').value   = '00';
+    _smsSchedUpdate();
   }
   _smsUpdateScheduleHint();
 }
@@ -5352,7 +5408,7 @@ function _smsUpdateScheduleHint() {
   const dt   = document.getElementById('sms-schedule-dt');
   if (!hint || !dt || !dt.value) return;
   const d = new Date(dt.value);
-  hint.textContent = 'Will send ' + d.toLocaleString('en-AU', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit', hour12:true, timeZone:'Australia/Melbourne' }) + ' AEST/AEDT';
+  hint.textContent = 'Will send ' + _fmtMelbDate(d) + ' AEST/AEDT';
 }
 
 async function _smsTestSend() {
@@ -5449,7 +5505,7 @@ async function _smsSend() {
     const nameStr     = names.length===1 ? names[0] : names.slice(0,-1).join(', ')+' and '+names[names.length-1];
     const parentFirst = (sample ? sample.parentName||'' : '').split(' ')[0];
     const resolved    = '[SCHED TEST] ' + msg.split('[NAME]').join(nameStr).split('[PARENT]').join(parentFirst||'[PARENT]');
-    const timeLabel   = new Date(dtInput.value).toLocaleString('en-AU', {weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit',hour12:true});
+    const timeLabel   = _fmtMelbDate(new Date(dtInput.value + '+00:00'));
     if (!confirm('Schedule TEST to ' + (schedTestNum.value||testNum) + ' for ' + timeLabel + '? Check Notifyre dashboard to confirm the time matches.')) return;
     const btn = document.getElementById('sms-send-btn');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Scheduling…'; }
@@ -5463,7 +5519,7 @@ async function _smsSend() {
   }
 
   const confirmMsg = scheduledAt
-    ? `Schedule to ${active.length} recipient${active.length!==1?'s':''} for ${new Date(dtInput.value).toLocaleString('en-AU', {weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit',hour12:true})}?\n\nYou can review and cancel in your Notifyre dashboard before it fires.`
+    ? `Schedule to ${active.length} recipient${active.length!==1?'s':''} for ${_fmtMelbDate(new Date(dtInput.value + '+00:00'))}?\n\nYou can review and cancel in your Notifyre dashboard before it fires.`
     : `Send to ${active.length} recipient${active.length!==1?'s':''}?\n\nThis will send real SMS messages to real parents. Make sure you've sent a test first.`;
   if (!confirm(confirmMsg)) return;
 
