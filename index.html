@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.2</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.3</span></small>
       </div>
     </div>
     <div class="hright">
@@ -929,6 +929,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button class="dtab" data-admintab="groups" onclick="switchAdminTab(this,'groups')"><span class="dtab-icon">🔐</span><span class="dtab-lbl">Access Groups</span></button>
       <button class="dtab" data-admintab="log" onclick="switchAdminTab(this,'log')"><span class="dtab-icon">📋</span><span class="dtab-lbl">Activity Log</span></button>
       <button class="dtab" data-admintab="aliases" onclick="switchAdminTab(this,'aliases')"><span class="dtab-icon">🔗</span><span class="dtab-lbl">ID Aliases</span></button>
+      <button class="dtab" data-admintab="datahealth" onclick="switchAdminTab(this,'datahealth')"><span class="dtab-icon">🩺</span><span class="dtab-lbl">Data Health</span></button>
       <button class="dtab" data-admintab="about" onclick="switchAdminTab(this,'about')"><span class="dtab-icon">ℹ️</span><span class="dtab-lbl">About</span></button>
       <button class="dtab" data-admintab="messaging" id="admin-tab-messaging" onclick="switchAdminTab(this,'messaging')" style="display:none;"><span class="dtab-icon">💬</span><span class="dtab-lbl">Messaging</span></button>
     </div>
@@ -3446,6 +3447,10 @@ async function loadAdminTab(tab, containerId) {
     renderPlayerAliasesTab(body);
     return;
   }
+  if (tab==='datahealth') {
+    renderDataHealthTab(body);
+    return;
+  }
   if (tab==='messaging') {
     renderMessagingTab(body);
     return;
@@ -3760,6 +3765,83 @@ async function deletePlayerAlias(oldId, btn) {
   showToast('Alias removed ✓');
   const body = document.getElementById('admin-panel-body') || document.getElementById('adm-body');
   renderPlayerAliasesTab(body);
+}
+
+// ── DATA HEALTH ───────────────────────────────────────────────────────────────
+
+async function renderDataHealthTab(body) {
+  body.innerHTML = `
+    <div style="max-width:700px;">
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:20px;background:#f0fdf4;border:1.5px solid var(--green-light);border-radius:8px;padding:10px 14px;">
+        <strong>DOB Audit</strong> scans the Players sheet for date-of-birth values that Google Sheets has auto-parsed as Date objects (shown right-aligned in the sheet). These cells may have had their day and month swapped (e.g. 9 April stored as 4 September). The audit cross-references original import CSVs from Drive to get ground-truth values where possible.
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:20px;">
+        <button onclick="runDobAudit(false)" id="dob-dry-btn" style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:8px 18px;font-size:12px;font-weight:700;cursor:pointer;">🔍 Dry Run — Show Issues</button>
+        <button onclick="runDobAudit(true)"  id="dob-fix-btn" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:700;cursor:pointer;display:none;">✅ Apply Fixes</button>
+      </div>
+      <div id="dob-audit-result"></div>
+    </div>`;
+}
+
+async function runDobAudit(apply) {
+  const dryBtn = document.getElementById('dob-dry-btn');
+  const fixBtn = document.getElementById('dob-fix-btn');
+  const result = document.getElementById('dob-audit-result');
+  if (!result) return;
+
+  if (dryBtn) { dryBtn.disabled = true; dryBtn.textContent = apply ? '🔍 Dry Run — Show Issues' : '⏳ Scanning…'; }
+  if (fixBtn) { fixBtn.disabled = true; fixBtn.textContent = '⏳ Applying…'; }
+  result.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">Scanning Players sheet…</div>';
+
+  const res = await api('auditAndFixDobs', { apply });
+
+  if (dryBtn) { dryBtn.disabled = false; dryBtn.textContent = '🔍 Dry Run — Show Issues'; }
+  if (fixBtn) { fixBtn.disabled = false; fixBtn.textContent = '✅ Apply Fixes'; }
+
+  if (res.error) { result.innerHTML = `<div style="color:#dc2626;font-size:13px;">Error: ${res.error}</div>`; return; }
+
+  const issues = (res.report || []).filter(r => r.changed);
+  const clean  = (res.report || []).filter(r => !r.changed);
+
+  if (apply) {
+    result.innerHTML = `
+      <div style="background:#f0fdf4;border:1.5px solid var(--green-light);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;">
+        ✅ Fixed <strong>${res.fixed}</strong> DOB${res.fixed!==1?'s':''} · <strong>${res.unchanged}</strong> already correct · <strong>${res.totalDateCells}</strong> total date-formatted cells processed
+      </div>`;
+    if (fixBtn) fixBtn.style.display = 'none';
+  } else {
+    if (issues.length === 0) {
+      result.innerHTML = `<div style="color:var(--green);font-size:13px;font-weight:700;">✅ No DOB issues found — all ${res.totalDateCells} date-formatted cells look correct.</div>`;
+      if (fixBtn) fixBtn.style.display = 'none';
+      return;
+    }
+    result.innerHTML = `
+      <div style="background:#fef9c3;border:1.5px solid #fde047;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;">
+        ⚠️ Found <strong>${issues.length}</strong> DOB${issues.length!==1?'s':''} that appear incorrect · ${clean.length} already correct
+      </div>`;
+    if (fixBtn) fixBtn.style.display = 'inline-block';
+  }
+
+  if (issues.length > 0) {
+    const sourceLabel = { 'csv-corrected':'From CSV', 'inferred-swap':'Inferred swap', 'reformat-only':'Reformat only' };
+    result.innerHTML += `
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:var(--bg-alt,#f8f8f8);">
+          <th style="text-align:left;padding:6px 10px;border-bottom:1.5px solid var(--border);">Player</th>
+          <th style="text-align:left;padding:6px 10px;border-bottom:1.5px solid var(--border);">Stored (wrong)</th>
+          <th style="text-align:left;padding:6px 10px;border-bottom:1.5px solid var(--border);">Corrected</th>
+          <th style="text-align:left;padding:6px 10px;border-bottom:1.5px solid var(--border);">Source</th>
+        </tr></thead>
+        <tbody>
+          ${issues.map(r => `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:6px 10px;font-weight:600;">${r.name}</td>
+            <td style="padding:6px 10px;color:#dc2626;font-family:monospace;">${r.stored}</td>
+            <td style="padding:6px 10px;color:var(--green);font-family:monospace;">${r.corrected}</td>
+            <td style="padding:6px 10px;color:var(--text-dim);">${sourceLabel[r.source]||r.source}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
 }
 
 function renderPackageManager() {
@@ -5648,7 +5730,7 @@ function renderAdminPanel(tab) {
   document.querySelectorAll('#dash-sub-admin .dtab').forEach(b => {
     b.classList.toggle('act', b.dataset.admintab === activetab);
   });
-  const _tabTitles = { users:'Manage Users', groups:'Access Groups', log:'Activity Log', aliases:'Player ID Aliases', about:'About', messaging:'Messaging' };
+  const _tabTitles = { users:'Manage Users', groups:'Access Groups', log:'Activity Log', aliases:'Player ID Aliases', datahealth:'Data Health', about:'About', messaging:'Messaging' };
   el.innerHTML = '<div class="section-head" style="max-width:1440px;margin:0 auto;padding:0 16px;">'
     + '<h2 class="section-title">' + (_tabTitles[activetab] || activetab) + '</h2>'
     + '</div>'
