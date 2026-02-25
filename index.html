@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.3</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.4</span></small>
       </div>
     </div>
     <div class="hright">
@@ -6350,9 +6350,14 @@ function _renderOverviewHTML() {
   const unassignedRows = rows.filter(r => !r.assignedTeam);
   const unassignedCount = unassignedRows.length;
   const unassignedByAG = {};
+  const ineligibleByAG = {};
   unassignedRows.forEach(r => {
     const ag = r.calcAge ? +r.calcAge : null;
-    if (ag) unassignedByAG[ag] = (unassignedByAG[ag]||0)+1;
+    if (!ag) return;
+    unassignedByAG[ag] = (unassignedByAG[ag]||0)+1;
+    if (playerIneligibleReason(r, pm[r.profileId])) {
+      ineligibleByAG[ag] = (ineligibleByAG[ag]||0)+1;
+    }
   });
   const agOrder = [9,10,11,12,13,14,15,16,17];
   const allUnassignedAges = [...new Set([
@@ -6360,8 +6365,8 @@ function _renderOverviewHTML() {
     ...agOrder
   ])].filter(a => unassignedByAG[a]);
   const unassignedChips = allUnassignedAges.map(ag => {
-    const ineligible = ag < 8;
-    return `<span style="background:#fff;border:1.5px solid ${ineligible?'#dc2626':'#f59e0b'};border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:${ineligible?'#dc2626':'#92400e'};">Age ${ag}: ${unassignedByAG[ag]}${ineligible?' ⚠':''}</span>`;
+    const ineligible = !!(ineligibleByAG[ag]);
+    return `<span style="background:#fff;border:1.5px solid ${ineligible?'#dc2626':'#f59e0b'};border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:${ineligible?'#dc2626':'#92400e'};">${ineligible?'⚠ ':''}Age ${ag}: ${unassignedByAG[ag]}</span>`;
   }).join('');
 
   // Schools count
@@ -8063,9 +8068,14 @@ function renderPlTeams() {
 
   // Build unassigned breakdown by natural age group
   const unassignedByAG = {};
+  const ineligibleByAG = {};
   unassignedRows.forEach(r => {
     const ag = r.calcAge ? +r.calcAge : null;
-    if (ag) unassignedByAG[ag] = (unassignedByAG[ag]||0)+1;
+    if (!ag) return;
+    unassignedByAG[ag] = (unassignedByAG[ag]||0)+1;
+    if (playerIneligibleReason(r, pm[r.profileId])) {
+      ineligibleByAG[ag] = (ineligibleByAG[ag]||0)+1;
+    }
   });
   const agOrder = [9,10,11,12,13,14,15,16,17];
   const allUnassignedAges = [...new Set([
@@ -8073,8 +8083,8 @@ function renderPlTeams() {
     ...agOrder
   ])].filter(a => unassignedByAG[a]);
   const unassignedChips = allUnassignedAges.map(ag => {
-    const ineligible = ag < 8;
-    return `<span style="background:#fff;border:1.5px solid ${ineligible?'#dc2626':'#f59e0b'};border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:${ineligible?'#dc2626':'#92400e'};">Age ${ag}: ${unassignedByAG[ag]}${ineligible?' ⚠':''}</span>`;
+    const ineligible = !!(ineligibleByAG[ag]);
+    return `<span style="background:#fff;border:1.5px solid ${ineligible?'#dc2626':'#f59e0b'};border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:${ineligible?'#dc2626':'#92400e'};">${ineligible?'⚠ ':''}Age ${ag}: ${unassignedByAG[ag]}</span>`;
   }).join('');
   const unassignedChipsTeams = unassignedChips; // same chips reused in banner
   const unassignedBanner = unassigned > 0 ? `
