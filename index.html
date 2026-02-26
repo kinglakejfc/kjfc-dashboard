@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.4</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.5</span></small>
       </div>
     </div>
     <div class="hright">
@@ -8564,53 +8564,60 @@ function handleImportFile(file) {
 
       // Exclusion reasons
       let excludeReason = null;
-      if (status && status !== 'Active' && status !== 'Pending') excludeReason = `Status: ${status}`;
+      if (status && status !== 'Active' && status !== 'Pending' && status.toLowerCase() !== 'cancelled') excludeReason = `Status: ${status}`;
       else if (role && role !== 'Player')                         excludeReason = `Role: ${role}`;
       else if (club && !club.toLowerCase().includes('kinglake'))  excludeReason = `Club: ${club}`;
       else if (ageGroup === 'SENIOR')                             excludeReason = 'Senior (age group tag)';
       else if (age !== null && age > 17)                          excludeReason = `Over 17 (age ${age} in ${season})`;
       else if (age !== null && age < 5)                           excludeReason = `Age error (age ${age})`;
 
+      const isCancelled = status && status.toLowerCase() === 'cancelled';
+
       // Duplicate detection
       let dupType = null;
       if (!excludeReason) {
-        // Apply name+DOB fuzzy remap if profileId still not recognised — mirrors backend import
-        // This catches PlayHQ reassigning a new ID to an existing player
-        if (!pm[profileId] && !existingSeasonIds.has(profileId)) {
-          const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${normaliseDobFE(dob)||dob}`;
-          const fuzzyMatch = Object.entries(pm).find(([pid, p]) =>
-            `${(p.firstName||'').toLowerCase()}_${(p.lastName||'').toLowerCase()}_${normaliseDobFE(p.dob)||p.dob}` === nameKey
-          );
-          if (fuzzyMatch) {
-            profileId = fuzzyMatch[0]; // remap to existing ID
-          }
-        }
-
-        if (existingSeasonIds.has(profileId)) {
-          dupType = 'already_this_season';
+        // Cancelled registrations: player data kept/updated but season row removed
+        if (isCancelled) {
+          dupType = 'cancelled';
         } else {
-          if (pm[profileId]) {
-            dupType = 'returning';
-          } else {
-            const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${dob}`;
-            const fuzzyMatch = Object.values(pm).find(p =>
-              `${p.firstName.toLowerCase()}_${p.lastName.toLowerCase()}_${p.dob}` === nameKey
+          // Apply name+DOB fuzzy remap if profileId still not recognised — mirrors backend import
+          // This catches PlayHQ reassigning a new ID to an existing player
+          if (!pm[profileId] && !existingSeasonIds.has(profileId)) {
+            const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${normaliseDobFE(dob)||dob}`;
+            const fuzzyMatch = Object.entries(pm).find(([pid, p]) =>
+              `${(p.firstName||'').toLowerCase()}_${(p.lastName||'').toLowerCase()}_${normaliseDobFE(p.dob)||p.dob}` === nameKey
             );
-            if (fuzzyMatch) dupType = 'name_dob_match';
+            if (fuzzyMatch) {
+              profileId = fuzzyMatch[0]; // remap to existing ID
+            }
+          }
 
-            const csvDup = allRows.slice(0, idx).find(prev =>
-              (prev['First Name']||'').trim().toLowerCase() === firstName.toLowerCase() &&
-              (prev['Last Name']||'').trim().toLowerCase()  === lastName.toLowerCase()  &&
-              (prev['Date of Birth']||'').trim()            === dob
-            );
-            if (csvDup) dupType = 'csv_duplicate';
+          if (existingSeasonIds.has(profileId)) {
+            dupType = 'already_this_season';
+          } else {
+            if (pm[profileId]) {
+              dupType = 'returning';
+            } else {
+              const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${dob}`;
+              const fuzzyMatch = Object.values(pm).find(p =>
+                `${p.firstName.toLowerCase()}_${p.lastName.toLowerCase()}_${p.dob}` === nameKey
+              );
+              if (fuzzyMatch) dupType = 'name_dob_match';
+
+              const csvDup = allRows.slice(0, idx).find(prev =>
+                (prev['First Name']||'').trim().toLowerCase() === firstName.toLowerCase() &&
+                (prev['Last Name']||'').trim().toLowerCase()  === lastName.toLowerCase()  &&
+                (prev['Date of Birth']||'').trim()            === dob
+              );
+              if (csvDup) dupType = 'csv_duplicate';
+            }
           }
         }
       }
 
       return { r, idx, firstName, lastName, dob, profileId, age, ageGroup, gender, school, suburb,
-               excludeReason, dupType,
-               // Pre-checked: new players + returning (contact update) + name_dob_match (contact update)
+               excludeReason, dupType, isCancelled,
+               // Pre-checked: new players + returning + name_dob_match + cancelled (triggers removal)
                // Unchecked: already_this_season (skip), csv_duplicate (skip), any excluded row
                _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'csv_duplicate' };
     });
@@ -8626,14 +8633,15 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
 
   const include = rows.filter(r => !r.excludeReason);
   const exclude = rows.filter(r =>  r.excludeReason);
-  const dups    = include.filter(r => r.dupType && r.dupType !== 'returning');
+  const dups    = include.filter(r => r.dupType && r.dupType !== 'returning' && r.dupType !== 'cancelled');
   const fresh   = include.filter(r => !r.dupType);
   const returning = include.filter(r => r.dupType === 'returning');
+  const cancelled = include.filter(r => r.dupType === 'cancelled');
 
   const tabs = [
     { id:'inc',  label:`✓ Include (${include.length})`,  colour:'var(--green)' },
     { id:'exc',  label:`✗ Excluded (${exclude.length})`, colour:'var(--red)'   },
-    { id:'dup',  label:`⚠ Flagged (${dups.length})`,    colour:'#ca8a04'      },
+    { id:'dup',  label:`⚠ Flagged (${dups.length + cancelled.length})`, colour:'#ca8a04' },
   ];
 
   review.innerHTML = `
@@ -8650,8 +8658,8 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
       <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;">
         <span><strong style="color:var(--green)">${include.length}</strong> to include</span>
         <span><strong style="color:var(--red)">${exclude.length}</strong> excluded</span>
-        <span><strong style="color:#ca8a04">${dups.length}</strong> flagged</span>
-        <span><strong>${fresh.length}</strong> new · <strong>${returning.length}</strong> update contact details · <strong>${rows.filter(r=>r.dupType==='already_this_season').length}</strong> already imported</span>
+        <span><strong style="color:#ca8a04">${dups.length + cancelled.length}</strong> flagged</span>
+        <span><strong>${fresh.length}</strong> new · <strong>${returning.length}</strong> update contact details · <strong>${rows.filter(r=>r.dupType==='already_this_season').length}</strong> already imported${cancelled.length ? ` · <strong style="color:#dc2626">${cancelled.length}</strong> cancelled` : ''}</span>
       </div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:5px;">Age eligibility assessed at end of ${season} (player's age turning during ${season} calendar year)</div>
     </div>
@@ -8704,7 +8712,7 @@ function renderImportTab(tabId, rows) {
   let filtered;
   if (tabId === 'inc') filtered = rows.filter(r => !r.excludeReason);
   else if (tabId === 'exc') filtered = rows.filter(r =>  r.excludeReason);
-  else filtered = rows.filter(r => !r.excludeReason && r.dupType);
+  else filtered = rows.filter(r => !r.excludeReason && r.dupType && r.dupType !== 'returning');
 
   if (!filtered.length) {
     list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-dim);font-size:13px;">No records in this category.</div>`;
@@ -8716,6 +8724,7 @@ function renderImportTab(tabId, rows) {
     returning:           { bg:'#eff6ff', badge:'#2563eb', label:'Returning — will update contact details' },
     name_dob_match:      { bg:'#fefce8', badge:'#ca8a04', label:'Name+DOB match — will update contact details' },
     csv_duplicate:       { bg:'#fef2f2', badge:'#dc2626', label:'Duplicate in file' },
+    cancelled:           { bg:'#fef2f2', badge:'#dc2626', label:'Cancelled — will remove season entry' },
   };
 
   list.innerHTML = filtered.map(item => {
