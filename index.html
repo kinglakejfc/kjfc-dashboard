@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.7</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.8</span></small>
       </div>
     </div>
     <div class="hright">
@@ -8643,9 +8643,9 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
   const csvDups     = include.filter(r => r.dupType === 'csv_duplicate');
   const flagged     = include.filter(r => r.dupType && r.dupType !== 'returning' && r.dupType !== 'already_this_season' && r.dupType !== 'already_cancelled');
 
-  // Registered = non-cancelled players in scope
+  // Registered = non-cancelled, non-duplicate players in scope
   const totalCancellations = cancelled.length + alreadyCanc.length;
-  const registeredTotal    = include.length - totalCancellations;
+  const registeredTotal    = include.length - totalCancellations - csvDups.length;
   const newRegistered      = fresh.length + returning.length + nameDob.length;
   const alreadyRegistered  = registeredTotal - newRegistered;
   const newCancellations   = cancelled.length;
@@ -8660,6 +8660,10 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
     regParts.push(`${newRegistered} new (${regDetail.join(', ')})`);
   } else {
     regParts.push('0 new');
+  }
+  if (csvDups.length > 0) {
+    const dupNames = csvDups.map(r => `${r.firstName} ${r.lastName}`).join(', ');
+    regParts.push(`${csvDups.length} duplicate removed — ${dupNames}`);
   }
   regParts.push(`${alreadyRegistered} already imported`);
 
