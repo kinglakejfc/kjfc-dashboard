@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.9</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.0</span></small>
       </div>
     </div>
     <div class="hright">
@@ -8586,7 +8586,7 @@ function handleImportFile(file) {
           const csvDup = allRows.slice(0, idx).find(prev =>
             (prev['First Name']||'').trim().toLowerCase() === firstName.toLowerCase() &&
             (prev['Last Name']||'').trim().toLowerCase()  === lastName.toLowerCase()  &&
-            (prev['Date of Birth']||'').trim()            === dob
+            (normaliseDobFE((prev['Date of Birth']||'').trim()) || (prev['Date of Birth']||'').trim()) === dob
           );
           if (csvDup) {
             dupType = 'csv_duplicate';
