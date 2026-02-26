@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.0</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.3</span></small>
       </div>
     </div>
     <div class="hright">
@@ -8582,14 +8582,14 @@ function handleImportFile(file) {
           dupType = existingSeasonIds.has(profileId) ? 'cancelled' : 'already_cancelled';
         } else {
           // CSV duplicate check — must run first, before any other classification.
-          // If this exact player already appeared earlier in the CSV, mark as duplicate.
+          // If this exact player already appeared earlier in the CSV, mark as excluded.
           const csvDup = allRows.slice(0, idx).find(prev =>
             (prev['First Name']||'').trim().toLowerCase() === firstName.toLowerCase() &&
             (prev['Last Name']||'').trim().toLowerCase()  === lastName.toLowerCase()  &&
             (normaliseDobFE((prev['Date of Birth']||'').trim()) || (prev['Date of Birth']||'').trim()) === dob
           );
           if (csvDup) {
-            dupType = 'csv_duplicate';
+            excludeReason = 'Duplicate in file';
           } else {
             // Apply name+DOB fuzzy remap if profileId still not recognised — mirrors backend import
             // This catches PlayHQ reassigning a new ID to an existing player
@@ -8623,11 +8623,17 @@ function handleImportFile(file) {
       return { r, idx, firstName, lastName, dob, profileId, age, ageGroup, gender, school, suburb,
                excludeReason, dupType, isCancelled,
                // Pre-checked: new + returning + name_dob_match + cancelled (triggers removal)
-               // Unchecked: already_this_season, already_cancelled (no action), csv_duplicate, excluded
-               _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'already_cancelled' && dupType !== 'csv_duplicate' };
+               // Unchecked: already_this_season, already_cancelled (no action), excluded (inc. duplicates)
+               _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'already_cancelled' };
     });
 
-    _importData = { season, rows: categorised, file: file.name, rawCsv: ev.target.result };
+    _importData = { season, rows: categorised, file: file.name, rawCsv: ev.target.result,
+      tabDesc: {
+        inc: 'Players to import or already imported — new, returning, and existing registrations',
+        exc: 'Filtered out — seniors, volunteers, other clubs, over-age, and duplicates in file',
+        dup: 'Requires attention — new cancellations and other flagged records',
+      }
+    };
     renderImportReview(categorised, season, file.name, seasonChanged ? csvSeason : null);
   };
   reader.readAsText(file);
@@ -8638,43 +8644,37 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
 
   const include     = rows.filter(r => !r.excludeReason);
   const exclude     = rows.filter(r =>  r.excludeReason);
+  const filtered    = exclude.filter(r => r.excludeReason !== 'Duplicate in file');
+  const csvDups     = exclude.filter(r => r.excludeReason === 'Duplicate in file');
+  const flagged     = include.filter(r => r.dupType && r.dupType !== 'returning' && r.dupType !== 'already_this_season' && r.dupType !== 'already_cancelled');
+
   const fresh       = include.filter(r => !r.dupType);
   const returning   = include.filter(r => r.dupType === 'returning');
   const nameDob     = include.filter(r => r.dupType === 'name_dob_match');
   const alreadyImp  = include.filter(r => r.dupType === 'already_this_season');
   const alreadyCanc = include.filter(r => r.dupType === 'already_cancelled');
   const cancelled   = include.filter(r => r.dupType === 'cancelled');
-  const csvDups     = include.filter(r => r.dupType === 'csv_duplicate');
-  const flagged     = include.filter(r => r.dupType && r.dupType !== 'returning' && r.dupType !== 'already_this_season' && r.dupType !== 'already_cancelled');
 
-  // Registered = non-cancelled, non-duplicate players in scope
-  const totalCancellations = cancelled.length + alreadyCanc.length;
-  const registeredTotal    = include.length - totalCancellations - csvDups.length;
-  const newRegistered      = fresh.length + returning.length + nameDob.length;
-  const alreadyRegistered  = registeredTotal - newRegistered;
-  const newCancellations   = cancelled.length;
+  // Step-by-step arithmetic
+  const totalRecords    = rows.length;
+  const juniorRecords   = totalRecords - filtered.length;
+  const uniqueRecords   = juniorRecords - csvDups.length;
+  const totalCanc       = cancelled.length + alreadyCanc.length;
+  const newCanc         = cancelled.length;
+  const alreadyProcCanc = alreadyCanc.length;
+  const registrations   = uniqueRecords - totalCanc;
+  const newReg          = fresh.length + returning.length + nameDob.length;
+  const alreadyReg      = registrations - newReg;
 
-  // Build registered detail
-  const regParts = [];
-  if (newRegistered > 0) {
-    const regDetail = [];
-    if (fresh.length)     regDetail.push(`${fresh.length} new`);
-    if (returning.length) regDetail.push(`${returning.length} returning`);
-    if (nameDob.length)   regDetail.push(`${nameDob.length} name+DOB match`);
-    regParts.push(`${newRegistered} new (${regDetail.join(', ')})`);
-  } else {
-    regParts.push('0 new');
-  }
-  if (csvDups.length > 0) {
-    const dupNames = csvDups.map(r => `${r.firstName} ${r.lastName}`).join(', ');
-    regParts.push(`${csvDups.length} duplicate removed — ${dupNames}`);
-  }
-  regParts.push(`${alreadyRegistered} already imported`);
+  // New registrations detail
+  const newRegDetail = [];
+  if (fresh.length)     newRegDetail.push(`${fresh.length} new`);
+  if (returning.length) newRegDetail.push(`${returning.length} returning`);
+  if (nameDob.length)   newRegDetail.push(`${nameDob.length} name+DOB match`);
+  const newRegLabel = newReg > 0 ? `${newReg} new (${newRegDetail.join(', ')})` : '0 new';
 
-  // Build cancellation detail
-  const cancParts = [];
-  cancParts.push(newCancellations > 0 ? `${newCancellations} new` : '0 new');
-  cancParts.push(`${alreadyCanc.length} already actioned`);
+  // Duplicate names for display
+  const dupNames = csvDups.length > 0 ? csvDups.map(r => `${r.firstName} ${r.lastName}`).join(', ') : '';
 
   const tabs = [
     { id:'inc',  label:`✓ Include (${include.length})`,  colour:'var(--green)' },
@@ -8692,10 +8692,16 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
 
     <!-- Import summary -->
     <div style="background:var(--green-light);border:1.5px solid var(--green);border-radius:10px;padding:13px 16px;margin-bottom:16px;">
-      <div style="font-weight:700;font-size:14px;color:var(--green);margin-bottom:8px;">📂 Import summary — ${filename}</div>
-      <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px;">${include.length} player rows · ${exclude.length} excluded (seniors, volunteers, other clubs)</div>
-      <div style="font-size:13px;margin-bottom:4px;"><strong style="color:var(--green);">${registeredTotal} registered players</strong> <span style="color:var(--text-dim);">(${regParts.join(', ')})</span></div>
-      ${totalCancellations > 0 ? `<div style="font-size:13px;"><strong style="color:#dc2626;">${totalCancellations} cancellation${totalCancellations!==1?'s':''}</strong> <span style="color:var(--text-dim);">(${cancParts.join(', ')})</span></div>` : ''}
+      <div style="font-weight:700;font-size:14px;color:var(--green);margin-bottom:10px;">📂 Import summary — ${filename}</div>
+      <table style="font-size:13px;border-collapse:collapse;width:100%;">
+        <tr><td style="padding:3px 0;color:var(--text-dim);">Total records in file</td><td style="padding:3px 0;text-align:right;font-weight:600;">${totalRecords}</td></tr>
+        <tr><td style="padding:3px 0;color:var(--text-dim);">Excluded (seniors, volunteers, other clubs)</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#dc2626;">−${filtered.length}</td></tr>
+        ${csvDups.length > 0 ? `<tr><td style="padding:3px 0;color:var(--text-dim);">Duplicate${csvDups.length!==1?'s':''} in file (${dupNames})</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#dc2626;">−${csvDups.length}</td></tr>` : ''}
+        ${totalCanc > 0 ? `<tr><td style="padding:3px 0;color:var(--text-dim);">Cancellations (${newCanc} new, ${alreadyProcCanc} already processed)</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#dc2626;">−${totalCanc}</td></tr>` : ''}
+        <tr><td colspan="2" style="padding:0;"><div style="border-top:1.5px solid var(--green);margin:6px 0;"></div></td></tr>
+        <tr><td style="padding:3px 0;font-weight:700;font-size:14px;color:var(--green);">Player registrations</td><td style="padding:3px 0;text-align:right;font-weight:700;font-size:14px;color:var(--green);">${registrations}</td></tr>
+        <tr><td colspan="2" style="padding:2px 0 0;font-size:12px;color:var(--text-dim);">${newRegLabel}, ${alreadyReg} already imported</td></tr>
+      </table>
     </div>
 
     <!-- View tabs -->
@@ -8710,6 +8716,9 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
       <button onclick="importToggleAll(true)"  style="font-size:11px;padding:6px 10px;background:transparent;border:none;color:var(--green);cursor:pointer;font-weight:700;">✓ All</button>
       <button onclick="importToggleAll(false)" style="font-size:11px;padding:6px 10px;background:transparent;border:none;color:var(--red);cursor:pointer;font-weight:700;">✗ None</button>
     </div>
+
+    <!-- Tab description -->
+    <div id="imp-tab-desc" style="padding:8px 12px;font-size:11px;color:var(--text-dim);border:1.5px solid var(--border);border-top:none;background:#fafafa;">${_importData?.tabDesc?.inc || ''}</div>
 
     <!-- Record list -->
     <div id="imp-list" style="max-height:420px;overflow-y:auto;border:1.5px solid var(--border);border-top:none;border-radius:0 0 8px 8px;"></div>
@@ -8736,6 +8745,9 @@ function switchImportTab(btn, tabId) {
   btn.style.borderBottomColor = colours[tabId]||'var(--green)';
   btn.style.color = colours[tabId]||'var(--green)';
   btn.classList.add('act');
+  // Update tab description
+  const descEl = document.getElementById('imp-tab-desc');
+  if (descEl && _importData?.tabDesc) descEl.textContent = _importData.tabDesc[tabId] || '';
   renderImportTab(tabId, _importData.rows);
 }
 
@@ -8757,7 +8769,6 @@ function renderImportTab(tabId, rows) {
     already_this_season: { bg:'#f0fdf4', badge:'#16a34a', label:'Already imported' },
     returning:           { bg:'#eff6ff', badge:'#2563eb', label:'Returning — will update contact details' },
     name_dob_match:      { bg:'#fefce8', badge:'#ca8a04', label:'Name+DOB match — will update contact details' },
-    csv_duplicate:       { bg:'#fef2f2', badge:'#dc2626', label:'Duplicate in file' },
     cancelled:           { bg:'#fef2f2', badge:'#dc2626', label:'Cancelled — will remove season entry' },
     already_cancelled:   { bg:'#f0fdf4', badge:'#16a34a', label:'Already cancelled' },
   };
