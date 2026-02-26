@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.8</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.8.9</span></small>
       </div>
     </div>
     <div class="hright">
@@ -8581,36 +8581,40 @@ function handleImportFile(file) {
         if (isCancelled) {
           dupType = existingSeasonIds.has(profileId) ? 'cancelled' : 'already_cancelled';
         } else {
-          // Apply name+DOB fuzzy remap if profileId still not recognised — mirrors backend import
-          // This catches PlayHQ reassigning a new ID to an existing player
-          if (!pm[profileId] && !existingSeasonIds.has(profileId)) {
-            const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${normaliseDobFE(dob)||dob}`;
-            const fuzzyMatch = Object.entries(pm).find(([pid, p]) =>
-              `${(p.firstName||'').toLowerCase()}_${(p.lastName||'').toLowerCase()}_${normaliseDobFE(p.dob)||p.dob}` === nameKey
-            );
-            if (fuzzyMatch) {
-              profileId = fuzzyMatch[0]; // remap to existing ID
-            }
-          }
-
-          if (existingSeasonIds.has(profileId)) {
-            dupType = 'already_this_season';
+          // CSV duplicate check — must run first, before any other classification.
+          // If this exact player already appeared earlier in the CSV, mark as duplicate.
+          const csvDup = allRows.slice(0, idx).find(prev =>
+            (prev['First Name']||'').trim().toLowerCase() === firstName.toLowerCase() &&
+            (prev['Last Name']||'').trim().toLowerCase()  === lastName.toLowerCase()  &&
+            (prev['Date of Birth']||'').trim()            === dob
+          );
+          if (csvDup) {
+            dupType = 'csv_duplicate';
           } else {
-            if (pm[profileId]) {
-              dupType = 'returning';
-            } else {
-              const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${dob}`;
-              const fuzzyMatch = Object.values(pm).find(p =>
-                `${p.firstName.toLowerCase()}_${p.lastName.toLowerCase()}_${p.dob}` === nameKey
+            // Apply name+DOB fuzzy remap if profileId still not recognised — mirrors backend import
+            // This catches PlayHQ reassigning a new ID to an existing player
+            if (!pm[profileId] && !existingSeasonIds.has(profileId)) {
+              const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${normaliseDobFE(dob)||dob}`;
+              const fuzzyMatch = Object.entries(pm).find(([pid, p]) =>
+                `${(p.firstName||'').toLowerCase()}_${(p.lastName||'').toLowerCase()}_${normaliseDobFE(p.dob)||p.dob}` === nameKey
               );
-              if (fuzzyMatch) dupType = 'name_dob_match';
+              if (fuzzyMatch) {
+                profileId = fuzzyMatch[0]; // remap to existing ID
+              }
+            }
 
-              const csvDup = allRows.slice(0, idx).find(prev =>
-                (prev['First Name']||'').trim().toLowerCase() === firstName.toLowerCase() &&
-                (prev['Last Name']||'').trim().toLowerCase()  === lastName.toLowerCase()  &&
-                (prev['Date of Birth']||'').trim()            === dob
-              );
-              if (csvDup) dupType = 'csv_duplicate';
+            if (existingSeasonIds.has(profileId)) {
+              dupType = 'already_this_season';
+            } else {
+              if (pm[profileId]) {
+                dupType = 'returning';
+              } else {
+                const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${dob}`;
+                const fuzzyMatch = Object.values(pm).find(p =>
+                  `${p.firstName.toLowerCase()}_${p.lastName.toLowerCase()}_${p.dob}` === nameKey
+                );
+                if (fuzzyMatch) dupType = 'name_dob_match';
+              }
             }
           }
         }
