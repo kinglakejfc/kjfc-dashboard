@@ -8576,9 +8576,10 @@ function handleImportFile(file) {
       // Duplicate detection
       let dupType = null;
       if (!excludeReason) {
-        // Cancelled registrations: player data kept/updated but season row removed
+        // Cancelled registrations: only flag if there's a season row to remove.
+        // If no season row exists, this player was already cancelled (or never imported) — skip silently.
         if (isCancelled) {
-          dupType = 'cancelled';
+          dupType = existingSeasonIds.has(profileId) ? 'cancelled' : 'already_cancelled';
         } else {
           // Apply name+DOB fuzzy remap if profileId still not recognised — mirrors backend import
           // This catches PlayHQ reassigning a new ID to an existing player
@@ -8617,9 +8618,9 @@ function handleImportFile(file) {
 
       return { r, idx, firstName, lastName, dob, profileId, age, ageGroup, gender, school, suburb,
                excludeReason, dupType, isCancelled,
-               // Pre-checked: new players + returning + name_dob_match + cancelled (triggers removal)
-               // Unchecked: already_this_season (skip), csv_duplicate (skip), any excluded row
-               _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'csv_duplicate' };
+               // Pre-checked: new + returning + name_dob_match + cancelled (triggers removal)
+               // Unchecked: already_this_season, already_cancelled (no action), csv_duplicate, excluded
+               _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'already_cancelled' && dupType !== 'csv_duplicate' };
     });
 
     _importData = { season, rows: categorised, file: file.name, rawCsv: ev.target.result };
@@ -8631,18 +8632,40 @@ function handleImportFile(file) {
 function renderImportReview(rows, season, filename, autoDetectedSeason) {
   const review = document.getElementById('import-review');
 
-  const include = rows.filter(r => !r.excludeReason);
-  const exclude = rows.filter(r =>  r.excludeReason);
-  const dups    = include.filter(r => r.dupType && r.dupType !== 'returning' && r.dupType !== 'cancelled');
-  const fresh   = include.filter(r => !r.dupType);
-  const returning = include.filter(r => r.dupType === 'returning');
-  const cancelled = include.filter(r => r.dupType === 'cancelled');
+  const include     = rows.filter(r => !r.excludeReason);
+  const exclude     = rows.filter(r =>  r.excludeReason);
+  const fresh       = include.filter(r => !r.dupType);
+  const returning   = include.filter(r => r.dupType === 'returning');
+  const nameDob     = include.filter(r => r.dupType === 'name_dob_match');
+  const alreadyImp  = include.filter(r => r.dupType === 'already_this_season');
+  const alreadyCanc = include.filter(r => r.dupType === 'already_cancelled');
+  const cancelled   = include.filter(r => r.dupType === 'cancelled');
+  const csvDups     = include.filter(r => r.dupType === 'csv_duplicate');
+  const flagged     = include.filter(r => r.dupType && r.dupType !== 'returning' && r.dupType !== 'already_this_season' && r.dupType !== 'already_cancelled');
+
+  // Net result: currently registered + new/returning additions − cancellations
+  const currentlyRegistered = alreadyImp.length + alreadyCanc.length; // already have season rows (alreadyCanc had theirs removed previously)
+  // Actually: alreadyImp = players who already have a season row right now
+  // cancelled = players who have a season row that will be REMOVED
+  // fresh + returning + nameDob = players who will get a NEW season row
+  // Result after import = (alreadyImp) + (fresh + returning + nameDob) − (cancelled)
+  const afterImport = alreadyImp.length + fresh.length + returning.length + nameDob.length - cancelled.length;
 
   const tabs = [
     { id:'inc',  label:`✓ Include (${include.length})`,  colour:'var(--green)' },
     { id:'exc',  label:`✗ Excluded (${exclude.length})`, colour:'var(--red)'   },
-    { id:'dup',  label:`⚠ Flagged (${dups.length + cancelled.length})`, colour:'#ca8a04' },
+    { id:'dup',  label:`⚠ Flagged (${flagged.length})`,  colour:'#ca8a04'      },
   ];
+
+  // Build the breakdown line
+  const parts = [];
+  if (fresh.length)       parts.push(`<strong>${fresh.length}</strong> new`);
+  if (returning.length)   parts.push(`<strong>${returning.length}</strong> returning`);
+  if (nameDob.length)     parts.push(`<strong>${nameDob.length}</strong> name+DOB match`);
+  if (alreadyImp.length)  parts.push(`<strong>${alreadyImp.length}</strong> already imported`);
+  if (alreadyCanc.length) parts.push(`<strong>${alreadyCanc.length}</strong> already cancelled`);
+  if (cancelled.length)   parts.push(`<strong style="color:#dc2626">${cancelled.length}</strong> cancelled`);
+  if (csvDups.length)     parts.push(`<strong>${csvDups.length}</strong> duplicate in file`);
 
   review.innerHTML = `
     <!-- Auto-detect notice: only shown when CSV season differs from selector -->
@@ -8655,11 +8678,9 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
     <!-- Summary bar -->
     <div style="background:var(--green-light);border:1.5px solid var(--green);border-radius:10px;padding:13px 16px;margin-bottom:16px;">
       <div style="font-weight:700;font-size:14px;color:var(--green);margin-bottom:6px;">📂 ${filename} — Season ${season}</div>
-      <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;">
-        <span><strong style="color:var(--green)">${include.length}</strong> to include</span>
-        <span><strong style="color:var(--red)">${exclude.length}</strong> excluded</span>
-        <span><strong style="color:#ca8a04">${dups.length + cancelled.length}</strong> flagged</span>
-        <span><strong>${fresh.length}</strong> new · <strong>${returning.length}</strong> update contact details · <strong>${rows.filter(r=>r.dupType==='already_this_season').length}</strong> already imported${cancelled.length ? ` · <strong style="color:#dc2626">${cancelled.length}</strong> cancelled` : ''}</span>
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px;">After import: <span style="color:var(--green);">${afterImport} registered player${afterImport!==1?'s':''}</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--text-dim);">
+        ${parts.join(' · ')}${exclude.length ? ` · <strong>${exclude.length}</strong> excluded (seniors, other clubs, etc.)` : ''}
       </div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:5px;">Age eligibility assessed at end of ${season} (player's age turning during ${season} calendar year)</div>
     </div>
@@ -8712,7 +8733,7 @@ function renderImportTab(tabId, rows) {
   let filtered;
   if (tabId === 'inc') filtered = rows.filter(r => !r.excludeReason);
   else if (tabId === 'exc') filtered = rows.filter(r =>  r.excludeReason);
-  else filtered = rows.filter(r => !r.excludeReason && r.dupType && r.dupType !== 'returning');
+  else filtered = rows.filter(r => !r.excludeReason && r.dupType && r.dupType !== 'returning' && r.dupType !== 'already_this_season' && r.dupType !== 'already_cancelled');
 
   if (!filtered.length) {
     list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-dim);font-size:13px;">No records in this category.</div>`;
@@ -8725,6 +8746,7 @@ function renderImportTab(tabId, rows) {
     name_dob_match:      { bg:'#fefce8', badge:'#ca8a04', label:'Name+DOB match — will update contact details' },
     csv_duplicate:       { bg:'#fef2f2', badge:'#dc2626', label:'Duplicate in file' },
     cancelled:           { bg:'#fef2f2', badge:'#dc2626', label:'Cancelled — will remove season entry' },
+    already_cancelled:   { bg:'#f0fdf4', badge:'#16a34a', label:'Already cancelled' },
   };
 
   list.innerHTML = filtered.map(item => {
@@ -8773,9 +8795,15 @@ function importToggleAll(checked) {
 
 function updateImportCount(rows) {
   const sel = rows.filter(r => r._checked).length;
+  const selCancelled = rows.filter(r => r._checked && r.dupType === 'cancelled').length;
+  const selImporting = sel - selCancelled;
   const el  = document.getElementById('imp-sel-count');
   const btn = document.getElementById('imp-confirm-btn');
-  if (el)  el.textContent  = `${sel} player${sel!==1?'s':''} selected for import`;
+  let label = `${sel} selected`;
+  if (selCancelled > 0) {
+    label = `${selImporting} to import, ${selCancelled} to cancel`;
+  }
+  if (el)  el.textContent  = label;
   if (btn) btn.textContent = `Import ${sel} player${sel!==1?'s':''}`;
   if (btn) btn.disabled    = sel === 0;
 }
