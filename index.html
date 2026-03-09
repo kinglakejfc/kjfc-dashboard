@@ -8608,6 +8608,21 @@ function handleImportFile(file) {
                 idChangedFrom = profileId; // original incoming CSV id
                 profileId = fuzzyMatch[0]; // tentatively remap to existing id
                 dupType = 'possible_id_change';
+                // Capture existing player details now while pm is in scope,
+                // so the confirmation card can show who the match is
+                const existingP = pm[profileId];
+                const existingSeasonRow = (plData?.seasons||[]).find(s => s.profileId === profileId && +s.year === season);
+                const existingTeamName = existingSeasonRow?.assignedTeam
+                  ? ((plData?.teams||[]).find(t => t.id === existingSeasonRow.assignedTeam)?.name || existingSeasonRow.assignedTeam)
+                  : null;
+                var _matchedPlayer = existingP ? {
+                  firstName: existingP.firstName || '',
+                  lastName:  existingP.lastName  || '',
+                  dob:       normaliseDobFE(existingP.dob) || existingP.dob || '',
+                  gender:    existingP.gender    || '',
+                  team:      existingTeamName,
+                  hasSeasonRow: !!existingSeasonRow,
+                } : null;
               }
             }
 
@@ -8636,6 +8651,7 @@ function handleImportFile(file) {
 
             return { r, idx, firstName, lastName, dob, profileId,
                      incomingProfileId: idChangedFrom, // set only for possible_id_change rows
+                     matchedPlayer: (typeof _matchedPlayer !== 'undefined' ? _matchedPlayer : null),
                      age, ageGroup, gender, school, suburb,
                      excludeReason, dupType, isCancelled,
                      // possible_id_change rows start unchecked — user must confirm before importing
@@ -8646,6 +8662,7 @@ function handleImportFile(file) {
 
       return { r, idx, firstName, lastName, dob, profileId,
                incomingProfileId: null,
+               matchedPlayer: null,
                age, ageGroup, gender, school, suburb,
                excludeReason, dupType, isCancelled,
                // Pre-checked: new + returning + name_dob_match + cancelled (triggers removal)
@@ -8761,6 +8778,14 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
 
   renderImportTab('inc', rows);
   updateImportCount(rows);
+
+  // If there are unresolved ID changes, switch to the Flagged tab immediately
+  // so the user sees them without having to discover the warning themselves
+  const hasIdChanges = rows.some(r => r.dupType === 'possible_id_change' || r.dupType === 'possible_id_change_already_imported');
+  if (hasIdChanges) {
+    const dupTabBtn = document.querySelector('.imp-vtab[data-vtab="dup"]');
+    if (dupTabBtn) switchImportTab(dupTabBtn, 'dup');
+  }
 }
 
 function switchImportTab(btn, tabId) {
@@ -8826,14 +8851,25 @@ function renderImportTab(tabId, rows) {
               ${ageDisp} · ${item.gender||'—'} · DOB ${item.dob||'—'} · ${item.school||item.suburb||'—'}
             </div>
             <div style="background:#fff;border:1px solid #fcd34d;border-radius:7px;padding:10px 12px;font-size:12px;margin-bottom:10px;">
-              <div style="font-weight:600;color:#92400e;margin-bottom:6px;">PlayHQ has a different Profile ID for this player than our records.</div>
-              <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:11px;">
-                <span style="color:var(--text-dim);">CSV (incoming):</span>
-                <span style="font-family:monospace;color:#dc2626;">${item.incomingProfileId||'—'}</span>
-                <span style="color:var(--text-dim);">Our records:</span>
-                <span style="font-family:monospace;color:#16a34a;">${item.profileId}</span>
+              <div style="font-weight:600;color:#92400e;margin-bottom:8px;">PlayHQ has assigned a new Profile ID to this player. Is this the same person as the existing record below?</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;">
+                <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:8px 10px;">
+                  <div style="font-size:10px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">CSV (incoming)</div>
+                  <div style="font-weight:600;font-size:12px;">${item.firstName} ${item.lastName}</div>
+                  <div style="font-size:11px;color:var(--text-dim);">DOB ${item.dob||'—'} · ${item.gender||'—'}</div>
+                  <div style="font-size:10px;font-family:monospace;color:#dc2626;margin-top:4px;word-break:break-all;">${item.incomingProfileId||'—'}</div>
+                </div>
+                <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px 10px;">
+                  <div style="font-size:10px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Existing record</div>
+                  ${item.matchedPlayer ? `
+                  <div style="font-weight:600;font-size:12px;">${item.matchedPlayer.firstName} ${item.matchedPlayer.lastName}</div>
+                  <div style="font-size:11px;color:var(--text-dim);">DOB ${item.matchedPlayer.dob||'—'} · ${item.matchedPlayer.gender||'—'}</div>
+                  ${item.matchedPlayer.team ? `<div style="font-size:11px;color:var(--text-dim);">Team: ${item.matchedPlayer.team}</div>` : item.matchedPlayer.hasSeasonRow ? `<div style="font-size:11px;color:var(--text-dim);">Registered ${season} — no team yet</div>` : ''}
+                  <div style="font-size:10px;font-family:monospace;color:#16a34a;margin-top:4px;word-break:break-all;">${item.profileId}</div>
+                  ` : `<div style="font-size:11px;color:var(--text-dim);">ID: ${item.profileId}</div>`}
+                </div>
               </div>
-              ${alreadyImported ? `<div style="margin-top:6px;font-size:11px;color:#16a34a;font-weight:600;">✓ This player is already imported for this season.</div>` : ''}
+              ${alreadyImported ? `<div style="font-size:11px;color:#16a34a;font-weight:600;">✓ The existing record is already imported for this season.</div>` : ''}
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button onclick="confirmIdChange(${item.idx}, true)"
@@ -8891,8 +8927,20 @@ function updateImportCount(rows) {
   const sel = rows.filter(r => r._checked).length;
   const selCancelled = rows.filter(r => r._checked && r.dupType === 'cancelled').length;
   const selImporting = sel - selCancelled;
+  const unresolved = rows.filter(r => r.dupType === 'possible_id_change' || r.dupType === 'possible_id_change_already_imported').length;
   const el  = document.getElementById('imp-sel-count');
   const btn = document.getElementById('imp-confirm-btn');
+
+  if (unresolved > 0) {
+    // Block import until all ID changes are resolved
+    if (el) el.innerHTML = `<span style="color:#b45309;font-weight:600;">⚠ ${unresolved} possible ID change${unresolved!==1?'s':''} need${unresolved===1?'s':''} confirmation before importing — see Flagged tab</span>`;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = `Resolve ID changes first`;
+    }
+    return;
+  }
+
   let label = `${sel} selected`;
   if (selCancelled > 0) {
     label = `${selImporting} to import, ${selCancelled} to cancel`;
