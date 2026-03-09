@@ -8592,46 +8592,72 @@ function handleImportFile(file) {
             excludeReason = 'Duplicate in file';
           } else {
             // Apply name+DOB fuzzy remap if profileId still not recognised — mirrors backend import
-            // This catches PlayHQ reassigning a new ID to an existing player
+            // This catches PlayHQ reassigning a new ID to an existing player.
+            // When found: if the IDs differ, surface as possible_id_change for user confirmation
+            // rather than silently remapping — this is the case that was causing Beau Ferguson
+            // to appear as a new player when PlayHQ had assigned him a new profile ID.
+            let idChangedFrom = null; // incoming CSV id if a possible_id_change is detected
             if (!pm[profileId] && !existingSeasonIds.has(profileId)) {
               const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${normaliseDobFE(dob)||dob}`;
               const fuzzyMatch = Object.entries(pm).find(([pid, p]) =>
                 `${(p.firstName||'').toLowerCase()}_${(p.lastName||'').toLowerCase()}_${normaliseDobFE(p.dob)||p.dob}` === nameKey
               );
               if (fuzzyMatch) {
-                profileId = fuzzyMatch[0]; // remap to existing ID
+                // IDs differ — PlayHQ has reassigned. Surface for user confirmation instead of
+                // silently remapping. Store both IDs so the UI can show them and create the alias.
+                idChangedFrom = profileId; // original incoming CSV id
+                profileId = fuzzyMatch[0]; // tentatively remap to existing id
+                dupType = 'possible_id_change';
               }
             }
 
-            if (existingSeasonIds.has(profileId)) {
-              dupType = 'already_this_season';
-            } else {
-              if (pm[profileId]) {
-                dupType = 'returning';
+            if (dupType !== 'possible_id_change') {
+              if (existingSeasonIds.has(profileId)) {
+                dupType = 'already_this_season';
               } else {
-                const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${dob}`;
-                const fuzzyMatch = Object.values(pm).find(p =>
-                  `${p.firstName.toLowerCase()}_${p.lastName.toLowerCase()}_${p.dob}` === nameKey
-                );
-                if (fuzzyMatch) dupType = 'name_dob_match';
+                if (pm[profileId]) {
+                  dupType = 'returning';
+                } else {
+                  const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${dob}`;
+                  const fuzzyMatch = Object.values(pm).find(p =>
+                    `${p.firstName.toLowerCase()}_${p.lastName.toLowerCase()}_${p.dob}` === nameKey
+                  );
+                  if (fuzzyMatch) dupType = 'name_dob_match';
+                }
               }
             }
+
+            // After possible_id_change remap, also check if they already have a season row
+            // (the alias would have caught this on a prior import — surface as already_this_season
+            // with the id_change context still preserved for the user to see)
+            if (dupType === 'possible_id_change' && existingSeasonIds.has(profileId)) {
+              dupType = 'possible_id_change_already_imported';
+            }
+
+            return { r, idx, firstName, lastName, dob, profileId,
+                     incomingProfileId: idChangedFrom, // set only for possible_id_change rows
+                     age, ageGroup, gender, school, suburb,
+                     excludeReason, dupType, isCancelled,
+                     // possible_id_change rows start unchecked — user must confirm before importing
+                     _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'already_cancelled' && dupType !== 'possible_id_change' && dupType !== 'possible_id_change_already_imported' };
           }
         }
       }
 
-      return { r, idx, firstName, lastName, dob, profileId, age, ageGroup, gender, school, suburb,
+      return { r, idx, firstName, lastName, dob, profileId,
+               incomingProfileId: null,
+               age, ageGroup, gender, school, suburb,
                excludeReason, dupType, isCancelled,
                // Pre-checked: new + returning + name_dob_match + cancelled (triggers removal)
-               // Unchecked: already_this_season, already_cancelled (no action), excluded (inc. duplicates)
-               _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'already_cancelled' };
+               // Unchecked: already_this_season, already_cancelled, possible_id_change (need confirmation)
+               _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'already_cancelled' && dupType !== 'possible_id_change' && dupType !== 'possible_id_change_already_imported' };
     });
 
     _importData = { season, rows: categorised, file: file.name, rawCsv: ev.target.result,
       tabDesc: {
         inc: 'Players to import or already imported — new, returning, and existing registrations',
         exc: 'Filtered out — seniors, volunteers, other clubs, over-age, and duplicates in file',
-        dup: 'Requires attention — new cancellations and other flagged records',
+        dup: 'Requires attention — possible ID changes and cancellations. Confirm each before importing.',
       }
     };
     renderImportReview(categorised, season, file.name, seasonChanged ? csvSeason : null);
@@ -8651,9 +8677,10 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
   const fresh       = include.filter(r => !r.dupType);
   const returning   = include.filter(r => r.dupType === 'returning');
   const nameDob     = include.filter(r => r.dupType === 'name_dob_match');
-  const alreadyImp  = include.filter(r => r.dupType === 'already_this_season');
+  const alreadyImp  = include.filter(r => r.dupType === 'already_this_season' || r.dupType === 'possible_id_change_already_imported');
   const alreadyCanc = include.filter(r => r.dupType === 'already_cancelled');
   const cancelled   = include.filter(r => r.dupType === 'cancelled');
+  const idChanges   = include.filter(r => r.dupType === 'possible_id_change' || r.dupType === 'possible_id_change_already_imported');
 
   // Step-by-step arithmetic
   const totalRecords    = rows.length;
@@ -8698,6 +8725,7 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
         <tr><td style="padding:3px 0;color:var(--text-dim);">Excluded (seniors, volunteers, other clubs)</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#dc2626;">−${filtered.length}</td></tr>
         ${csvDups.length > 0 ? `<tr><td style="padding:3px 0;color:var(--text-dim);">Duplicate${csvDups.length!==1?'s':''} in file (${dupNames})</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#dc2626;">−${csvDups.length}</td></tr>` : ''}
         ${totalCanc > 0 ? `<tr><td style="padding:3px 0;color:var(--text-dim);">Cancellations (${newCanc} new, ${alreadyProcCanc} already processed)</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#dc2626;">−${totalCanc}</td></tr>` : ''}
+        ${idChanges.length > 0 ? `<tr><td style="padding:3px 0;color:#92400e;">⚠ Possible ID changes — requires confirmation (${idChanges.map(r=>`${r.firstName} ${r.lastName}`).join(', ')})</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#92400e;">${idChanges.length}</td></tr>` : ''}
         <tr><td colspan="2" style="padding:0;"><div style="border-top:1.5px solid var(--green);margin:6px 0;"></div></td></tr>
         <tr><td style="padding:3px 0;font-weight:700;font-size:14px;color:var(--green);">Player registrations</td><td style="padding:3px 0;text-align:right;font-weight:700;font-size:14px;color:var(--green);">${registrations}</td></tr>
         <tr><td colspan="2" style="padding:2px 0 0;font-size:12px;color:var(--text-dim);">${newRegLabel}, ${alreadyReg} already imported</td></tr>
@@ -8766,11 +8794,13 @@ function renderImportTab(tabId, rows) {
   }
 
   const dupColour = {
-    already_this_season: { bg:'#f0fdf4', badge:'#16a34a', label:'Already imported' },
-    returning:           { bg:'#eff6ff', badge:'#2563eb', label:'Returning — will update contact details' },
-    name_dob_match:      { bg:'#fefce8', badge:'#ca8a04', label:'Name+DOB match — will update contact details' },
-    cancelled:           { bg:'#fef2f2', badge:'#dc2626', label:'Cancelled — will remove season entry' },
-    already_cancelled:   { bg:'#f0fdf4', badge:'#16a34a', label:'Already cancelled' },
+    already_this_season:                { bg:'#f0fdf4', badge:'#16a34a', label:'Already imported' },
+    returning:                          { bg:'#eff6ff', badge:'#2563eb', label:'Returning — will update contact details' },
+    name_dob_match:                     { bg:'#fefce8', badge:'#ca8a04', label:'Name+DOB match — will update contact details' },
+    cancelled:                          { bg:'#fef2f2', badge:'#dc2626', label:'Cancelled — will remove season entry' },
+    already_cancelled:                  { bg:'#f0fdf4', badge:'#16a34a', label:'Already cancelled' },
+    possible_id_change:                 { bg:'#fffbeb', badge:'#b45309', label:'Possible ID change — confirm identity' },
+    possible_id_change_already_imported:{ bg:'#fffbeb', badge:'#b45309', label:'Possible ID change — already imported' },
   };
 
   list.innerHTML = filtered.map(item => {
@@ -8778,7 +8808,47 @@ function renderImportTab(tabId, rows) {
     const ageDisp = age ? `U${age}` : (item.ageGroup||'?');
     const dc      = item.dupType ? dupColour[item.dupType] : null;
     const rowBg   = item.excludeReason ? '#fef2f2' : (dc?.bg || '#fff');
-    const canCheck = !item.excludeReason;
+    const canCheck = !item.excludeReason && item.dupType !== 'possible_id_change' && item.dupType !== 'possible_id_change_already_imported';
+    const isIdChange = item.dupType === 'possible_id_change' || item.dupType === 'possible_id_change_already_imported';
+
+    // Expanded UI for possible ID change rows
+    if (isIdChange) {
+      const alreadyImported = item.dupType === 'possible_id_change_already_imported';
+      return `<div style="padding:12px 14px;border-bottom:1px solid var(--border);background:${rowBg};" id="imp-row-${item.idx}">
+        <div style="display:flex;align-items:flex-start;gap:10px;">
+          <div style="width:15px;height:15px;flex-shrink:0;margin-top:2px;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:4px;">
+              ⚠ ${item.firstName} ${item.lastName}
+              <span style="background:#fffbeb;color:#b45309;border:1px solid #b45309;font-size:9px;font-weight:700;border-radius:4px;padding:1px 5px;margin-left:4px;text-transform:uppercase;">${dc.label}</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">
+              ${ageDisp} · ${item.gender||'—'} · DOB ${item.dob||'—'} · ${item.school||item.suburb||'—'}
+            </div>
+            <div style="background:#fff;border:1px solid #fcd34d;border-radius:7px;padding:10px 12px;font-size:12px;margin-bottom:10px;">
+              <div style="font-weight:600;color:#92400e;margin-bottom:6px;">PlayHQ has a different Profile ID for this player than our records.</div>
+              <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:11px;">
+                <span style="color:var(--text-dim);">CSV (incoming):</span>
+                <span style="font-family:monospace;color:#dc2626;">${item.incomingProfileId||'—'}</span>
+                <span style="color:var(--text-dim);">Our records:</span>
+                <span style="font-family:monospace;color:#16a34a;">${item.profileId}</span>
+              </div>
+              ${alreadyImported ? `<div style="margin-top:6px;font-size:11px;color:#16a34a;font-weight:600;">✓ This player is already imported for this season.</div>` : ''}
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="confirmIdChange(${item.idx}, true)"
+                style="padding:5px 12px;background:#013C1E;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Barlow',sans-serif;">
+                ✓ Same person — link IDs
+              </button>
+              <button onclick="confirmIdChange(${item.idx}, false)"
+                style="padding:5px 12px;background:#fff;color:#dc2626;border:1.5px solid #dc2626;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Barlow',sans-serif;">
+                Different person — import as new
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }
 
     return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);background:${rowBg};${!item._checked&&canCheck?'opacity:.6':''}" id="imp-row-${item.idx}">
       ${canCheck
@@ -8830,6 +8900,66 @@ function updateImportCount(rows) {
   if (el)  el.textContent  = label;
   if (btn) btn.textContent = `Import ${sel} player${sel!==1?'s':''}`;
   if (btn) btn.disabled    = sel === 0;
+}
+
+async function confirmIdChange(idx, isSamePerson) {
+  const item = _importData?.rows.find(r => r.idx === idx);
+  if (!item) return;
+
+  const rowEl = document.getElementById(`imp-row-${idx}`);
+
+  if (isSamePerson) {
+    // Show saving state on the button row
+    if (rowEl) {
+      const btns = rowEl.querySelectorAll('button');
+      btns.forEach(b => { b.disabled = true; b.style.opacity = '0.5'; });
+      const statusEl = document.createElement('div');
+      statusEl.style.cssText = 'font-size:12px;color:var(--text-dim);margin-top:8px;';
+      statusEl.textContent = 'Saving alias…';
+      rowEl.querySelector('div > div:last-child')?.appendChild(statusEl);
+    }
+
+    // Save the alias — incoming (CSV) id → existing (our) id
+    const res = await api('savePlayerAlias', { oldId: item.incomingProfileId, keepId: item.profileId });
+
+    if (res.error) {
+      showToast('Failed to save alias: ' + res.error, 'err');
+      if (rowEl) {
+        const btns = rowEl.querySelectorAll('button');
+        btns.forEach(b => { b.disabled = false; b.style.opacity = '1'; });
+      }
+      return;
+    }
+
+    // Alias saved — reclassify the row.
+    // profileId is already set to the existing (kept) id from the fuzzy match.
+    // Re-check season membership now that alias is confirmed.
+    const existingSeasonIds = new Set(
+      (plData?.seasons||[]).filter(s=>+s.year===_importData.season).map(s=>s.profileId)
+    );
+    item.dupType = existingSeasonIds.has(item.profileId) ? 'already_this_season' : 'returning';
+    item.incomingProfileId = null;
+    item._checked = item.dupType === 'returning'; // check if there's something to import, uncheck if already done
+
+    showToast(`Alias saved — ${item.firstName} ${item.lastName} linked to existing record`, 'ok');
+
+  } else {
+    // Different person — treat as a genuinely new player with the incoming CSV id
+    item.profileId = item.incomingProfileId; // revert to original CSV id
+    item.incomingProfileId = null;
+    item.dupType = null; // plain new player
+    item._checked = true;
+  }
+
+  // Re-render the full preview so counts, tabs and summary all update
+  renderImportReview(_importData.rows, _importData.season, _importData.file, null);
+  // Switch to the flagged tab if there are still unresolved items, otherwise include tab
+  const stillFlagged = _importData.rows.filter(r =>
+    r.dupType === 'possible_id_change' || r.dupType === 'possible_id_change_already_imported'
+  );
+  const activeTab = stillFlagged.length > 0 ? 'dup' : 'inc';
+  const tabBtn = document.querySelector(`.imp-vtab[data-vtab="${activeTab}"]`);
+  if (tabBtn) switchImportTab(tabBtn, activeTab);
 }
 
 async function runImport() {
