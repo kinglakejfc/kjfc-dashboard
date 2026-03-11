@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.3</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.4</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9014,6 +9014,7 @@ let _websiteState = {
   orgId:       '862f96f9-42b8-4231-a6e2-02278173f2b8',
   seasonId:    '',
   seasonName:  '',
+  seasons:     [],       // loaded from PlayHQ via proxy
   teams:       [],       // discovered from PlayHQ
   savedTeams:  {},       // teamId -> saved config from sheet
   section:     'connection' // connection | discover | configure | generate
@@ -9026,7 +9027,7 @@ function renderWebsiteTab(targetEl) {
   // Render immediately with whatever state we have
   _drawWebsiteTab(el);
 
-  // Load saved config from sheet in background and re-render when ready
+  // Load saved config + teams from sheet in background
   api('getWebsiteConfig').then(cfg => {
     if (cfg && !cfg.error) {
       _websiteState.proxyUrl   = cfg.proxyUrl   || '';
@@ -9040,9 +9041,20 @@ function renderWebsiteTab(targetEl) {
       _websiteState.savedTeams = {};
       teams.forEach(t => { _websiteState.savedTeams[t.teamId] = t; });
     }
-    // Only re-draw if still on website tab
+    // Re-draw with config loaded
     const active = document.querySelector('#dash-sub-admin .dtab.act');
     if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
+
+    // If proxy is configured, also load seasons from PlayHQ
+    if (_websiteState.proxyUrl) {
+      return api('discoverSeasons');
+    }
+  }).then(result => {
+    if (result && result.seasons) {
+      _websiteState.seasons = result.seasons;
+      const active = document.querySelector('#dash-sub-admin .dtab.act');
+      if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
+    }
   }).catch(() => {});
 }
 
@@ -9168,9 +9180,7 @@ function _drawWebsiteTab(el) {
             <label>Season</label>
             <select id="wb-season-sel" onchange="wbSeasonChanged(this)">
               <option value="">— select season —</option>
-              <option value="516e4c42-0428-4cf3-ba71-9b152ea8bb1b" ${s.seasonId==='516e4c42-0428-4cf3-ba71-9b152ea8bb1b'?'selected':''}>2026</option>
-              <option value="fde9f6d9-d21c-45b4-80c0-5924cb26377c" ${s.seasonId==='fde9f6d9-d21c-45b4-80c0-5924cb26377c'?'selected':''}>2025</option>
-              <option value="7a26fcc0-44a7-4423-ae80-14386820f889" ${s.seasonId==='7a26fcc0-44a7-4423-ae80-14386820f889'?'selected':''}>2024</option>
+              ${_buildSeasonOptions(s)}
             </select>
           </div>
           <button class="wb-btn wb-btn-primary wb-btn-sm" onclick="wbDiscover()" ${!proxyOk||!s.seasonId?'disabled title="Save proxy URL and select season first"':''}>Discover Teams</button>
@@ -9594,6 +9604,37 @@ function wbToggle(section) {
   if (arrow) arrow.textContent = isOpen ? '▶' : '▼';
 }
 
+function _buildSeasonOptions(s) {
+  // If we have seasons loaded from PlayHQ, use those
+  if (s.seasons && s.seasons.length) {
+    return s.seasons.map(function(season) {
+      const sel = s.seasonId === season.id ? 'selected' : '';
+      return `<option value="${season.id}" ${sel}>${_escHtml(season.name)}</option>`;
+    }).join('');
+  }
+  // Fallback: generate a rolling window (3 years back, 1 ahead) using year names
+  // These won't have real PlayHQ UUIDs — discovery will still need the real IDs.
+  // Show a placeholder prompting the user to load seasons.
+  return '<option value="" disabled>⟳ Loading seasons… (save proxy URL first)</option>';
+}
+
+function wbLoadSeasons() {
+  const sel = document.getElementById('wb-season-sel');
+  if (sel) sel.innerHTML = '<option value="">Loading…</option>';
+  api('discoverSeasons').then(result => {
+    if (result && result.seasons) {
+      _websiteState.seasons = result.seasons;
+      const el = document.getElementById('admin-panel-body');
+      if (el) _drawWebsiteTab(el);
+    } else {
+      const msg = result && result.error ? result.error : 'Could not load seasons';
+      if (sel) sel.innerHTML = `<option value="">${_escHtml(msg)}</option>`;
+    }
+  }).catch(e => {
+    if (sel) sel.innerHTML = `<option value="">Error: ${_escHtml(e.message)}</option>`;
+  });
+}
+
 function wbTestProxy() {
   const url = document.getElementById('wb-proxy-url').value.trim();
   if (!url) { _wbProxyStatus('Enter a URL first', 'err'); return; }
@@ -9623,8 +9664,10 @@ function wbSeasonChanged(sel) {
   _websiteState.seasonId   = sel.value;
   _websiteState.seasonName = sel.options[sel.selectedIndex].text;
   _websiteState.teams      = [];
-  document.getElementById('wb-teams-list').innerHTML = '';
   api('saveWebsiteConfig', { updates: { seasonId: sel.value, seasonName: sel.options[sel.selectedIndex].text } }).catch(() => {});
+  // Re-render so Discover button becomes enabled
+  const el = document.getElementById('admin-panel-body');
+  if (el) _drawWebsiteTab(el);
 }
 
 function wbDiscover() {
