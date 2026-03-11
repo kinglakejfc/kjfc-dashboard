@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.34</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.35</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9236,13 +9236,13 @@ function _drawWebsiteTab(el) {
                 placeholder="e.g. Kinglake Under 16 Boys" oninput="wbFieldChange(this)" />
             </div>
             <div class="wb-field">
-              <label>Age Group <span style="font-weight:400;color:var(--text-dim);">(e.g. 9, 11, 17.5 — blank for seniors)</span></label>
+              <label>Age Group <span style="font-weight:400;color:var(--text-dim);">(e.g. U9, U11, U17.5 — blank for seniors)</span></label>
               <input type="number" min="5" max="19" step="0.5" data-tid="${t.teamId}" data-field="ageGroup"
                 value="${_escHtml(saved.ageGroup || '')}"
                 placeholder="e.g. 9" oninput="wbFieldChange(this)"
                 style="max-width:120px;" />
               ${(saved.ageGroup && parseFloat(saved.ageGroup) <= 10)
-                ? `<div style="font-size:11px;color:#d97706;margin-top:4px;">⚠ U10 &amp; below — scoring, ladder &amp; finals sections will show an info note.</div>`
+                ? `<div style="font-size:11px;color:#d97706;margin-top:4px;">⚠ U${parseFloat(saved.ageGroup)} — scoring, win/loss/draw &amp; ladder sections will show an info note.</div>`
                 : ''}
             </div>
             <div class="wb-field">
@@ -9640,8 +9640,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `gH+='<div class="kw-opp">'+(ol?ol.name:'')+'</div>';\n` +
     `gH+='<div class="kw-meta">'+last.round.name+'</div>';\n` +
     `if(kl&&ol&&!NOSCORE){gH+='<div class="kw-scr '+oc(kl.outcome)+'">'+scr(kl)+' <span style="opacity:.45;font-size:.8em;">v</span> '+scr(ol)+'</div>';}\n` +
-`if(kl&&NOSCORE){gH+='<p style=\"color:rgba(255,255,255,.7);font-size:.9em;margin:4px 0 0;\">&#8505; Scores are not recorded for this age group.</p>';}\n` +
-    `if(kl){gH+='<div class="'+oc(kl.outcome)+'">'+ow(kl.outcome)+'</div>';}\n` +
+    `if(kl&&!NOSCORE){gH+='<div class="'+oc(kl.outcome)+'">'+ow(kl.outcome)+'</div>';}\n` +
     `}else{gH+='<div class="kw-meta" style="color:rgba(255,255,255,.35);">No results yet</div>';}\n` +
     `gH+='</div></div>';\n` +
     `html+=sec2('${tid}-gd','Game Day',gH,true);\n` +
@@ -9655,7 +9654,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `var o=g.competitors.find(function(c){return c.id!==TID;});\n` +
     `var fin=g.status==='FINAL';\n` +
     `var drId='${tid}-dr-'+i;\n` +
-    `var res=fin&&k&&!NOSCORE?bdg(k.outcome)+' '+scr(k)+' \u2013 '+(o?scr(o):''):fin&&k&&NOSCORE?bdg(k.outcome):'<span style="color:rgba(255,255,255,.28)">\u2013</span>';\n` +
+    ``var res=fin&&k&&!NOSCORE?bdg(k.outcome)+' '+scr(k)+' \u2013 '+(o?scr(o):''):'<span style=\"color:rgba(255,255,255,.28)\">\u2013</span>';\n` +
     `fH+='<tr class="kw-gr" data-dr="'+drId+'">';\n` +
     `fH+='<td style="color:rgba(255,255,255,.38);font-size:.78em;font-weight:700;">'+g.round.abbreviatedName+'</td>';\n` +
     `fH+='<td style="font-weight:600;">'+(o?o.name:'BYE')+'</td>';\n` +
