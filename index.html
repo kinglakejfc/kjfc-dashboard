@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.16</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.17</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9056,7 +9056,7 @@ function _drawWebsiteTab(el) {
   const sections = ['connection', 'discover', 'configure', 'generate'];
   const labels   = ['1 · Connection', '2 · Discover Teams', '3 · Configure', '4 · Generate'];
 
-  const proxyOk    = !!s.proxyUrl;
+  const proxyOk    = !!s.phqApiKey;  // API key loaded = ready to call PlayHQ
   const seasonOk   = !!s.seasonId;
   const teamsOk    = s.teams.length > 0;
   const enabledCt  = s.teams.filter(t => t._enabled).length;
