@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.24</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.25</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9386,6 +9386,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
   const coachProfile2  = cfg.coachProfile2  || '';
   const manager      = cfg.manager       || '';
   const contact      = cfg.managerContact || '';
+  const tid          = teamId.replace(/-/g, '');  // safe JS identifier (no hyphens)
 
   const CSS = `*{box-sizing:border-box;margin:0;padding:0;} .kw-section{border-top:1px solid rgba(255,255,255,0.2);} .kw-section:last-child{border-bottom:1px solid rgba(255,255,255,0.2);} .kw-section-head{display:flex;justify-content:space-between;align-items:center;padding:16px 0;cursor:pointer;user-select:none;} .kw-section-head h3{color:#F5C800;font-size:18px;font-weight:700;margin:0;letter-spacing:.01em;} .kw-chevron{color:#F5C800;font-size:16px;transition:transform .2s;line-height:1;} .kw-chevron.open{transform:rotate(180deg);} .kw-section-body{padding:0 0 16px;display:none;} .kw-section-body.open{display:block;} .kw-row{display:flex;gap:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);font-size:14px;align-items:flex-start;} .kw-row:last-child{border-bottom:none;} .kw-lbl{color:rgba(255,255,255,0.5);font-weight:600;min-width:110px;flex-shrink:0;font-size:13px;padding-top:1px;} .kw-val{color:#fff;} .kw-note{background:rgba(245,200,0,0.12);border-left:3px solid #F5C800;padding:8px 12px;font-size:13px;color:rgba(255,255,255,0.85);margin:8px 0;border-radius:0 4px 4px 0;} .kw-bio{font-size:14px;color:rgba(255,255,255,0.8);line-height:1.6;margin-bottom:10px;} .kw-bio:last-child{margin-bottom:0;} .kw-kpis{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;} .kw-kpi{flex:1;min-width:60px;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:12px 8px;text-align:center;} .kw-kpi-val{font-size:24px;font-weight:800;color:#F5C800;line-height:1;} .kw-kpi-lbl{font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.5px;margin-top:3px;} .kw-games-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;} .kw-game{background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:12px;} .kw-game-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.4);margin-bottom:6px;} .kw-game-opp{font-weight:700;font-size:15px;color:#fff;margin-bottom:4px;} .kw-game-meta{font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:2px;} .kw-outcome-won{color:#4ade80;font-weight:700;} .kw-outcome-lost{color:#f87171;font-weight:700;} .kw-outcome-draw{color:#fbbf24;font-weight:700;} .kw-score{font-size:16px;font-weight:800;} .kw-tabs{display:flex;gap:6px;margin-bottom:14px;} .kw-tab{padding:7px 16px;border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,0.25);background:transparent;color:rgba(255,255,255,0.6);} .kw-tab.act{background:#F5C800;color:#013C1E;border-color:#F5C800;} table{width:100%;border-collapse:collapse;font-size:13px;} thead tr{border-bottom:1px solid rgba(255,255,255,0.2);} th{padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.4);} td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.85);} tr.kjfc-row td{color:#F5C800;font-weight:700;} .kw-fix-opp{font-weight:700;color:#fff;} tr.kjfc-row .kw-fix-opp{color:#F5C800;} .kw-badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:700;} .kw-badge-w{background:#166534;color:#4ade80;} .kw-badge-l{background:#7f1d1d;color:#fca5a5;} .kw-badge-d{background:#78350f;color:#fcd34d;} .kw-badge-f{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);} .kw-loading{text-align:center;padding:24px;color:rgba(255,255,255,0.5);font-size:13px;} .kw-error{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;padding:10px 12px;border-radius:6px;font-size:13px;} .kw-coming{background:rgba(245,200,0,0.1);border:1px solid rgba(245,200,0,0.3);border-radius:6px;padding:14px;font-size:13px;color:#F5C800;text-align:center;margin-top:4px;}`;
 
@@ -9432,12 +9433,12 @@ ${toggleFn}
   return `<div id="kjfc-w-${teamId}" style="color:#fff;font-family:inherit;"><style>#kjfc-w-${teamId}{${CSS}}</style>
 ${infoHtml ? sec(teamId+'-info', 'Team Info', infoHtml, true) : ''}
 ${cpHtml   ? sec(teamId+'-coach','About the Coach', cpHtml, false) : ''}
-<div id="kjfc-live-${teamId}"><div class="kw-loading">&#9203; Loading live data&hellip;</div></div>
+<div id="kjfc-live-${tid}"><div class="kw-loading">&#9203; Loading live data&hellip;</div></div>
 ${toggleFn}
 <script>
 (function(){
   var API_KEY='${apiKey}',GRADE='${gradeId}',TID='${teamId}';
-  var el=document.getElementById('kjfc-live-${teamId}');
+  var el=document.getElementById('kjfc-live-${tid}');
 
   function sec2(id,title,body,open){
     return '<div class="kw-section">'
@@ -9456,11 +9457,11 @@ ${toggleFn}
   function ow(o){return(o==='WON'||o==='WON_BY_FORFEIT')?'WIN':o==='DRAWN'?'DRAW':'LOSS';}
   function fetchJ(path,cb){var x=new XMLHttpRequest();x.open('GET','https://api.playhq.com'+path,true);x.setRequestHeader('x-api-key',API_KEY);x.setRequestHeader('x-phq-tenant','afl');x.onload=function(){try{cb(null,JSON.parse(x.responseText));}catch(e){cb(e);}};x.onerror=function(){cb(new Error('Network error'));};x.send();}
 
-  window['kwTab_${teamId}']=function(tab){
-    document.getElementById('kw-fix-${teamId}').style.display=tab==='fix'?'':'none';
-    document.getElementById('kw-lad-${teamId}').style.display=tab==='lad'?'':'none';
-    document.getElementById('kw-tf-${teamId}').classList.toggle('act',tab==='fix');
-    document.getElementById('kw-tl-${teamId}').classList.toggle('act',tab==='lad');
+  window['kwTab_${tid}']=function(tab){
+    document.getElementById('kw-fix-${tid}').style.display=tab==='fix'?'':'none';
+    document.getElementById('kw-lad-${tid}').style.display=tab==='lad'?'':'none';
+    document.getElementById('kw-tf-${tid}').classList.toggle('act',tab==='fix');
+    document.getElementById('kw-tl-${tid}').classList.toggle('act',tab==='lad');
   };
 
   function render(games,ladder){
@@ -9506,10 +9507,10 @@ ${toggleFn}
     html+=sec2('games','Game Day',gH,true);
 
     var tabH='<div class="kw-tabs">'
-      +'<button class="kw-tab act" id="kw-tf-${teamId}" onclick="kwTab_${teamId}(\'fix\')">Fixtures &amp; Results</button>'
-      +'<button class="kw-tab" id="kw-tl-${teamId}" onclick="kwTab_${teamId}(\'lad\')">Ladder</button>'
+      +'<button class="kw-tab act" id="kw-tf-${tid}" onclick="kwTab_${tid}(\'fix\')">Fixtures &amp; Results</button>'
+      +'<button class="kw-tab" id="kw-tl-${tid}" onclick="kwTab_${tid}(\'lad\')">Ladder</button>'
       +'</div>';
-    tabH+='<div id="kw-fix-${teamId}"><table><thead><tr><th>Round</th><th>Opponent</th><th>Date</th><th>Venue</th><th>Result</th></tr></thead><tbody>';
+    tabH+='<div id="kw-fix-${tid}"><table><thead><tr><th>Round</th><th>Opponent</th><th>Date</th><th>Venue</th><th>Result</th></tr></thead><tbody>';
     all.forEach(function(g){
       var k=g.competitors.find(function(c){return c.id===TID;});
       var o=g.competitors.find(function(c){return c.id!==TID;});
@@ -9523,7 +9524,7 @@ ${toggleFn}
       tabH+='</tr>';
     });
     tabH+='</tbody></table></div>';
-    tabH+='<div id="kw-lad-${teamId}" style="display:none;">';
+    tabH+='<div id="kw-lad-${tid}" style="display:none;">';
     if(ladder&&ladder.data&&ladder.data[0]&&ladder.data[0].ladders&&ladder.data[0].ladders[0]){
       var st=ladder.data[0].ladders[0].standings;
       tabH+='<table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>D</th><th>%</th><th>Pts</th></tr></thead><tbody>';
