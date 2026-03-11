@@ -910,6 +910,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button class="dtab dashboard-tab" id="dash-tab-sponsors" onclick="switchDashboard('sponsors')">🏆 Sponsorship</button>
       <button class="dtab dashboard-tab" id="dash-tab-recruitment" onclick="switchDashboard('recruitment')" style="display:none;">🏉 Recruitment</button>
       <button class="dtab dashboard-tab" id="dash-tab-admin" onclick="switchDashboard('admin-panel')" style="display:none;">⚙️ Admin</button>
+      <button class="dtab dashboard-tab" id="dash-tab-website" onclick="switchDashboard('website')" style="display:none;">🌐 Website</button>
     </div>
     <!-- Row 2a: Sponsor sub-tabs -->
     <div class="dbar-row2 dbar-row2-sponsor" id="dash-sub-sponsors">
@@ -1053,6 +1054,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div id="pl-body" style="min-height:calc(100vh - 160px);padding-top:4px;"></div>
     </div>
     <div id="admin-panel-content" style="display:none;"></div>
+    <div id="website-content" style="display:none;padding:16px;max-width:900px;margin:0 auto;"></div>
   </main>
 
 
@@ -1964,6 +1966,9 @@ function renderUserUI() {
 
   const at = document.getElementById('dash-tab-admin');
   if (at) at.style.display = canSeeDash('admin') ? 'flex' : 'none';
+
+  const wt = document.getElementById('dash-tab-website');
+  if (wt) wt.style.display = canSeeDash('admin') ? 'flex' : 'none';
 
   const hma = document.getElementById('hmenu-admin');
   if (hma) hma.style.display = canSeeDash('admin') ? 'block' : 'none';
@@ -5839,11 +5844,15 @@ function switchDashboard(which) {
   document.getElementById('dash-tab-recruitment').classList.toggle('act', which === 'recruitment');
   const adminTab = document.getElementById('dash-tab-admin');
   if (adminTab) adminTab.classList.toggle('act', which === 'admin-panel');
+  const websiteTab = document.getElementById('dash-tab-website');
+  if (websiteTab) websiteTab.classList.toggle('act', which === 'website');
 
   // Sub-nav rows
   document.getElementById('dash-sub-sponsors').style.display    = which === 'sponsors'    ? 'flex' : 'none';
   document.getElementById('dash-sub-recruitment').style.display = which === 'recruitment' ? 'flex' : 'none';
   document.getElementById('dash-sub-admin').style.display       = which === 'admin-panel' ? 'flex' : 'none';
+  const websiteSubnav = document.getElementById('dash-sub-website');
+  if (websiteSubnav) websiteSubnav.style.display = which === 'website' ? 'flex' : 'none';
   // Show/hide Messaging tab based on canSMS permission
   const _msgTab = document.getElementById('admin-tab-messaging');
   if (_msgTab) _msgTab.style.display = (me && me.canSMS) ? '' : 'none';
@@ -5853,6 +5862,8 @@ function switchDashboard(which) {
   document.getElementById('recruitment-content').style.display = which === 'recruitment' ? 'block' : 'none';
   const adminContent = document.getElementById('admin-panel-content');
   if (adminContent) adminContent.style.display = which === 'admin-panel' ? 'block' : 'none';
+  const websiteContent = document.getElementById('website-content');
+  if (websiteContent) websiteContent.style.display = which === 'website' ? 'block' : 'none';
 
   if (which === 'sponsors') {
     // Always re-render sponsors overview — clear any sub-panel state
@@ -5882,6 +5893,10 @@ function switchDashboard(which) {
 
   if (which === 'admin-panel') {
     renderAdminPanel();
+  }
+
+  if (which === 'website') {
+    renderWebsiteTab();
   }
 }
 
@@ -8592,89 +8607,46 @@ function handleImportFile(file) {
             excludeReason = 'Duplicate in file';
           } else {
             // Apply name+DOB fuzzy remap if profileId still not recognised — mirrors backend import
-            // This catches PlayHQ reassigning a new ID to an existing player.
-            // When found: if the IDs differ, surface as possible_id_change for user confirmation
-            // rather than silently remapping — this is the case that was causing Beau Ferguson
-            // to appear as a new player when PlayHQ had assigned him a new profile ID.
-            let idChangedFrom = null; // incoming CSV id if a possible_id_change is detected
+            // This catches PlayHQ reassigning a new ID to an existing player
             if (!pm[profileId] && !existingSeasonIds.has(profileId)) {
               const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${normaliseDobFE(dob)||dob}`;
               const fuzzyMatch = Object.entries(pm).find(([pid, p]) =>
                 `${(p.firstName||'').toLowerCase()}_${(p.lastName||'').toLowerCase()}_${normaliseDobFE(p.dob)||p.dob}` === nameKey
               );
               if (fuzzyMatch) {
-                // IDs differ — PlayHQ has reassigned. Surface for user confirmation instead of
-                // silently remapping. Store both IDs so the UI can show them and create the alias.
-                idChangedFrom = profileId; // original incoming CSV id
-                profileId = fuzzyMatch[0]; // tentatively remap to existing id
-                dupType = 'possible_id_change';
-                // Capture existing player details now while pm is in scope,
-                // so the confirmation card can show who the match is
-                const existingP = pm[profileId];
-                const existingSeasonRow = (plData?.seasons||[]).find(s => s.profileId === profileId && +s.year === season);
-                const existingTeamName = existingSeasonRow?.assignedTeam
-                  ? ((plData?.teams||[]).find(t => t.id === existingSeasonRow.assignedTeam)?.name || existingSeasonRow.assignedTeam)
-                  : null;
-                var _matchedPlayer = existingP ? {
-                  firstName: existingP.firstName || '',
-                  lastName:  existingP.lastName  || '',
-                  dob:       normaliseDobFE(existingP.dob) || existingP.dob || '',
-                  gender:    existingP.gender    || '',
-                  team:      existingTeamName,
-                  hasSeasonRow: !!existingSeasonRow,
-                } : null;
+                profileId = fuzzyMatch[0]; // remap to existing ID
               }
             }
 
-            if (dupType !== 'possible_id_change') {
-              if (existingSeasonIds.has(profileId)) {
-                dupType = 'already_this_season';
+            if (existingSeasonIds.has(profileId)) {
+              dupType = 'already_this_season';
+            } else {
+              if (pm[profileId]) {
+                dupType = 'returning';
               } else {
-                if (pm[profileId]) {
-                  dupType = 'returning';
-                } else {
-                  const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${dob}`;
-                  const fuzzyMatch = Object.values(pm).find(p =>
-                    `${p.firstName.toLowerCase()}_${p.lastName.toLowerCase()}_${p.dob}` === nameKey
-                  );
-                  if (fuzzyMatch) dupType = 'name_dob_match';
-                }
+                const nameKey = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${dob}`;
+                const fuzzyMatch = Object.values(pm).find(p =>
+                  `${p.firstName.toLowerCase()}_${p.lastName.toLowerCase()}_${p.dob}` === nameKey
+                );
+                if (fuzzyMatch) dupType = 'name_dob_match';
               }
             }
-
-            // After possible_id_change remap, also check if they already have a season row
-            // (the alias would have caught this on a prior import — surface as already_this_season
-            // with the id_change context still preserved for the user to see)
-            if (dupType === 'possible_id_change' && existingSeasonIds.has(profileId)) {
-              dupType = 'possible_id_change_already_imported';
-            }
-
-            return { r, idx, firstName, lastName, dob, profileId,
-                     incomingProfileId: idChangedFrom, // set only for possible_id_change rows
-                     matchedPlayer: (typeof _matchedPlayer !== 'undefined' ? _matchedPlayer : null),
-                     age, ageGroup, gender, school, suburb,
-                     excludeReason, dupType, isCancelled,
-                     // possible_id_change rows start unchecked — user must confirm before importing
-                     _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'already_cancelled' && dupType !== 'possible_id_change' && dupType !== 'possible_id_change_already_imported' };
           }
         }
       }
 
-      return { r, idx, firstName, lastName, dob, profileId,
-               incomingProfileId: null,
-               matchedPlayer: null,
-               age, ageGroup, gender, school, suburb,
+      return { r, idx, firstName, lastName, dob, profileId, age, ageGroup, gender, school, suburb,
                excludeReason, dupType, isCancelled,
                // Pre-checked: new + returning + name_dob_match + cancelled (triggers removal)
-               // Unchecked: already_this_season, already_cancelled, possible_id_change (need confirmation)
-               _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'already_cancelled' && dupType !== 'possible_id_change' && dupType !== 'possible_id_change_already_imported' };
+               // Unchecked: already_this_season, already_cancelled (no action), excluded (inc. duplicates)
+               _checked: !excludeReason && dupType !== 'already_this_season' && dupType !== 'already_cancelled' };
     });
 
     _importData = { season, rows: categorised, file: file.name, rawCsv: ev.target.result,
       tabDesc: {
         inc: 'Players to import or already imported — new, returning, and existing registrations',
         exc: 'Filtered out — seniors, volunteers, other clubs, over-age, and duplicates in file',
-        dup: 'Requires attention — possible ID changes and cancellations. Confirm each before importing.',
+        dup: 'Requires attention — new cancellations and other flagged records',
       }
     };
     renderImportReview(categorised, season, file.name, seasonChanged ? csvSeason : null);
@@ -8694,10 +8666,9 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
   const fresh       = include.filter(r => !r.dupType);
   const returning   = include.filter(r => r.dupType === 'returning');
   const nameDob     = include.filter(r => r.dupType === 'name_dob_match');
-  const alreadyImp  = include.filter(r => r.dupType === 'already_this_season' || r.dupType === 'possible_id_change_already_imported');
+  const alreadyImp  = include.filter(r => r.dupType === 'already_this_season');
   const alreadyCanc = include.filter(r => r.dupType === 'already_cancelled');
   const cancelled   = include.filter(r => r.dupType === 'cancelled');
-  const idChanges   = include.filter(r => r.dupType === 'possible_id_change' || r.dupType === 'possible_id_change_already_imported');
 
   // Step-by-step arithmetic
   const totalRecords    = rows.length;
@@ -8742,7 +8713,6 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
         <tr><td style="padding:3px 0;color:var(--text-dim);">Excluded (seniors, volunteers, other clubs)</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#dc2626;">−${filtered.length}</td></tr>
         ${csvDups.length > 0 ? `<tr><td style="padding:3px 0;color:var(--text-dim);">Duplicate${csvDups.length!==1?'s':''} in file (${dupNames})</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#dc2626;">−${csvDups.length}</td></tr>` : ''}
         ${totalCanc > 0 ? `<tr><td style="padding:3px 0;color:var(--text-dim);">Cancellations (${newCanc} new, ${alreadyProcCanc} already processed)</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#dc2626;">−${totalCanc}</td></tr>` : ''}
-        ${idChanges.length > 0 ? `<tr><td style="padding:3px 0;color:#92400e;">⚠ Possible ID changes — requires confirmation (${idChanges.map(r=>`${r.firstName} ${r.lastName}`).join(', ')})</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#92400e;">${idChanges.length}</td></tr>` : ''}
         <tr><td colspan="2" style="padding:0;"><div style="border-top:1.5px solid var(--green);margin:6px 0;"></div></td></tr>
         <tr><td style="padding:3px 0;font-weight:700;font-size:14px;color:var(--green);">Player registrations</td><td style="padding:3px 0;text-align:right;font-weight:700;font-size:14px;color:var(--green);">${registrations}</td></tr>
         <tr><td colspan="2" style="padding:2px 0 0;font-size:12px;color:var(--text-dim);">${newRegLabel}, ${alreadyReg} already imported</td></tr>
@@ -8778,14 +8748,6 @@ function renderImportReview(rows, season, filename, autoDetectedSeason) {
 
   renderImportTab('inc', rows);
   updateImportCount(rows);
-
-  // If there are unresolved ID changes, switch to the Flagged tab immediately
-  // so the user sees them without having to discover the warning themselves
-  const hasIdChanges = rows.some(r => r.dupType === 'possible_id_change' || r.dupType === 'possible_id_change_already_imported');
-  if (hasIdChanges) {
-    const dupTabBtn = document.querySelector('.imp-vtab[data-vtab="dup"]');
-    if (dupTabBtn) switchImportTab(dupTabBtn, 'dup');
-  }
 }
 
 function switchImportTab(btn, tabId) {
@@ -8819,13 +8781,11 @@ function renderImportTab(tabId, rows) {
   }
 
   const dupColour = {
-    already_this_season:                { bg:'#f0fdf4', badge:'#16a34a', label:'Already imported' },
-    returning:                          { bg:'#eff6ff', badge:'#2563eb', label:'Returning — will update contact details' },
-    name_dob_match:                     { bg:'#fefce8', badge:'#ca8a04', label:'Name+DOB match — will update contact details' },
-    cancelled:                          { bg:'#fef2f2', badge:'#dc2626', label:'Cancelled — will remove season entry' },
-    already_cancelled:                  { bg:'#f0fdf4', badge:'#16a34a', label:'Already cancelled' },
-    possible_id_change:                 { bg:'#fffbeb', badge:'#b45309', label:'Possible ID change — confirm identity' },
-    possible_id_change_already_imported:{ bg:'#fffbeb', badge:'#b45309', label:'Possible ID change — already imported' },
+    already_this_season: { bg:'#f0fdf4', badge:'#16a34a', label:'Already imported' },
+    returning:           { bg:'#eff6ff', badge:'#2563eb', label:'Returning — will update contact details' },
+    name_dob_match:      { bg:'#fefce8', badge:'#ca8a04', label:'Name+DOB match — will update contact details' },
+    cancelled:           { bg:'#fef2f2', badge:'#dc2626', label:'Cancelled — will remove season entry' },
+    already_cancelled:   { bg:'#f0fdf4', badge:'#16a34a', label:'Already cancelled' },
   };
 
   list.innerHTML = filtered.map(item => {
@@ -8833,58 +8793,7 @@ function renderImportTab(tabId, rows) {
     const ageDisp = age ? `U${age}` : (item.ageGroup||'?');
     const dc      = item.dupType ? dupColour[item.dupType] : null;
     const rowBg   = item.excludeReason ? '#fef2f2' : (dc?.bg || '#fff');
-    const canCheck = !item.excludeReason && item.dupType !== 'possible_id_change' && item.dupType !== 'possible_id_change_already_imported';
-    const isIdChange = item.dupType === 'possible_id_change' || item.dupType === 'possible_id_change_already_imported';
-
-    // Expanded UI for possible ID change rows
-    if (isIdChange) {
-      const alreadyImported = item.dupType === 'possible_id_change_already_imported';
-      return `<div style="padding:12px 14px;border-bottom:1px solid var(--border);background:${rowBg};" id="imp-row-${item.idx}">
-        <div style="display:flex;align-items:flex-start;gap:10px;">
-          <div style="width:15px;height:15px;flex-shrink:0;margin-top:2px;"></div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:4px;">
-              ⚠ ${item.firstName} ${item.lastName}
-              <span style="background:#fffbeb;color:#b45309;border:1px solid #b45309;font-size:9px;font-weight:700;border-radius:4px;padding:1px 5px;margin-left:4px;text-transform:uppercase;">${dc.label}</span>
-            </div>
-            <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">
-              ${ageDisp} · ${item.gender||'—'} · DOB ${item.dob||'—'} · ${item.school||item.suburb||'—'}
-            </div>
-            <div style="background:#fff;border:1px solid #fcd34d;border-radius:7px;padding:10px 12px;font-size:12px;margin-bottom:10px;">
-              <div style="font-weight:600;color:#92400e;margin-bottom:8px;">PlayHQ has assigned a new Profile ID to this player. Is this the same person as the existing record below?</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;">
-                <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:8px 10px;">
-                  <div style="font-size:10px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">CSV (incoming)</div>
-                  <div style="font-weight:600;font-size:12px;">${item.firstName} ${item.lastName}</div>
-                  <div style="font-size:11px;color:var(--text-dim);">DOB ${item.dob||'—'} · ${item.gender||'—'}</div>
-                  <div style="font-size:10px;font-family:monospace;color:#dc2626;margin-top:4px;word-break:break-all;">${item.incomingProfileId||'—'}</div>
-                </div>
-                <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px 10px;">
-                  <div style="font-size:10px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Existing record</div>
-                  ${item.matchedPlayer ? `
-                  <div style="font-weight:600;font-size:12px;">${item.matchedPlayer.firstName} ${item.matchedPlayer.lastName}</div>
-                  <div style="font-size:11px;color:var(--text-dim);">DOB ${item.matchedPlayer.dob||'—'} · ${item.matchedPlayer.gender||'—'}</div>
-                  ${item.matchedPlayer.team ? `<div style="font-size:11px;color:var(--text-dim);">Team: ${item.matchedPlayer.team}</div>` : item.matchedPlayer.hasSeasonRow ? `<div style="font-size:11px;color:var(--text-dim);">Registered ${season} — no team yet</div>` : ''}
-                  <div style="font-size:10px;font-family:monospace;color:#16a34a;margin-top:4px;word-break:break-all;">${item.profileId}</div>
-                  ` : `<div style="font-size:11px;color:var(--text-dim);">ID: ${item.profileId}</div>`}
-                </div>
-              </div>
-              ${alreadyImported ? `<div style="font-size:11px;color:#16a34a;font-weight:600;">✓ The existing record is already imported for this season.</div>` : ''}
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button onclick="confirmIdChange(${item.idx}, true)"
-                style="padding:5px 12px;background:#013C1E;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Barlow',sans-serif;">
-                ✓ Same person — link IDs
-              </button>
-              <button onclick="confirmIdChange(${item.idx}, false)"
-                style="padding:5px 12px;background:#fff;color:#dc2626;border:1.5px solid #dc2626;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Barlow',sans-serif;">
-                Different person — import as new
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>`;
-    }
+    const canCheck = !item.excludeReason;
 
     return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);background:${rowBg};${!item._checked&&canCheck?'opacity:.6':''}" id="imp-row-${item.idx}">
       ${canCheck
@@ -8927,20 +8836,8 @@ function updateImportCount(rows) {
   const sel = rows.filter(r => r._checked).length;
   const selCancelled = rows.filter(r => r._checked && r.dupType === 'cancelled').length;
   const selImporting = sel - selCancelled;
-  const unresolved = rows.filter(r => r.dupType === 'possible_id_change' || r.dupType === 'possible_id_change_already_imported').length;
   const el  = document.getElementById('imp-sel-count');
   const btn = document.getElementById('imp-confirm-btn');
-
-  if (unresolved > 0) {
-    // Block import until all ID changes are resolved
-    if (el) el.innerHTML = `<span style="color:#b45309;font-weight:600;">⚠ ${unresolved} possible ID change${unresolved!==1?'s':''} need${unresolved===1?'s':''} confirmation before importing — see Flagged tab</span>`;
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = `Resolve ID changes first`;
-    }
-    return;
-  }
-
   let label = `${sel} selected`;
   if (selCancelled > 0) {
     label = `${selImporting} to import, ${selCancelled} to cancel`;
@@ -8948,66 +8845,6 @@ function updateImportCount(rows) {
   if (el)  el.textContent  = label;
   if (btn) btn.textContent = `Import ${sel} player${sel!==1?'s':''}`;
   if (btn) btn.disabled    = sel === 0;
-}
-
-async function confirmIdChange(idx, isSamePerson) {
-  const item = _importData?.rows.find(r => r.idx === idx);
-  if (!item) return;
-
-  const rowEl = document.getElementById(`imp-row-${idx}`);
-
-  if (isSamePerson) {
-    // Show saving state on the button row
-    if (rowEl) {
-      const btns = rowEl.querySelectorAll('button');
-      btns.forEach(b => { b.disabled = true; b.style.opacity = '0.5'; });
-      const statusEl = document.createElement('div');
-      statusEl.style.cssText = 'font-size:12px;color:var(--text-dim);margin-top:8px;';
-      statusEl.textContent = 'Saving alias…';
-      rowEl.querySelector('div > div:last-child')?.appendChild(statusEl);
-    }
-
-    // Save the alias — incoming (CSV) id → existing (our) id
-    const res = await api('savePlayerAlias', { oldId: item.incomingProfileId, keepId: item.profileId });
-
-    if (res.error) {
-      showToast('Failed to save alias: ' + res.error, 'err');
-      if (rowEl) {
-        const btns = rowEl.querySelectorAll('button');
-        btns.forEach(b => { b.disabled = false; b.style.opacity = '1'; });
-      }
-      return;
-    }
-
-    // Alias saved — reclassify the row.
-    // profileId is already set to the existing (kept) id from the fuzzy match.
-    // Re-check season membership now that alias is confirmed.
-    const existingSeasonIds = new Set(
-      (plData?.seasons||[]).filter(s=>+s.year===_importData.season).map(s=>s.profileId)
-    );
-    item.dupType = existingSeasonIds.has(item.profileId) ? 'already_this_season' : 'returning';
-    item.incomingProfileId = null;
-    item._checked = item.dupType === 'returning'; // check if there's something to import, uncheck if already done
-
-    showToast(`Alias saved — ${item.firstName} ${item.lastName} linked to existing record`, 'ok');
-
-  } else {
-    // Different person — treat as a genuinely new player with the incoming CSV id
-    item.profileId = item.incomingProfileId; // revert to original CSV id
-    item.incomingProfileId = null;
-    item.dupType = null; // plain new player
-    item._checked = true;
-  }
-
-  // Re-render the full preview so counts, tabs and summary all update
-  renderImportReview(_importData.rows, _importData.season, _importData.file, null);
-  // Switch to the flagged tab if there are still unresolved items, otherwise include tab
-  const stillFlagged = _importData.rows.filter(r =>
-    r.dupType === 'possible_id_change' || r.dupType === 'possible_id_change_already_imported'
-  );
-  const activeTab = stillFlagged.length > 0 ? 'dup' : 'inc';
-  const tabBtn = document.querySelector(`.imp-vtab[data-vtab="${activeTab}"]`);
-  if (tabBtn) switchImportTab(tabBtn, activeTab);
 }
 
 async function runImport() {
@@ -9173,6 +9010,754 @@ function parseCSVLine(line) {
 // ── SETTINGS TAB ─────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', init);
+
+// =============================================================================
+// ── WEBSITE TAB ──────────────────────────────────────────────────────────────
+// =============================================================================
+
+let _websiteState = {
+  proxyUrl:    '',
+  orgId:       '862f96f9-42b8-4231-a6e2-02278173f2b8',
+  seasonId:    '',
+  seasonName:  '',
+  teams:       [],       // discovered from PlayHQ
+  savedTeams:  {},       // teamId -> saved config from sheet
+  section:     'connection' // connection | discover | configure | generate
+};
+
+function renderWebsiteTab() {
+  const el = document.getElementById('website-content');
+  if (!el) return;
+
+  // Load saved config first time
+  google.script.run
+    .withSuccessHandler(cfg => {
+      if (cfg && !cfg.error) {
+        _websiteState.proxyUrl   = cfg.proxyUrl   || '';
+        _websiteState.orgId      = cfg.orgId      || _websiteState.orgId;
+        _websiteState.seasonId   = cfg.seasonId   || '';
+        _websiteState.seasonName = cfg.seasonName || '';
+      }
+      google.script.run
+        .withSuccessHandler(teams => {
+          _websiteState.savedTeams = {};
+          (teams || []).forEach(t => { _websiteState.savedTeams[t.teamId] = t; });
+          _drawWebsiteTab(el);
+        })
+        .withFailureHandler(() => _drawWebsiteTab(el))
+        .getWebsiteTeams();
+    })
+    .withFailureHandler(() => _drawWebsiteTab(el))
+    .getWebsiteConfig();
+}
+
+function _drawWebsiteTab(el) {
+  const s = _websiteState;
+  const sections = ['connection', 'discover', 'configure', 'generate'];
+  const labels   = ['1 · Connection', '2 · Discover Teams', '3 · Configure', '4 · Generate'];
+
+  const proxyOk    = !!s.proxyUrl;
+  const seasonOk   = !!s.seasonId;
+  const teamsOk    = s.teams.length > 0;
+  const enabledCt  = s.teams.filter(t => t._enabled).length;
+
+  let html = `
+    <style>
+      .wb-section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;overflow:hidden;}
+      .wb-head{padding:12px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card);}
+      .wb-head:hover{background:var(--green-light);}
+      .wb-head-left{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;}
+      .wb-head-badge{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;}
+      .wb-badge-ok{background:#d1fae5;color:#065f46;}
+      .wb-badge-warn{background:#fef3c7;color:#92400e;}
+      .wb-badge-none{background:var(--bg);color:var(--text-dim);}
+      .wb-body{padding:16px;border-top:1px solid var(--border);}
+      .wb-body.collapsed{display:none;}
+      .wb-field{margin-bottom:12px;}
+      .wb-field label{display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:4px;}
+      .wb-field input,.wb-field select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--card);color:var(--text);box-sizing:border-box;}
+      .wb-btn{padding:8px 16px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit;}
+      .wb-btn-primary{background:var(--green);color:#fff;}
+      .wb-btn-primary:hover{background:var(--green-dark,#012a15);}
+      .wb-btn-secondary{background:var(--bg);color:var(--text);border:1px solid var(--border);}
+      .wb-btn-secondary:hover{background:var(--green-light);}
+      .wb-btn-sm{padding:5px 10px;font-size:12px;}
+      .wb-status{font-size:12px;padding:6px 10px;border-radius:5px;margin-top:6px;}
+      .wb-status-ok{background:#d1fae5;color:#065f46;}
+      .wb-status-err{background:#fee2e2;color:#991b1b;}
+      .wb-status-info{background:#dbeafe;color:#1e40af;}
+      .wb-team-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:var(--bg);}
+      .wb-team-check{width:16px;height:16px;cursor:pointer;flex-shrink:0;}
+      .wb-team-name{font-weight:600;font-size:13px;flex:1;}
+      .wb-team-grade{font-size:11px;color:var(--text-dim);}
+      .wb-grade-ok{color:#065f46;}
+      .wb-grade-pending{color:#92400e;}
+      .wb-config-card{border:1px solid var(--border);border-radius:8px;margin-bottom:12px;overflow:hidden;}
+      .wb-config-head{padding:10px 14px;background:var(--green-light);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:space-between;}
+      .wb-config-body{padding:14px;}
+      .wb-config-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+      @media(max-width:600px){.wb-config-grid{grid-template-columns:1fr;}}
+      .wb-code-block{background:#1a1a2e;color:#e2e8f0;padding:14px;border-radius:6px;font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;margin-top:8px;max-height:300px;overflow-y:auto;}
+      .wb-copy-btn{float:right;padding:3px 10px;font-size:11px;background:var(--yellow);color:var(--green-dark,#012a15);border:none;border-radius:4px;cursor:pointer;font-weight:700;margin-bottom:4px;}
+    </style>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div style="font-size:18px;font-weight:800;color:var(--green);">🌐 Website Integration</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Generate live fixtures &amp; ladder widgets for your Squarespace website</div>
+      </div>
+    </div>`;
+
+  // ── SECTION 1: Connection ─────────────────────────────────────
+  const connBadge = proxyOk
+    ? `<span class="wb-head-badge wb-badge-ok">✓ Connected</span>`
+    : `<span class="wb-head-badge wb-badge-warn">Setup required</span>`;
+
+  html += `
+    <div class="wb-section">
+      <div class="wb-head" onclick="wbToggle('connection')">
+        <div class="wb-head-left">🔌 1 · Proxy Connection ${connBadge}</div>
+        <span id="wb-arrow-connection">▼</span>
+      </div>
+      <div class="wb-body" id="wb-body-connection">
+        <p style="font-size:12px;color:var(--text-dim);margin:0 0 12px;">
+          The proxy is a separate Google Apps Script project that holds your PlayHQ API key
+          and forwards requests to PlayHQ. Deploy it first, then paste the URL here.
+        </p>
+        <div class="wb-field">
+          <label>Proxy Web App URL</label>
+          <input type="url" id="wb-proxy-url" value="${_escHtml(s.proxyUrl)}"
+            placeholder="https://script.google.com/macros/s/.../exec"
+            oninput="_websiteState.proxyUrl = this.value" />
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button class="wb-btn wb-btn-primary wb-btn-sm" onclick="wbTestProxy()">Test Connection</button>
+          <button class="wb-btn wb-btn-secondary wb-btn-sm" onclick="wbSaveProxyUrl()">Save URL</button>
+          <span id="wb-proxy-status"></span>
+        </div>
+        <div style="margin-top:14px;padding:12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);">
+          <div style="font-size:12px;font-weight:700;margin-bottom:6px;">📋 How to deploy the proxy</div>
+          <ol style="font-size:12px;color:var(--text-dim);margin:0;padding-left:18px;line-height:1.8;">
+            <li>Create a new Google Apps Script project at <a href="https://script.google.com" target="_blank" style="color:var(--green);">script.google.com</a></li>
+            <li>Paste the contents of <strong>proxy.gs</strong> into Code.gs</li>
+            <li>Go to Project Settings → Script Properties → Add property: <code>PHQ_API_KEY</code> = your PlayHQ key</li>
+            <li>Click Deploy → New deployment → Web app → Execute as: Me → Who has access: Anyone → Deploy</li>
+            <li>Copy the web app URL and paste it above</li>
+          </ol>
+        </div>
+      </div>
+    </div>`;
+
+  // ── SECTION 2: Discover ───────────────────────────────────────
+  const discoverBadge = teamsOk
+    ? `<span class="wb-head-badge wb-badge-ok">${s.teams.length} teams loaded</span>`
+    : seasonOk
+      ? `<span class="wb-head-badge wb-badge-warn">Click Discover</span>`
+      : `<span class="wb-head-badge wb-badge-none">Season not selected</span>`;
+
+  const seasonOptLabel = s.seasonName ? ` — ${s.seasonName}` : '';
+
+  html += `
+    <div class="wb-section">
+      <div class="wb-head" onclick="wbToggle('discover')">
+        <div class="wb-head-left">🔍 2 · Discover Teams ${discoverBadge}</div>
+        <span id="wb-arrow-discover">▼</span>
+      </div>
+      <div class="wb-body collapsed" id="wb-body-discover">
+        <p style="font-size:12px;color:var(--text-dim);margin:0 0 12px;">
+          Select the season, then click Discover to load KJFC teams from PlayHQ.
+          Tick the teams you want to display on the website.
+        </p>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;">
+          <div class="wb-field" style="margin:0;flex:1;min-width:200px;">
+            <label>Season</label>
+            <select id="wb-season-sel" onchange="wbSeasonChanged(this)">
+              <option value="">— select season —</option>
+              <option value="516e4c42-0428-4cf3-ba71-9b152ea8bb1b" ${s.seasonId==='516e4c42-0428-4cf3-ba71-9b152ea8bb1b'?'selected':''}>2026</option>
+              <option value="fde9f6d9-d21c-45b4-80c0-5924cb26377c" ${s.seasonId==='fde9f6d9-d21c-45b4-80c0-5924cb26377c'?'selected':''}>2025</option>
+              <option value="7a26fcc0-44a7-4423-ae80-14386820f889" ${s.seasonId==='7a26fcc0-44a7-4423-ae80-14386820f889'?'selected':''}>2024</option>
+            </select>
+          </div>
+          <button class="wb-btn wb-btn-primary wb-btn-sm" onclick="wbDiscover()" ${!proxyOk||!s.seasonId?'disabled title="Save proxy URL and select season first"':''}>Discover Teams</button>
+        </div>
+        <div id="wb-teams-list">${_renderTeamsList()}</div>
+      </div>
+    </div>`;
+
+  // ── SECTION 3: Configure ──────────────────────────────────────
+  const enabledTeams = s.teams.filter(t => t._enabled);
+  const configureBadge = enabledTeams.length > 0
+    ? `<span class="wb-head-badge wb-badge-ok">${enabledTeams.length} team${enabledTeams.length!==1?'s':''} selected</span>`
+    : `<span class="wb-head-badge wb-badge-none">No teams selected</span>`;
+
+  html += `
+    <div class="wb-section">
+      <div class="wb-head" onclick="wbToggle('configure')">
+        <div class="wb-head-left">⚙️ 3 · Configure Teams ${configureBadge}</div>
+        <span id="wb-arrow-configure">▼</span>
+      </div>
+      <div class="wb-body collapsed" id="wb-body-configure">`;
+
+  if (enabledTeams.length === 0) {
+    html += `<p style="font-size:13px;color:var(--text-dim);text-align:center;padding:20px 0;">
+      Tick teams in step 2 to configure them here.</p>`;
+  } else {
+    enabledTeams.forEach(t => {
+      const saved    = _websiteState.savedTeams[t.teamId] || {};
+      const gradeOk  = !!t.gradeId;
+      html += `
+        <div class="wb-config-card">
+          <div class="wb-config-head">
+            <span>${_escHtml(t.name || t.teamId)}</span>
+            <span style="font-size:11px;font-weight:400;">
+              ${gradeOk
+                ? `<span class="wb-grade-ok">✓ Grade assigned</span>`
+                : `<span class="wb-grade-pending">⏳ Grade not yet assigned by NFNL</span>`}
+            </span>
+          </div>
+          <div class="wb-config-body">
+            <div class="wb-config-grid">
+              <div class="wb-field">
+                <label>Display Name</label>
+                <input type="text" data-tid="${t.teamId}" data-field="displayName"
+                  value="${_escHtml(saved.displayName || t.name || '')}"
+                  placeholder="e.g. Kinglake Under 16 Boys" onchange="wbFieldChange(this)" />
+              </div>
+              <div class="wb-field">
+                <label>Training Day &amp; Time</label>
+                <input type="text" data-tid="${t.teamId}" data-field="training"
+                  value="${_escHtml(saved.training || '')}"
+                  placeholder="e.g. Wednesdays 5:30pm" onchange="wbFieldChange(this)" />
+              </div>
+              <div class="wb-field">
+                <label>Training Venue</label>
+                <input type="text" data-tid="${t.teamId}" data-field="venue"
+                  value="${_escHtml(saved.venue || '')}"
+                  placeholder="e.g. Kinglake Memorial Oval" onchange="wbFieldChange(this)" />
+              </div>
+              <div class="wb-field">
+                <label>Coach(es)</label>
+                <input type="text" data-tid="${t.teamId}" data-field="coaches"
+                  value="${_escHtml(saved.coaches || '')}"
+                  placeholder="e.g. John Smith" onchange="wbFieldChange(this)" />
+              </div>
+              <div class="wb-field">
+                <label>Team Manager</label>
+                <input type="text" data-tid="${t.teamId}" data-field="manager"
+                  value="${_escHtml(saved.manager || '')}"
+                  placeholder="e.g. Jane Smith" onchange="wbFieldChange(this)" />
+              </div>
+              <div class="wb-field">
+                <label>Manager Contact</label>
+                <input type="text" data-tid="${t.teamId}" data-field="managerContact"
+                  value="${_escHtml(saved.managerContact || '')}"
+                  placeholder="e.g. 0412 345 678" onchange="wbFieldChange(this)" />
+              </div>
+            </div>
+          </div>
+        </div>`;
+    });
+    html += `
+      <div style="text-align:right;margin-top:8px;">
+        <button class="wb-btn wb-btn-primary" onclick="wbSaveConfig()">💾 Save Configuration</button>
+        <span id="wb-save-status" style="font-size:12px;margin-left:8px;"></span>
+      </div>`;
+  }
+
+  html += `</div></div>`;
+
+  // ── SECTION 4: Generate ───────────────────────────────────────
+  const genReady = enabledTeams.some(t => _websiteState.savedTeams[t.teamId]);
+  const genBadge = genReady
+    ? `<span class="wb-head-badge wb-badge-ok">Ready</span>`
+    : `<span class="wb-head-badge wb-badge-none">Configure teams first</span>`;
+
+  html += `
+    <div class="wb-section">
+      <div class="wb-head" onclick="wbToggle('generate')">
+        <div class="wb-head-left">🚀 4 · Generate Code Blocks ${genBadge}</div>
+        <span id="wb-arrow-generate">▼</span>
+      </div>
+      <div class="wb-body collapsed" id="wb-body-generate">
+        <p style="font-size:12px;color:var(--text-dim);margin:0 0 16px;">
+          Copy each code block and paste it into a <strong>Code Block</strong> element on the relevant Squarespace page.
+          The widget fetches live data from PlayHQ via your proxy each time a visitor loads the page.
+        </p>
+        <div id="wb-widgets-output">${_renderWidgets()}</div>
+      </div>
+    </div>`;
+
+  el.innerHTML = html;
+}
+
+// ── Widget generation ─────────────────────────────────────────────────────────
+
+function _renderWidgets() {
+  const s            = _websiteState;
+  const enabledTeams = s.teams.filter(t => t._enabled && s.savedTeams[t.teamId]);
+
+  if (enabledTeams.length === 0) {
+    return `<p style="font-size:13px;color:var(--text-dim);text-align:center;padding:20px 0;">
+      No configured teams found. Complete steps 2 and 3 first.</p>`;
+  }
+
+  return enabledTeams.map(t => {
+    const cfg   = s.savedTeams[t.teamId];
+    const code  = _buildWidgetCode(t, cfg, s.proxyUrl);
+    const label = cfg.displayName || t.name;
+    return `
+      <div class="wb-config-card" style="margin-bottom:16px;">
+        <div class="wb-config-head">
+          <span>${_escHtml(label)}</span>
+          <button class="wb-copy-btn" onclick="wbCopyCode('widget-${t.teamId}')">Copy</button>
+        </div>
+        <div style="padding:10px 14px;">
+          <p style="font-size:12px;color:var(--text-dim);margin:0 0 6px;">
+            Paste into a Squarespace Code Block on the <strong>${_escHtml(label)}</strong> page.
+            ${t.gradeId
+              ? 'Shows live ladder, next game, last result, and full fixture table.'
+              : 'Grade not yet assigned — shows static info + coming soon message.'}
+          </p>
+          <div style="overflow:hidden;">
+            <pre class="wb-code-block" id="widget-${t.teamId}">${_escHtml(code)}</pre>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function _buildWidgetCode(team, cfg, proxyUrl) {
+  const hasGrade  = !!team.gradeId;
+  const teamId    = team.teamId;
+  const gradeId   = team.gradeId || '';
+  const name      = cfg.displayName || team.name || '';
+  const training  = cfg.training    || '';
+  const venue     = cfg.venue       || '';
+  const coaches   = cfg.coaches     || '';
+  const manager   = cfg.manager     || '';
+  const contact   = cfg.managerContact || '';
+
+  // Static-only widget for teams without a grade
+  if (!hasGrade) {
+    return `<div id="kjfc-widget-${teamId}" style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;">
+  <style>
+    #kjfc-widget-${teamId} .kw-card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;}
+    #kjfc-widget-${teamId} .kw-title{font-size:20px;font-weight:800;color:#013C1E;margin-bottom:4px;}
+    #kjfc-widget-${teamId} .kw-info-row{display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:4px 0;border-bottom:1px solid #f3f4f6;}
+    #kjfc-widget-${teamId} .kw-info-row:last-child{border-bottom:none;}
+    #kjfc-widget-${teamId} .kw-label{font-weight:600;color:#6b7280;min-width:90px;flex-shrink:0;}
+    #kjfc-widget-${teamId} .kw-coming{background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:12px;font-size:13px;color:#92400e;text-align:center;margin-top:8px;}
+  </style>
+  <div class="kw-card">
+    <div class="kw-title">${name}</div>
+    <div class="kw-info-row"><span class="kw-label">Training</span><span>${training}</span></div>
+    <div class="kw-info-row"><span class="kw-label">Venue</span><span>${venue}</span></div>
+    <div class="kw-info-row"><span class="kw-label">Coach</span><span>${coaches}</span></div>
+    <div class="kw-info-row"><span class="kw-label">Manager</span><span>${manager}</span></div>
+    <div class="kw-info-row"><span class="kw-label">Contact</span><span>${contact}</span></div>
+  </div>
+  <div class="kw-coming">📅 Fixtures and ladder coming soon — check back once the season draw is released by NFNL.</div>
+</div>`;
+  }
+
+  // Full live widget for teams with a grade
+  return `<div id="kjfc-widget-${teamId}" style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;">
+<style>
+  #kjfc-widget-${teamId} *{box-sizing:border-box;}
+  #kjfc-widget-${teamId} .kw-card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;}
+  #kjfc-widget-${teamId} .kw-title{font-size:20px;font-weight:800;color:#013C1E;margin-bottom:4px;}
+  #kjfc-widget-${teamId} .kw-section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:8px;}
+  #kjfc-widget-${teamId} .kw-info-row{display:flex;gap:8px;font-size:13px;padding:4px 0;border-bottom:1px solid #f3f4f6;}
+  #kjfc-widget-${teamId} .kw-info-row:last-child{border-bottom:none;}
+  #kjfc-widget-${teamId} .kw-label{font-weight:600;color:#6b7280;min-width:90px;flex-shrink:0;}
+  #kjfc-widget-${teamId} .kw-kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+  #kjfc-widget-${teamId} .kw-kpi{flex:1;min-width:80px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px;text-align:center;}
+  #kjfc-widget-${teamId} .kw-kpi-val{font-size:22px;font-weight:800;color:#013C1E;}
+  #kjfc-widget-${teamId} .kw-kpi-lbl{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;}
+  #kjfc-widget-${teamId} .kw-game-card{border:1px solid #e5e7eb;border-radius:6px;padding:12px;margin-bottom:8px;}
+  #kjfc-widget-${teamId} .kw-game-round{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:4px;}
+  #kjfc-widget-${teamId} .kw-game-teams{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
+  #kjfc-widget-${teamId} .kw-team-name{font-weight:700;font-size:14px;}
+  #kjfc-widget-${teamId} .kw-team-name.kjfc{color:#013C1E;}
+  #kjfc-widget-${teamId} .kw-score{font-size:20px;font-weight:800;color:#013C1E;}
+  #kjfc-widget-${teamId} .kw-score-detail{font-size:11px;color:#6b7280;}
+  #kjfc-widget-${teamId} .kw-vs{font-size:12px;color:#9ca3af;flex-shrink:0;}
+  #kjfc-widget-${teamId} .kw-game-meta{font-size:11px;color:#6b7280;}
+  #kjfc-widget-${teamId} .kw-outcome-won{color:#065f46;font-weight:700;}
+  #kjfc-widget-${teamId} .kw-outcome-lost{color:#991b1b;font-weight:700;}
+  #kjfc-widget-${teamId} .kw-outcome-draw{color:#92400e;font-weight:700;}
+  #kjfc-widget-${teamId} table{width:100%;border-collapse:collapse;font-size:12px;}
+  #kjfc-widget-${teamId} th{padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;border-bottom:2px solid #e5e7eb;background:#f9fafb;}
+  #kjfc-widget-${teamId} td{padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;}
+  #kjfc-widget-${teamId} tr.kjfc-row td{background:#f0fdf4;font-weight:700;}
+  #kjfc-widget-${teamId} tr:hover td{background:#f9fafb;}
+  #kjfc-widget-${teamId} .kw-fix-round{font-size:10px;color:#9ca3af;font-weight:700;}
+  #kjfc-widget-${teamId} .kw-fix-kjfc{color:#013C1E;font-weight:700;}
+  #kjfc-widget-${teamId} .kw-outcome-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;}
+  #kjfc-widget-${teamId} .kw-badge-w{background:#d1fae5;color:#065f46;}
+  #kjfc-widget-${teamId} .kw-badge-l{background:#fee2e2;color:#991b1b;}
+  #kjfc-widget-${teamId} .kw-badge-d{background:#fef3c7;color:#92400e;}
+  #kjfc-widget-${teamId} .kw-badge-f{background:#f3f4f6;color:#6b7280;}
+  #kjfc-widget-${teamId} .kw-loading{text-align:center;padding:20px;color:#6b7280;font-size:13px;}
+  #kjfc-widget-${teamId} .kw-error{background:#fee2e2;color:#991b1b;padding:10px;border-radius:6px;font-size:12px;}
+  #kjfc-widget-${teamId} .kw-tabs{display:flex;gap:4px;margin-bottom:12px;}
+  #kjfc-widget-${teamId} .kw-tab{padding:5px 12px;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid #e5e7eb;background:#fff;color:#6b7280;}
+  #kjfc-widget-${teamId} .kw-tab.act{background:#013C1E;color:#fff;border-color:#013C1E;}
+</style>
+
+<!-- Static info card (always shown) -->
+<div class="kw-card">
+  <div class="kw-title">${name}</div>
+  <div class="kw-info-row"><span class="kw-label">Training</span><span>${training}</span></div>
+  <div class="kw-info-row"><span class="kw-label">Venue</span><span>${venue}</span></div>
+  <div class="kw-info-row"><span class="kw-label">Coach</span><span>${coaches}</span></div>
+  <div class="kw-info-row"><span class="kw-label">Manager</span><span>${manager}${contact ? ' · ' + contact : ''}</span></div>
+</div>
+
+<!-- Dynamic section: populated by JS -->
+<div id="kjfc-live-${teamId}"><div class="kw-loading">Loading live data…</div></div>
+
+<script>
+(function(){
+  var PROXY    = '${proxyUrl}';
+  var GRADE_ID = '${gradeId}';
+  var TEAM_ID  = '${teamId}';
+  var el       = document.getElementById('kjfc-live-${teamId}');
+
+  function fmt(d,t){
+    var dt=new Date(d+'T'+t);
+    return dt.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+' · '+dt.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:true});
+  }
+  function goals(sub){ var g=sub.find(function(x){return x.type==='TOTAL_GOALS';}); return g?g.value:0; }
+  function behinds(sub){ var b=sub.find(function(x){return x.type==='TOTAL_BEHINDS';}); return b?b.value:0; }
+  function scoreStr(c){ if(!c.scoreTotal&&c.outcome&&c.outcome.includes('FORFEIT')) return 'FF'; var g=goals(c.scoreSubTotal),b=behinds(c.scoreSubTotal); return g+'.'+b+' ('+c.scoreTotal+')'; }
+  function outcomeBadge(o){ if(!o) return ''; if(o==='WON'||o==='WON_BY_FORFEIT') return '<span class="kw-outcome-badge kw-badge-w">W</span>'; if(o==='LOST'||o==='LOST_BY_FORFEIT') return '<span class="kw-outcome-badge kw-badge-l">L</span>'; if(o==='DRAWN') return '<span class="kw-outcome-badge kw-badge-d">D</span>'; return '<span class="kw-outcome-badge kw-badge-f">-</span>'; }
+
+  function fetchJSON(url, cb) {
+    var x=new XMLHttpRequest(); x.open('GET',url,true);
+    x.onload=function(){ try{ cb(null,JSON.parse(x.responseText)); }catch(e){ cb(e); } };
+    x.onerror=function(){ cb(new Error('Network error')); };
+    x.send();
+  }
+
+  function renderAll(games, ladder) {
+    var now    = new Date();
+    var kjfcGames = games.filter(function(g){ return g.competitors.some(function(c){ return c.id===TEAM_ID; }); });
+    var played    = kjfcGames.filter(function(g){ return g.status==='FINAL'; });
+    var upcoming  = kjfcGames.filter(function(g){ return g.status!=='FINAL'; });
+    var lastGame  = played.length ? played[played.length-1] : null;
+    var nextGame  = upcoming.length ? upcoming[0] : null;
+
+    // Ladder position
+    var myStanding = null;
+    if (ladder && ladder.data && ladder.data[0] && ladder.data[0].ladders && ladder.data[0].ladders[0]) {
+      var standings = ladder.data[0].ladders[0].standings;
+      myStanding = standings.find(function(s){ return s.team && s.team.id===TEAM_ID; });
+    }
+
+    var html = '';
+
+    // KPI row
+    if (myStanding) {
+      html += '<div class="kw-card"><div class="kw-section-label">Ladder Position</div><div class="kw-kpis">';
+      html += '<div class="kw-kpi"><div class="kw-kpi-val">' + myStanding.ranking + '</div><div class="kw-kpi-lbl">Position</div></div>';
+      html += '<div class="kw-kpi"><div class="kw-kpi-val">' + myStanding.won + '</div><div class="kw-kpi-lbl">Wins</div></div>';
+      html += '<div class="kw-kpi"><div class="kw-kpi-val">' + myStanding.lost + '</div><div class="kw-kpi-lbl">Losses</div></div>';
+      html += '<div class="kw-kpi"><div class="kw-kpi-val">' + (myStanding.percentage ? myStanding.percentage.toFixed(1)+'%' : '—') + '</div><div class="kw-kpi-lbl">%</div></div>';
+      html += '<div class="kw-kpi"><div class="kw-kpi-val">' + myStanding.competitionPoints + '</div><div class="kw-kpi-lbl">Pts</div></div>';
+      html += '</div></div>';
+    }
+
+    // Next game + Last result side by side
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">';
+
+    // Next game
+    html += '<div class="kw-card" style="margin:0;">';
+    html += '<div class="kw-section-label">Next Game</div>';
+    if (nextGame) {
+      var kjfc = nextGame.competitors.find(function(c){ return c.id===TEAM_ID; });
+      var opp  = nextGame.competitors.find(function(c){ return c.id!==TEAM_ID; });
+      html += '<div class="kw-game-round">' + nextGame.round.name + (nextGame.round.isFinalRound?' 🏆':'') + '</div>';
+      html += '<div style="font-weight:700;font-size:14px;color:#013C1E;margin:4px 0;">' + (opp?opp.name:'TBC') + '</div>';
+      html += '<div class="kw-game-meta">' + fmt(nextGame.schedule.date, nextGame.schedule.time) + '</div>';
+      html += '<div class="kw-game-meta">' + (nextGame.venue ? nextGame.venue.name : '') + '</div>';
+      html += '<div class="kw-game-meta">' + (kjfc && kjfc.isHomeTeam ? '🏠 Home' : '✈️ Away') + '</div>';
+    } else {
+      html += '<div style="font-size:13px;color:#6b7280;">No upcoming games scheduled</div>';
+    }
+    html += '</div>';
+
+    // Last result
+    html += '<div class="kw-card" style="margin:0;">';
+    html += '<div class="kw-section-label">Last Result</div>';
+    if (lastGame) {
+      var kjfc2 = lastGame.competitors.find(function(c){ return c.id===TEAM_ID; });
+      var opp2  = lastGame.competitors.find(function(c){ return c.id!==TEAM_ID; });
+      var outcome = kjfc2 ? kjfc2.outcome : null;
+      var outcomeClass = outcome&&(outcome==='WON'||outcome==='WON_BY_FORFEIT') ? 'kw-outcome-won' : outcome&&(outcome==='LOST'||outcome==='LOST_BY_FORFEIT') ? 'kw-outcome-lost' : 'kw-outcome-draw';
+      html += '<div class="kw-game-round">' + lastGame.round.name + (lastGame.round.isFinalRound?' 🏆':'') + '</div>';
+      html += '<div style="font-weight:700;font-size:14px;color:#013C1E;margin:4px 0;">' + (opp2?opp2.name:'') + '</div>';
+      if (kjfc2 && opp2) {
+        html += '<div style="font-size:15px;font-weight:800;"><span class="'+outcomeClass+'">' + scoreStr(kjfc2) + '</span> <span style="color:#9ca3af;font-size:12px;">def. by</span> ' + scoreStr(opp2) + '</div>';
+        html += '<div class="' + outcomeClass + '" style="font-size:12px;margin-top:2px;">' + (outcome==='WON'||outcome==='WON_BY_FORFEIT'?'WIN':outcome==='DRAWN'?'DRAW':'LOSS') + '</div>';
+      }
+    } else {
+      html += '<div style="font-size:13px;color:#6b7280;">No results yet</div>';
+    }
+    html += '</div>';
+    html += '</div>';
+
+    // Tabs: Fixtures | Ladder
+    html += '<div class="kw-card"><div class="kw-tabs">';
+    html += '<button class="kw-tab act" id="kwtab-fix-${teamId}" onclick="kwShowTab(\'${teamId}\',\'fix\')">Fixtures &amp; Results</button>';
+    html += '<button class="kw-tab" id="kwtab-lad-${teamId}" onclick="kwShowTab(\'${teamId}\',\'lad\')">Ladder</button>';
+    html += '</div>';
+
+    // Fixture table
+    html += '<div id="kwpanel-fix-${teamId}">';
+    html += '<table><thead><tr><th>Round</th><th>Opponent</th><th>Date</th><th>Venue</th><th>Result</th></tr></thead><tbody>';
+    kjfcGames.forEach(function(g){
+      var kjfc3 = g.competitors.find(function(c){ return c.id===TEAM_ID; });
+      var opp3  = g.competitors.find(function(c){ return c.id!==TEAM_ID; });
+      var isFinal = g.status==='FINAL';
+      html += '<tr>';
+      html += '<td class="kw-fix-round">' + g.round.abbreviatedName + (g.round.isFinalRound?' 🏆':'') + '</td>';
+      html += '<td class="kw-fix-kjfc">' + (opp3?opp3.name:'BYE') + '</td>';
+      html += '<td>' + (g.schedule.date ? new Date(g.schedule.date).toLocaleDateString('en-AU',{day:'numeric',month:'short'}) : '') + '</td>';
+      html += '<td>' + (g.venue ? g.venue.address.suburb : '') + '</td>';
+      if (isFinal && kjfc3) {
+        html += '<td>' + outcomeBadge(kjfc3.outcome) + ' ' + scoreStr(kjfc3) + ' – ' + (opp3?scoreStr(opp3):'') + '</td>';
+      } else {
+        html += '<td style="color:#9ca3af;">–</td>';
+      }
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+
+    // Ladder table
+    html += '<div id="kwpanel-lad-${teamId}" style="display:none;">';
+    if (ladder && ladder.data && ladder.data[0] && ladder.data[0].ladders && ladder.data[0].ladders[0]) {
+      var standings2 = ladder.data[0].ladders[0].standings;
+      html += '<table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>D</th><th>%</th><th>Pts</th></tr></thead><tbody>';
+      standings2.forEach(function(s){
+        var isKjfc = s.team && s.team.id===TEAM_ID;
+        html += '<tr' + (isKjfc?' class="kjfc-row"':'') + '>';
+        html += '<td>' + s.ranking + '</td>';
+        html += '<td>' + (s.team?s.team.name:'') + (isKjfc?' ⭐':'') + '</td>';
+        html += '<td>' + s.played + '</td>';
+        html += '<td>' + s.won + '</td>';
+        html += '<td>' + s.lost + '</td>';
+        html += '<td>' + (s.drawn||0) + '</td>';
+        html += '<td>' + (s.percentage?s.percentage.toFixed(1):'0') + '</td>';
+        html += '<td><strong>' + s.competitionPoints + '</strong></td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+    } else {
+      html += '<p style="color:#6b7280;font-size:13px;padding:10px 0;">Ladder data unavailable.</p>';
+    }
+    html += '</div></div>';
+
+    el.innerHTML = html;
+  }
+
+  // Fetch both in parallel
+  var gamesData=null, ladderData=null, errCount=0;
+  function tryRender(){ if(gamesData!==null && ladderData!==null) renderAll(gamesData, ladderData); }
+  function onErr(e){ errCount++; el.innerHTML='<div class="kw-error">Unable to load live data. '+e.message+'</div>'; }
+
+  fetchJSON(PROXY+'?action=games&gradeId='+GRADE_ID, function(err,data){
+    if(err){ onErr(err); return; }
+    gamesData = data.data || [];
+    tryRender();
+  });
+  fetchJSON(PROXY+'?action=ladder&gradeId='+GRADE_ID, function(err,data){
+    if(err){ ladderData={}; tryRender(); return; }
+    ladderData = data;
+    tryRender();
+  });
+})();
+
+function kwShowTab(tid, tab){
+  document.getElementById('kwpanel-fix-'+tid).style.display = tab==='fix'?'':'none';
+  document.getElementById('kwpanel-lad-'+tid).style.display = tab==='lad'?'':'none';
+  document.getElementById('kwtab-fix-'+tid).classList.toggle('act', tab==='fix');
+  document.getElementById('kwtab-lad-'+tid).classList.toggle('act', tab==='lad');
+}
+<\/script>
+</div>`;
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+
+function wbToggle(section) {
+  const body  = document.getElementById('wb-body-' + section);
+  const arrow = document.getElementById('wb-arrow-' + section);
+  if (!body) return;
+  const isOpen = !body.classList.contains('collapsed');
+  body.classList.toggle('collapsed', isOpen);
+  if (arrow) arrow.textContent = isOpen ? '▶' : '▼';
+}
+
+function wbTestProxy() {
+  const url = document.getElementById('wb-proxy-url').value.trim();
+  if (!url) { _wbProxyStatus('Enter a URL first', 'err'); return; }
+  _wbProxyStatus('Testing…', 'info');
+  google.script.run
+    .withSuccessHandler(r => {
+      if (r.ok) { _wbProxyStatus('✓ Connected successfully', 'ok'); }
+      else      { _wbProxyStatus('✗ ' + (r.error || 'Failed'), 'err'); }
+    })
+    .withFailureHandler(e => _wbProxyStatus('✗ ' + e.message, 'err'))
+    .testProxyConnection(url);
+}
+
+function _wbProxyStatus(msg, type) {
+  const el = document.getElementById('wb-proxy-status');
+  if (!el) return;
+  el.className = 'wb-status wb-status-' + type;
+  el.textContent = msg;
+}
+
+function wbSaveProxyUrl() {
+  const url = document.getElementById('wb-proxy-url').value.trim();
+  _websiteState.proxyUrl = url;
+  google.script.run
+    .withSuccessHandler(() => _wbProxyStatus('✓ Saved', 'ok'))
+    .withFailureHandler(e => _wbProxyStatus('✗ ' + e.message, 'err'))
+    .saveWebsiteConfig({ proxyUrl: url });
+}
+
+function wbSeasonChanged(sel) {
+  _websiteState.seasonId   = sel.value;
+  _websiteState.seasonName = sel.options[sel.selectedIndex].text;
+  _websiteState.teams      = [];
+  document.getElementById('wb-teams-list').innerHTML = '';
+  google.script.run
+    .withSuccessHandler(() => {})
+    .saveWebsiteConfig({ seasonId: sel.value, seasonName: sel.options[sel.selectedIndex].text });
+}
+
+function wbDiscover() {
+  const tl = document.getElementById('wb-teams-list');
+  tl.innerHTML = '<div style="font-size:13px;color:var(--text-dim);padding:8px 0;">Discovering teams from PlayHQ…</div>';
+
+  google.script.run
+    .withSuccessHandler(result => {
+      if (result.error) {
+        tl.innerHTML = `<div class="wb-status wb-status-err">${_escHtml(result.error)}</div>`;
+        return;
+      }
+      // Merge with saved config
+      const teams = result.teams || [];
+      const saved = _websiteState.savedTeams;
+      teams.forEach(t => {
+        t._enabled = !!(saved[t.id] && saved[t.id].enabled === true || saved[t.id] && saved[t.id].enabled === 'true');
+        t.teamId   = t.id;
+        t.gradeId  = t.grade ? t.grade.id : null;
+      });
+      _websiteState.teams = teams;
+      tl.innerHTML = _renderTeamsList();
+    })
+    .withFailureHandler(e => {
+      tl.innerHTML = `<div class="wb-status wb-status-err">Error: ${_escHtml(e.message)}</div>`;
+    })
+    .discoverTeams(_websiteState.seasonId);
+}
+
+function _renderTeamsList() {
+  const teams = _websiteState.teams;
+  if (!teams.length) return '';
+
+  return teams.map(t => {
+    const gradeLabel = t.grade
+      ? `<span class="wb-grade-ok">✓ ${_escHtml(t.grade.name)}</span>`
+      : `<span class="wb-grade-pending">⏳ Grade not yet assigned</span>`;
+    return `
+      <div class="wb-team-row">
+        <input type="checkbox" class="wb-team-check" id="wt-${t.teamId}"
+          ${t._enabled ? 'checked' : ''}
+          onchange="wbToggleTeam('${t.teamId}', this.checked)" />
+        <label for="wt-${t.teamId}" class="wb-team-name" style="cursor:pointer;">
+          ${_escHtml(t.name || t.teamId)}
+        </label>
+        <span class="wb-team-grade">${gradeLabel}</span>
+      </div>`;
+  }).join('');
+}
+
+function wbToggleTeam(teamId, enabled) {
+  const team = _websiteState.teams.find(t => t.teamId === teamId);
+  if (team) team._enabled = enabled;
+  // Refresh configure section
+  const el = document.getElementById('website-content');
+  if (el) _drawWebsiteTab(el);
+  // Keep discover section open
+  const body = document.getElementById('wb-body-discover');
+  if (body) body.classList.remove('collapsed');
+}
+
+function wbFieldChange(input) {
+  const tid   = input.dataset.tid;
+  const field = input.dataset.field;
+  if (!_websiteState.savedTeams[tid]) _websiteState.savedTeams[tid] = { teamId: tid };
+  _websiteState.savedTeams[tid][field] = input.value;
+}
+
+function wbSaveConfig() {
+  const status = document.getElementById('wb-save-status');
+  if (status) { status.textContent = 'Saving…'; status.style.color = 'var(--text-dim)'; }
+
+  const enabledTeams = _websiteState.teams.filter(t => t._enabled);
+  const toSave = enabledTeams.map(t => {
+    const cfg = _websiteState.savedTeams[t.teamId] || {};
+    return {
+      teamId:         t.teamId,
+      gradeId:        t.gradeId || '',
+      displayName:    cfg.displayName    || t.name || '',
+      gradeName:      t.grade ? t.grade.name : '',
+      training:       cfg.training       || '',
+      venue:          cfg.venue          || '',
+      coaches:        cfg.coaches        || '',
+      manager:        cfg.manager        || '',
+      managerContact: cfg.managerContact || '',
+      enabled:        true
+    };
+  });
+
+  google.script.run
+    .withSuccessHandler(r => {
+      if (status) { status.textContent = '✓ Saved ' + r.count + ' team' + (r.count!==1?'s':''); status.style.color = '#065f46'; }
+      // Refresh generate section
+      const el = document.getElementById('website-content');
+      if (el) _drawWebsiteTab(el);
+    })
+    .withFailureHandler(e => {
+      if (status) { status.textContent = '✗ ' + e.message; status.style.color = '#991b1b'; }
+    })
+    .saveAllWebsiteTeams(toSave);
+}
+
+function wbCopyCode(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent)
+    .then(() => { 
+      const btn = el.parentElement.querySelector('.wb-copy-btn');
+      if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000); }
+    })
+    .catch(() => {
+      const r = document.createRange(); r.selectNode(el);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(r);
+      document.execCommand('copy');
+    });
+}
+
+function _escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 </script>
 </body>
 </html>
