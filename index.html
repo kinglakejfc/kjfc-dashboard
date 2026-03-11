@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.19</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.21</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9218,26 +9218,20 @@ function _drawWebsiteTab(el) {
               <div class="wb-field">
                 <label>Display Name</label>
                 <input type="text" data-tid="${t.teamId}" data-field="displayName"
-                  value="${_escHtml(saved.displayName || t.name || '')}"
+                  value="${_escHtml(saved.displayName || _wbDeriveTeamName(t.grade ? t.grade.name : '') || '')}"
                   placeholder="e.g. Kinglake Under 16 Boys" onchange="wbFieldChange(this)" />
               </div>
               <div class="wb-field">
-                <label>Training Day &amp; Time</label>
-                <input type="text" data-tid="${t.teamId}" data-field="training"
-                  value="${_escHtml(saved.training || '')}"
-                  placeholder="e.g. Wednesdays 5:30pm" onchange="wbFieldChange(this)" />
-              </div>
-              <div class="wb-field">
-                <label>Training Venue</label>
-                <input type="text" data-tid="${t.teamId}" data-field="venue"
-                  value="${_escHtml(saved.venue || '')}"
-                  placeholder="e.g. Kinglake Memorial Oval" onchange="wbFieldChange(this)" />
-              </div>
-              <div class="wb-field">
-                <label>Coach(es)</label>
+                <label>Head Coach</label>
                 <input type="text" data-tid="${t.teamId}" data-field="coaches"
                   value="${_escHtml(saved.coaches || '')}"
                   placeholder="e.g. John Smith" onchange="wbFieldChange(this)" />
+              </div>
+              <div class="wb-field">
+                <label>Assistant Coach</label>
+                <input type="text" data-tid="${t.teamId}" data-field="assistantCoach"
+                  value="${_escHtml(saved.assistantCoach || '')}"
+                  placeholder="e.g. Sarah Jones" onchange="wbFieldChange(this)" />
               </div>
               <div class="wb-field">
                 <label>Team Manager</label>
@@ -9250,6 +9244,66 @@ function _drawWebsiteTab(el) {
                 <input type="text" data-tid="${t.teamId}" data-field="managerContact"
                   value="${_escHtml(saved.managerContact || '')}"
                   placeholder="e.g. 0412 345 678" onchange="wbFieldChange(this)" />
+              </div>
+            </div>
+            <div style="margin-top:12px;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">Training Sessions</div>
+              <div class="wb-config-grid">
+                <div class="wb-field">
+                  <label>Session 1 — Day &amp; Time</label>
+                  <input type="text" data-tid="${t.teamId}" data-field="training"
+                    value="${_escHtml(saved.training || '')}"
+                    placeholder="e.g. Wednesdays 5:30pm" onchange="wbFieldChange(this)" />
+                </div>
+                <div class="wb-field">
+                  <label>Session 1 — Venue</label>
+                  <input type="text" data-tid="${t.teamId}" data-field="venue"
+                    value="${_escHtml(saved.venue || '')}"
+                    placeholder="e.g. Kinglake Memorial Oval" onchange="wbFieldChange(this)" />
+                </div>
+                <div class="wb-field">
+                  <label>Session 2 — Day &amp; Time</label>
+                  <input type="text" data-tid="${t.teamId}" data-field="training2"
+                    value="${_escHtml(saved.training2 || '')}"
+                    placeholder="e.g. Fridays 6:00pm" onchange="wbFieldChange(this)" />
+                </div>
+                <div class="wb-field" style="position:relative;">
+                  <label>Session 2 — Venue</label>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <input type="text" data-tid="${t.teamId}" data-field="venue2"
+                      id="venue2-${t.teamId}"
+                      value="${_escHtml(saved.venue2 || '')}"
+                      placeholder="e.g. Kinglake Memorial Oval" onchange="wbFieldChange(this)"
+                      style="flex:1;" />
+                    <button type="button" title="Copy from Session 1 venue"
+                      onclick="(function(){var v=document.querySelector('[data-tid=\'${t.teamId}\'][data-field=\'venue\']');var v2=document.getElementById('venue2-${t.teamId}');if(v&&v2){v2.value=v.value;v2.dispatchEvent(new Event('change'));}})()"
+                      style="flex-shrink:0;padding:4px 8px;font-size:11px;background:var(--bg-alt);border:1px solid var(--border);border-radius:4px;cursor:pointer;white-space:nowrap;">⎘ Copy</button>
+                  </div>
+                </div>
+              </div>
+              <div class="wb-field" style="margin-top:8px;">
+                <label>Training Note <span style="font-weight:400;color:var(--text-dim);">(optional — e.g. "wet weather cancellations announced via TeamApp")</span></label>
+                <input type="text" data-tid="${t.teamId}" data-field="trainingNote"
+                  value="${_escHtml(saved.trainingNote || '')}"
+                  placeholder="e.g. Training cancelled in wet weather — check TeamApp for updates"
+                  onchange="wbFieldChange(this)" />
+              </div>
+            </div>
+            <div style="margin-top:12px;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:8px;">Coach Profile <span style="font-weight:400;color:var(--text-dim);text-transform:none;">(optional)</span></div>
+              <div class="wb-field">
+                <label>Coach Profile — Paragraph 1</label>
+                <textarea data-tid="${t.teamId}" data-field="coachProfile1"
+                  rows="3" placeholder="Background, experience, playing history…"
+                  onchange="wbFieldChange(this)"
+                  style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:5px;font-size:13px;resize:vertical;background:var(--bg);color:var(--text);">${_escHtml(saved.coachProfile1 || '')}</textarea>
+              </div>
+              <div class="wb-field" style="margin-top:6px;">
+                <label>Coach Profile — Paragraph 2</label>
+                <textarea data-tid="${t.teamId}" data-field="coachProfile2"
+                  rows="3" placeholder="Coaching philosophy, goals for the team…"
+                  onchange="wbFieldChange(this)"
+                  style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:5px;font-size:13px;resize:vertical;background:var(--bg);color:var(--text);">${_escHtml(saved.coachProfile2 || '')}</textarea>
               </div>
             </div>
           </div>
@@ -9277,7 +9331,7 @@ function _drawWebsiteTab(el) {
         <span id="wb-arrow-generate">▼</span>
       </div>
       <div class="wb-body collapsed" id="wb-body-generate">
-        <p style="font-size:12px;color:var(--text-dim);margin:0 0 16px;">
+        <p style="font-size:12px;color:var(--text-dim);margin:0 0 12px;">
           Copy each code block and paste it into a <strong>Code Block</strong> element on the relevant Squarespace page.
           The widget fetches live data from PlayHQ via your proxy each time a visitor loads the page.
         </p>
@@ -9307,15 +9361,24 @@ function _renderWidgets() {
       <div class="wb-config-card" style="margin-bottom:16px;">
         <div class="wb-config-head">
           <span>${_escHtml(label)}</span>
-          <button class="wb-copy-btn" onclick="wbCopyCode('widget-${t.teamId}')">Copy</button>
+          <div style="display:flex;gap:6px;">
+            <button class="wb-copy-btn" onclick="wbTogglePreview('preview-${t.teamId}', this, '${t.teamId}')" style="background:var(--bg-alt);color:var(--text);">👁 Preview</button>
+            <button class="wb-copy-btn" onclick="wbCopyCode('widget-${t.teamId}')">Copy Code</button>
+          </div>
         </div>
         <div style="padding:10px 14px;">
-          <p style="font-size:12px;color:var(--text-dim);margin:0 0 6px;">
+          <p style="font-size:12px;color:var(--text-dim);margin:0 0 8px;">
             Paste into a Squarespace Code Block on the <strong>${_escHtml(label)}</strong> page.
             ${t.gradeId
               ? 'Shows live ladder, next game, last result, and full fixture table.'
               : 'Grade not yet assigned — shows static info + coming soon message.'}
           </p>
+          <div id="preview-${t.teamId}" style="display:none;border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:10px;background:#fff;">
+            <iframe id="preview-frame-${t.teamId}"
+              style="width:100%;border:none;min-height:120px;"
+              sandbox="allow-scripts allow-same-origin"
+              scrolling="no"></iframe>
+          </div>
           <div style="overflow:hidden;">
             <pre class="wb-code-block" id="widget-${t.teamId}">${_escHtml(code)}</pre>
           </div>
@@ -9325,15 +9388,21 @@ function _renderWidgets() {
 }
 
 function _buildWidgetCode(team, cfg, proxyUrl) {
-  const hasGrade  = !!team.gradeId;
-  const teamId    = team.teamId;
-  const gradeId   = team.gradeId || '';
-  const name      = cfg.displayName || team.name || '';
-  const training  = cfg.training    || '';
-  const venue     = cfg.venue       || '';
-  const coaches   = cfg.coaches     || '';
-  const manager   = cfg.manager     || '';
-  const contact   = cfg.managerContact || '';
+  const hasGrade     = !!team.gradeId;
+  const teamId       = team.teamId;
+  const gradeId      = team.gradeId || '';
+  const name         = cfg.displayName || _wbDeriveTeamName(team.grade ? team.grade.name : '') || team.name || '';
+  const training     = cfg.training      || '';
+  const venue        = cfg.venue         || '';
+  const training2    = cfg.training2     || '';
+  const venue2       = cfg.venue2        || '';
+  const trainingNote = cfg.trainingNote  || '';
+  const coaches      = cfg.coaches       || '';
+  const assistantCoach = cfg.assistantCoach || '';
+  const coachProfile1  = cfg.coachProfile1  || '';
+  const coachProfile2  = cfg.coachProfile2  || '';
+  const manager      = cfg.manager       || '';
+  const contact      = cfg.managerContact || '';
 
   // Static-only widget for teams without a grade
   if (!hasGrade) {
@@ -9348,11 +9417,12 @@ function _buildWidgetCode(team, cfg, proxyUrl) {
   </style>
   <div class="kw-card">
     <div class="kw-title">${name}</div>
-    <div class="kw-info-row"><span class="kw-label">Training</span><span>${training}</span></div>
-    <div class="kw-info-row"><span class="kw-label">Venue</span><span>${venue}</span></div>
-    <div class="kw-info-row"><span class="kw-label">Coach</span><span>${coaches}</span></div>
-    <div class="kw-info-row"><span class="kw-label">Manager</span><span>${manager}</span></div>
-    <div class="kw-info-row"><span class="kw-label">Contact</span><span>${contact}</span></div>
+    ${training ? `<div class="kw-info-row"><span class="kw-label">Training</span><span>${training}${venue ? ' &middot; '+venue : ''}</span></div>` : ''}
+    ${training2 ? `<div class="kw-info-row"><span class="kw-label">2nd Session</span><span>${training2}${venue2 ? ' &middot; '+venue2 : ''}</span></div>` : ''}
+    ${trainingNote ? `<div class="kw-info-row" style="background:#fef3c7;border-radius:4px;"><span class="kw-label">Note</span><span style="color:#92400e;">${trainingNote}</span></div>` : ''}
+    ${coaches ? `<div class="kw-info-row"><span class="kw-label">Head Coach</span><span>${coaches}</span></div>` : ''}
+    ${assistantCoach ? `<div class="kw-info-row"><span class="kw-label">Asst Coach</span><span>${assistantCoach}</span></div>` : ''}
+    ${manager ? `<div class="kw-info-row"><span class="kw-label">Manager</span><span>${manager}${contact ? ' &middot; '+contact : ''}</span></div>` : ''}
   </div>
   <div class="kw-coming">📅 Fixtures and ladder coming soon — check back once the season draw is released by NFNL.</div>
 </div>`;
@@ -9588,6 +9658,24 @@ function kwShowTab(tid, tab){
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 
+// Listen for resize signals from preview iframes
+if (!window._kjfcResizeListenerAdded) {
+  window._kjfcResizeListenerAdded = true;
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'kjfc-resize') {
+      // Find the active preview iframe and resize it
+      const frames = document.querySelectorAll('iframe[id^="preview-frame-"]');
+      frames.forEach(function(f) {
+        try {
+          if (f.contentDocument && f.contentDocument.body.scrollHeight > 0) {
+            f.style.height = (f.contentDocument.body.scrollHeight + 20) + 'px';
+          }
+        } catch(ex) {}
+      });
+    }
+  });
+}
+
 function wbToggle(section) {
   const body  = document.getElementById('wb-body-' + section);
   const arrow = document.getElementById('wb-arrow-' + section);
@@ -9714,20 +9802,46 @@ function _renderTeamsList() {
   if (!teams.length) return '';
 
   return teams.map(t => {
-    const gradeLabel = t.grade
-      ? `<span class="wb-grade-ok">✓ ${_escHtml(t.grade.name)}</span>`
+    const saved       = _websiteState.savedTeams[t.teamId] || {};
+    const displayName = saved.displayName || '';
+    const gradeName   = t.grade ? t.grade.name : '';
+    // Primary label: saved display name if set, otherwise derive from grade
+    const primaryLabel = displayName || _wbDeriveTeamName(gradeName);
+    const gradeLabel   = gradeName
+      ? `<span class="wb-grade-ok">✓ ${_escHtml(gradeName)}</span>`
       : `<span class="wb-grade-pending">⏳ Grade not yet assigned</span>`;
     return `
       <div class="wb-team-row">
         <input type="checkbox" class="wb-team-check" id="wt-${t.teamId}"
           ${t._enabled ? 'checked' : ''}
           onchange="wbToggleTeam('${t.teamId}', this.checked)" />
-        <label for="wt-${t.teamId}" class="wb-team-name" style="cursor:pointer;">
-          ${_escHtml(t.name || t.teamId)}
-        </label>
+        <div style="flex:1;min-width:0;cursor:pointer;" onclick="document.getElementById('wt-${t.teamId}').click()">
+          <div class="wb-team-name">${_escHtml(primaryLabel)}</div>
+          ${gradeName && primaryLabel !== gradeName ? `<div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${_escHtml(gradeName)}</div>` : ''}
+        </div>
         <span class="wb-team-grade">${gradeLabel}</span>
       </div>`;
   }).join('');
+}
+
+// Derive a friendly team name from the grade name
+// "Division 3 Heidelberg Golf Club Seniors" → "Kinglake Seniors"
+// "Under 16 Division 2" → "Kinglake Under 16"
+// "Division 3 Reserves" → "Kinglake Reserves"
+function _wbDeriveTeamName(gradeName) {
+  if (!gradeName) return 'Kinglake';
+  const g = gradeName;
+  // Seniors
+  if (/seniors/i.test(g) && !/reserves/i.test(g)) return 'Kinglake Seniors';
+  // Reserves
+  if (/reserves/i.test(g)) return 'Kinglake Reserves';
+  // Under N
+  const uMatch = g.match(/under[\s-]*(\d+)/i);
+  if (uMatch) return 'Kinglake Under ' + uMatch[1];
+  // Under 19.5
+  const u195 = g.match(/under[\s-]*(\d+\.\d+)/i);
+  if (u195) return 'Kinglake Under ' + u195[1];
+  return 'Kinglake';
 }
 
 function wbToggleTeam(teamId, enabled) {
@@ -9756,11 +9870,17 @@ function wbSaveConfig() {
     return {
       teamId:         t.teamId,
       gradeId:        t.gradeId || '',
-      displayName:    cfg.displayName    || t.name || '',
+      displayName:    cfg.displayName    || _wbDeriveTeamName(t.grade ? t.grade.name : '') || t.name || '',
       gradeName:      t.grade ? t.grade.name : '',
       training:       cfg.training       || '',
       venue:          cfg.venue          || '',
+      training2:      cfg.training2      || '',
+      venue2:         cfg.venue2         || '',
+      trainingNote:   cfg.trainingNote   || '',
       coaches:        cfg.coaches        || '',
+      assistantCoach: cfg.assistantCoach || '',
+      coachProfile1:  cfg.coachProfile1  || '',
+      coachProfile2:  cfg.coachProfile2  || '',
       manager:        cfg.manager        || '',
       managerContact: cfg.managerContact || '',
       enabled:        true
@@ -9776,6 +9896,266 @@ function wbSaveConfig() {
     .catch(e => {
       if (status) { status.textContent = '✗ ' + e.message; status.style.color = '#991b1b'; }
     });
+}
+
+// ── Live preview via iframe ───────────────────────────────────────────────────
+// Builds a self-contained HTML doc that calls PlayHQ directly (no proxy needed
+// since the dashboard already has the API key), then writes it into the iframe.
+
+function wbTogglePreview(previewId, btn, teamId) {
+  const wrapper = document.getElementById(previewId);
+  if (!wrapper) return;
+  const showing = wrapper.style.display !== 'none';
+  if (showing) {
+    wrapper.style.display = 'none';
+    btn.innerHTML = '👁 Preview';
+    return;
+  }
+  wrapper.style.display = 'block';
+  btn.innerHTML = '⏳ Loading…';
+
+  const s     = _websiteState;
+  const team  = s.teams.find(t => t.teamId === teamId);
+  const cfg   = s.savedTeams[teamId] || {};
+  const frame = document.getElementById('preview-frame-' + teamId);
+  if (!frame || !team) return;
+
+  const apiKey  = s.phqApiKey;
+  const gradeId = team.gradeId || '';
+  const doc     = _buildLivePreviewDoc(team, cfg, apiKey, gradeId);
+
+  // Write HTML into srcdoc and auto-resize once content loads
+  frame.srcdoc = doc;
+  frame.onload = function() {
+    btn.innerHTML = '✕ Hide Preview';
+    try {
+      const h = frame.contentDocument.body.scrollHeight;
+      frame.style.height = Math.max(h + 20, 140) + 'px';
+    } catch(e) { frame.style.height = '500px'; }
+  };
+}
+
+function _buildLivePreviewDoc(team, cfg, apiKey, gradeId) {
+  const hasGrade = !!team.gradeId;
+  const teamId   = team.teamId;
+  const name     = cfg.displayName || _wbDeriveTeamName(team.grade ? team.grade.name : '') || team.name || '';
+  const training     = cfg.training      || '';
+  const venue        = cfg.venue         || '';
+  const training2    = cfg.training2     || '';
+  const venue2       = cfg.venue2        || '';
+  const trainingNote = cfg.trainingNote  || '';
+  const coaches      = cfg.coaches       || '';
+  const assistantCoach = cfg.assistantCoach || '';
+  const coachProfile1  = cfg.coachProfile1  || '';
+  const coachProfile2  = cfg.coachProfile2  || '';
+  const manager      = cfg.manager       || '';
+  const contact      = cfg.managerContact || '';
+
+  // Inline the widget but replace proxy fetch with direct PlayHQ calls using apiKey
+  // The iframe doc calls api.playhq.com directly — works because it's same session/origin as dashboard
+  const esc = s => s.replace(/`/g, '\\`').replace(/\\/g, '\\\\').replace(/\$/g, '\\$');
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  body{margin:0;padding:12px;font-family:Arial,sans-serif;background:#f9fafb;}
+  *{box-sizing:border-box;}
+  .kw-card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;}
+  .kw-title{font-size:20px;font-weight:800;color:#013C1E;margin-bottom:8px;}
+  .kw-section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:8px;}
+  .kw-info-row{display:flex;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid #f3f4f6;align-items:flex-start;}
+  .kw-info-row:last-child{border-bottom:none;}
+  .kw-label{font-weight:600;color:#6b7280;min-width:110px;flex-shrink:0;}
+  .kw-note{background:#fef3c7;border-radius:4px;padding:6px 10px;font-size:12px;color:#92400e;margin:4px 0;}
+  .kw-kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+  .kw-kpi{flex:1;min-width:70px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px;text-align:center;}
+  .kw-kpi-val{font-size:22px;font-weight:800;color:#013C1E;}
+  .kw-kpi-lbl{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;}
+  .kw-game-card{border:1px solid #e5e7eb;border-radius:6px;padding:12px;margin-bottom:8px;}
+  .kw-game-round{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:4px;}
+  .kw-outcome-won{color:#065f46;font-weight:700;}
+  .kw-outcome-lost{color:#991b1b;font-weight:700;}
+  .kw-outcome-draw{color:#92400e;font-weight:700;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th{padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;border-bottom:2px solid #e5e7eb;background:#f9fafb;}
+  td{padding:6px 8px;border-bottom:1px solid #f3f4f6;}
+  tr.kjfc-row td{background:#f0fdf4;font-weight:700;}
+  .kw-outcome-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;}
+  .kw-badge-w{background:#d1fae5;color:#065f46;}
+  .kw-badge-l{background:#fee2e2;color:#991b1b;}
+  .kw-badge-d{background:#fef3c7;color:#92400e;}
+  .kw-badge-f{background:#f3f4f6;color:#6b7280;}
+  .kw-tabs{display:flex;gap:4px;margin-bottom:12px;}
+  .kw-tab{padding:5px 12px;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid #e5e7eb;background:#fff;color:#6b7280;}
+  .kw-tab.act{background:#013C1E;color:#fff;border-color:#013C1E;}
+  .kw-loading{text-align:center;padding:20px;color:#6b7280;font-size:13px;}
+  .kw-error{background:#fee2e2;color:#991b1b;padding:10px;border-radius:6px;font-size:12px;}
+  .kw-coming{background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:12px;font-size:13px;color:#92400e;text-align:center;margin-top:8px;}
+  .coach-bio{font-size:13px;color:#374151;margin:0 0 6px;}
+</style>
+</head><body>
+
+<!-- Static info card -->
+<div class="kw-card">
+  <div class="kw-title">${esc(name)}</div>
+  ${training ? `<div class="kw-info-row"><span class="kw-label">Training</span><span>${esc(training)}${venue ? ' &middot; ' + esc(venue) : ''}</span></div>` : ''}
+  ${training2 ? `<div class="kw-info-row"><span class="kw-label">2nd Session</span><span>${esc(training2)}${venue2 ? ' &middot; ' + esc(venue2) : ''}</span></div>` : ''}
+  ${trainingNote ? `<div class="kw-note">${esc(trainingNote)}</div>` : ''}
+  ${coaches ? `<div class="kw-info-row"><span class="kw-label">Head Coach</span><span>${esc(coaches)}</span></div>` : ''}
+  ${assistantCoach ? `<div class="kw-info-row"><span class="kw-label">Asst Coach</span><span>${esc(assistantCoach)}</span></div>` : ''}
+  ${manager ? `<div class="kw-info-row"><span class="kw-label">Manager</span><span>${esc(manager)}${contact ? ' &middot; ' + esc(contact) : ''}</span></div>` : ''}
+</div>
+
+${(coachProfile1 || coachProfile2) ? `
+<div class="kw-card">
+  <div class="kw-section-label">About the Coach</div>
+  ${coachProfile1 ? `<p class="coach-bio">${esc(coachProfile1)}</p>` : ''}
+  ${coachProfile2 ? `<p class="coach-bio" style="margin-bottom:0;">${esc(coachProfile2)}</p>` : ''}
+</div>` : ''}
+
+${hasGrade ? `<div id="kjfc-live"><div class="kw-loading">⏳ Loading live data from PlayHQ…</div></div>` : `<div class="kw-coming">📅 Fixtures and ladder coming soon — check back once the season draw is released by NFNL.</div>`}
+
+${hasGrade ? `<script>
+(function(){
+  var API_KEY  = '${esc(apiKey)}';
+  var GRADE_ID = '${esc(gradeId)}';
+  var TEAM_ID  = '${esc(teamId)}';
+  var el       = document.getElementById('kjfc-live');
+
+  function fmt(d,t){
+    var dt=new Date(d+'T'+t);
+    return dt.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+' · '+dt.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:true});
+  }
+  function goals(sub){var g=sub.find(function(x){return x.type==='TOTAL_GOALS';});return g?g.value:0;}
+  function behinds(sub){var b=sub.find(function(x){return x.type==='TOTAL_BEHINDS';});return b?b.value:0;}
+  function scoreStr(c){if(!c.scoreTotal&&c.outcome&&c.outcome.includes('FORFEIT'))return 'FF';var g=goals(c.scoreSubTotal),b=behinds(c.scoreSubTotal);return g+'.'+b+' ('+c.scoreTotal+')';}
+  function outcomeBadge(o){if(!o)return'<span class="kw-outcome-badge kw-badge-f">-</span>';if(o==='WON'||o==='WON_BY_FORFEIT')return'<span class="kw-outcome-badge kw-badge-w">W</span>';if(o==='LOST'||o==='LOST_BY_FORFEIT')return'<span class="kw-outcome-badge kw-badge-l">L</span>';if(o==='DRAWN')return'<span class="kw-outcome-badge kw-badge-d">D</span>';return'<span class="kw-outcome-badge kw-badge-f">-</span>';}
+
+  function phqFetch(path, cb) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET','https://api.playhq.com'+path,true);
+    xhr.setRequestHeader('x-api-key', API_KEY);
+    xhr.setRequestHeader('x-phq-tenant','afl');
+    xhr.onload=function(){try{cb(null,JSON.parse(xhr.responseText));}catch(e){cb(e);}};
+    xhr.onerror=function(){cb(new Error('Network error'));};
+    xhr.send();
+  }
+
+  function renderAll(games, ladder) {
+    var kjfcGames = games.filter(function(g){return g.competitors.some(function(c){return c.id===TEAM_ID;});});
+    var played    = kjfcGames.filter(function(g){return g.status==='FINAL';});
+    var upcoming  = kjfcGames.filter(function(g){return g.status!=='FINAL';});
+    var lastGame  = played.length?played[played.length-1]:null;
+    var nextGame  = upcoming.length?upcoming[0]:null;
+
+    var myStanding=null;
+    if(ladder&&ladder.data&&ladder.data[0]&&ladder.data[0].ladders&&ladder.data[0].ladders[0]){
+      var standings=ladder.data[0].ladders[0].standings;
+      myStanding=standings.find(function(s){return s.team&&s.team.id===TEAM_ID;});
+    }
+
+    var html='';
+
+    if(myStanding){
+      html+='<div class="kw-card"><div class="kw-section-label">Ladder Position</div><div class="kw-kpis">';
+      html+='<div class="kw-kpi"><div class="kw-kpi-val">'+myStanding.ranking+'</div><div class="kw-kpi-lbl">Position</div></div>';
+      html+='<div class="kw-kpi"><div class="kw-kpi-val">'+myStanding.won+'</div><div class="kw-kpi-lbl">Wins</div></div>';
+      html+='<div class="kw-kpi"><div class="kw-kpi-val">'+myStanding.lost+'</div><div class="kw-kpi-lbl">Losses</div></div>';
+      html+='<div class="kw-kpi"><div class="kw-kpi-val">'+(myStanding.percentage?myStanding.percentage.toFixed(1)+'%':'—')+'</div><div class="kw-kpi-lbl">%</div></div>';
+      html+='<div class="kw-kpi"><div class="kw-kpi-val">'+myStanding.competitionPoints+'</div><div class="kw-kpi-lbl">Pts</div></div>';
+      html+='</div></div>';
+    }
+
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">';
+    html+='<div class="kw-card" style="margin:0;"><div class="kw-section-label">Next Game</div>';
+    if(nextGame){
+      var kjfc=nextGame.competitors.find(function(c){return c.id===TEAM_ID;});
+      var opp=nextGame.competitors.find(function(c){return c.id!==TEAM_ID;});
+      html+='<div class="kw-game-round">'+nextGame.round.name+(nextGame.round.isFinalRound?' 🏆':'')+'</div>';
+      html+='<div style="font-weight:700;font-size:14px;color:#013C1E;margin:4px 0;">'+(opp?opp.name:'TBC')+'</div>';
+      html+='<div style="font-size:11px;color:#6b7280;">'+fmt(nextGame.schedule.date,nextGame.schedule.time)+'</div>';
+      html+='<div style="font-size:11px;color:#6b7280;">'+(nextGame.venue?nextGame.venue.name:'')+'</div>';
+      html+='<div style="font-size:11px;color:#6b7280;">'+(kjfc&&kjfc.isHomeTeam?'🏠 Home':'✈️ Away')+'</div>';
+    }else{html+='<div style="font-size:13px;color:#6b7280;">No upcoming games</div>';}
+    html+='</div>';
+
+    html+='<div class="kw-card" style="margin:0;"><div class="kw-section-label">Last Result</div>';
+    if(lastGame){
+      var kjfc2=lastGame.competitors.find(function(c){return c.id===TEAM_ID;});
+      var opp2=lastGame.competitors.find(function(c){return c.id!==TEAM_ID;});
+      var outcome=kjfc2?kjfc2.outcome:null;
+      var oc=outcome&&(outcome==='WON'||outcome==='WON_BY_FORFEIT')?'kw-outcome-won':outcome&&(outcome==='LOST'||outcome==='LOST_BY_FORFEIT')?'kw-outcome-lost':'kw-outcome-draw';
+      html+='<div class="kw-game-round">'+lastGame.round.name+'</div>';
+      html+='<div style="font-weight:700;font-size:14px;color:#013C1E;margin:4px 0;">'+(opp2?opp2.name:'')+'</div>';
+      if(kjfc2&&opp2){
+        html+='<div style="font-size:15px;font-weight:800;"><span class="'+oc+'">'+scoreStr(kjfc2)+'</span> <span style="color:#9ca3af;font-size:12px;">v</span> '+scoreStr(opp2)+'</div>';
+        html+='<div class="'+oc+'" style="font-size:12px;margin-top:2px;">'+(outcome==='WON'||outcome==='WON_BY_FORFEIT'?'WIN':outcome==='DRAWN'?'DRAW':'LOSS')+'</div>';
+      }
+    }else{html+='<div style="font-size:13px;color:#6b7280;">No results yet</div>';}
+    html+='</div></div>';
+
+    html+='<div class="kw-card"><div class="kw-tabs">';
+    html+='<button class="kw-tab act" id="tab-fix" onclick="showTab(\'fix\')">Fixtures &amp; Results</button>';
+    html+='<button class="kw-tab" id="tab-lad" onclick="showTab(\'lad\')">Ladder</button>';
+    html+='</div>';
+
+    html+='<div id="panel-fix"><table><thead><tr><th>Round</th><th>Opponent</th><th>Date</th><th>Venue</th><th>Result</th></tr></thead><tbody>';
+    kjfcGames.forEach(function(g){
+      var kjfc3=g.competitors.find(function(c){return c.id===TEAM_ID;});
+      var opp3=g.competitors.find(function(c){return c.id!==TEAM_ID;});
+      var isFinal=g.status==='FINAL';
+      html+='<tr><td style="font-size:10px;color:#9ca3af;font-weight:700;">'+g.round.abbreviatedName+(g.round.isFinalRound?' 🏆':'')+'</td>';
+      html+='<td style="color:#013C1E;font-weight:700;">'+(opp3?opp3.name:'BYE')+'</td>';
+      html+='<td>'+(g.schedule.date?new Date(g.schedule.date).toLocaleDateString('en-AU',{day:'numeric',month:'short'}):'')+'</td>';
+      html+='<td>'+(g.venue?g.venue.address.suburb:'')+'</td>';
+      if(isFinal&&kjfc3){html+='<td>'+outcomeBadge(kjfc3.outcome)+' '+scoreStr(kjfc3)+' – '+(opp3?scoreStr(opp3):'')+'</td>';}
+      else{html+='<td style="color:#9ca3af;">–</td>';}
+      html+='</tr>';
+    });
+    html+='</tbody></table></div>';
+
+    html+='<div id="panel-lad" style="display:none;">';
+    if(ladder&&ladder.data&&ladder.data[0]&&ladder.data[0].ladders&&ladder.data[0].ladders[0]){
+      var standings2=ladder.data[0].ladders[0].standings;
+      html+='<table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>D</th><th>%</th><th>Pts</th></tr></thead><tbody>';
+      standings2.forEach(function(s){
+        var isK=s.team&&s.team.id===TEAM_ID;
+        html+='<tr'+(isK?' class="kjfc-row"':'')+'><td>'+s.ranking+'</td><td>'+( s.team?s.team.name:'')+(isK?' ⭐':'')+'</td>';
+        html+='<td>'+s.played+'</td><td>'+s.won+'</td><td>'+s.lost+'</td><td>'+(s.drawn||0)+'</td>';
+        html+='<td>'+(s.percentage?s.percentage.toFixed(1):'0')+'</td><td><strong>'+s.competitionPoints+'</strong></td></tr>';
+      });
+      html+='</tbody></table>';
+    }else{html+='<p style="color:#6b7280;font-size:13px;padding:10px 0;">Ladder data unavailable.</p>';}
+    html+='</div></div>';
+
+    el.innerHTML=html;
+    // Signal parent to resize
+    parent.postMessage({type:'kjfc-resize',height:document.body.scrollHeight},'*');
+  }
+
+  window.showTab=function(tab){
+    document.getElementById('panel-fix').style.display=tab==='fix'?'':'none';
+    document.getElementById('panel-lad').style.display=tab==='lad'?'':'none';
+    document.getElementById('tab-fix').classList.toggle('act',tab==='fix');
+    document.getElementById('tab-lad').classList.toggle('act',tab==='lad');
+    parent.postMessage({type:'kjfc-resize',height:document.body.scrollHeight},'*');
+  };
+
+  var gamesData=null,ladderData=null;
+  function tryRender(){if(gamesData!==null&&ladderData!==null)renderAll(gamesData,ladderData);}
+
+  phqFetch('/v1/grades/'+GRADE_ID+'/games',function(err,data){
+    if(err){el.innerHTML='<div class="kw-error">Could not load games: '+err.message+'</div>';return;}
+    gamesData=data.data||[];tryRender();
+  });
+  phqFetch('/v1/grades/'+GRADE_ID+'/ladder',function(err,data){
+    if(err){ladderData={};tryRender();return;}
+    ladderData=data;tryRender();
+  });
+})();
+<\/script>` : ''}
+
+</body></html>`;
 }
 
 function wbCopyCode(elId) {
