@@ -9023,33 +9023,27 @@ function renderWebsiteTab(targetEl) {
   const el = targetEl || document.getElementById('admin-panel-body');
   if (!el) return;
 
-  // Render immediately with whatever state we have, then load config in background
+  // Render immediately with whatever state we have
   _drawWebsiteTab(el);
 
   // Load saved config from sheet in background and re-render when ready
-  if (typeof google !== 'undefined' && google.script && google.script.run) {
-    google.script.run
-      .withSuccessHandler(cfg => {
-        if (cfg && !cfg.error) {
-          _websiteState.proxyUrl   = cfg.proxyUrl   || '';
-          _websiteState.orgId      = cfg.orgId      || _websiteState.orgId;
-          _websiteState.seasonId   = cfg.seasonId   || '';
-          _websiteState.seasonName = cfg.seasonName || '';
-        }
-        google.script.run
-          .withSuccessHandler(teams => {
-            _websiteState.savedTeams = {};
-            (teams || []).forEach(t => { _websiteState.savedTeams[t.teamId] = t; });
-            // Only re-draw if still on website tab
-            const active = document.querySelector('#dash-sub-admin .dtab.act');
-            if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
-          })
-          .withFailureHandler(() => {})
-          .getWebsiteTeams();
-      })
-      .withFailureHandler(() => {})
-      .getWebsiteConfig();
-  }
+  api('getWebsiteConfig').then(cfg => {
+    if (cfg && !cfg.error) {
+      _websiteState.proxyUrl   = cfg.proxyUrl   || '';
+      _websiteState.orgId      = cfg.orgId      || _websiteState.orgId;
+      _websiteState.seasonId   = cfg.seasonId   || '';
+      _websiteState.seasonName = cfg.seasonName || '';
+    }
+    return api('getWebsiteTeams');
+  }).then(teams => {
+    if (Array.isArray(teams)) {
+      _websiteState.savedTeams = {};
+      teams.forEach(t => { _websiteState.savedTeams[t.teamId] = t; });
+    }
+    // Only re-draw if still on website tab
+    const active = document.querySelector('#dash-sub-admin .dtab.act');
+    if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
+  }).catch(() => {});
 }
 
 function _drawWebsiteTab(el) {
@@ -9604,13 +9598,10 @@ function wbTestProxy() {
   const url = document.getElementById('wb-proxy-url').value.trim();
   if (!url) { _wbProxyStatus('Enter a URL first', 'err'); return; }
   _wbProxyStatus('Testing…', 'info');
-  google.script.run
-    .withSuccessHandler(r => {
-      if (r.ok) { _wbProxyStatus('✓ Connected successfully', 'ok'); }
-      else      { _wbProxyStatus('✗ ' + (r.error || 'Failed'), 'err'); }
-    })
-    .withFailureHandler(e => _wbProxyStatus('✗ ' + e.message, 'err'))
-    .testProxyConnection(url);
+  api('testProxyConnection', { proxyUrl: url }).then(r => {
+    if (r && r.ok) _wbProxyStatus('✓ Connected successfully', 'ok');
+    else           _wbProxyStatus('✗ ' + (r && r.error ? r.error : 'Failed'), 'err');
+  }).catch(e => _wbProxyStatus('✗ ' + e.message, 'err'));
 }
 
 function _wbProxyStatus(msg, type) {
@@ -9623,10 +9614,9 @@ function _wbProxyStatus(msg, type) {
 function wbSaveProxyUrl() {
   const url = document.getElementById('wb-proxy-url').value.trim();
   _websiteState.proxyUrl = url;
-  google.script.run
-    .withSuccessHandler(() => _wbProxyStatus('✓ Saved', 'ok'))
-    .withFailureHandler(e => _wbProxyStatus('✗ ' + e.message, 'err'))
-    .saveWebsiteConfig({ proxyUrl: url });
+  api('saveWebsiteConfig', { updates: { proxyUrl: url } })
+    .then(() => _wbProxyStatus('✓ Saved', 'ok'))
+    .catch(e => _wbProxyStatus('✗ ' + e.message, 'err'));
 }
 
 function wbSeasonChanged(sel) {
@@ -9634,36 +9624,30 @@ function wbSeasonChanged(sel) {
   _websiteState.seasonName = sel.options[sel.selectedIndex].text;
   _websiteState.teams      = [];
   document.getElementById('wb-teams-list').innerHTML = '';
-  google.script.run
-    .withSuccessHandler(() => {})
-    .saveWebsiteConfig({ seasonId: sel.value, seasonName: sel.options[sel.selectedIndex].text });
+  api('saveWebsiteConfig', { updates: { seasonId: sel.value, seasonName: sel.options[sel.selectedIndex].text } }).catch(() => {});
 }
 
 function wbDiscover() {
   const tl = document.getElementById('wb-teams-list');
   tl.innerHTML = '<div style="font-size:13px;color:var(--text-dim);padding:8px 0;">Discovering teams from PlayHQ…</div>';
 
-  google.script.run
-    .withSuccessHandler(result => {
-      if (result.error) {
-        tl.innerHTML = `<div class="wb-status wb-status-err">${_escHtml(result.error)}</div>`;
-        return;
-      }
-      // Merge with saved config
-      const teams = result.teams || [];
-      const saved = _websiteState.savedTeams;
-      teams.forEach(t => {
-        t._enabled = !!(saved[t.id] && saved[t.id].enabled === true || saved[t.id] && saved[t.id].enabled === 'true');
-        t.teamId   = t.id;
-        t.gradeId  = t.grade ? t.grade.id : null;
-      });
-      _websiteState.teams = teams;
-      tl.innerHTML = _renderTeamsList();
-    })
-    .withFailureHandler(e => {
-      tl.innerHTML = `<div class="wb-status wb-status-err">Error: ${_escHtml(e.message)}</div>`;
-    })
-    .discoverTeams(_websiteState.seasonId);
+  api('discoverTeams', { seasonId: _websiteState.seasonId }).then(result => {
+    if (!result || result.error) {
+      tl.innerHTML = `<div class="wb-status wb-status-err">${_escHtml(result ? result.error : 'Unknown error')}</div>`;
+      return;
+    }
+    const teams = result.teams || [];
+    const saved = _websiteState.savedTeams;
+    teams.forEach(t => {
+      t._enabled = !!(saved[t.id] && (saved[t.id].enabled === true || saved[t.id].enabled === 'true'));
+      t.teamId   = t.id;
+      t.gradeId  = t.grade ? t.grade.id : null;
+    });
+    _websiteState.teams = teams;
+    tl.innerHTML = _renderTeamsList();
+  }).catch(e => {
+    tl.innerHTML = `<div class="wb-status wb-status-err">Error: ${_escHtml(e.message)}</div>`;
+  });
 }
 
 function _renderTeamsList() {
@@ -9724,17 +9708,15 @@ function wbSaveConfig() {
     };
   });
 
-  google.script.run
-    .withSuccessHandler(r => {
-      if (status) { status.textContent = '✓ Saved ' + r.count + ' team' + (r.count!==1?'s':''); status.style.color = '#065f46'; }
-      // Refresh generate section
+  api('saveAllWebsiteTeams', { teams: toSave })
+    .then(r => {
+      if (status) { status.textContent = '✓ Saved ' + (r.count||toSave.length) + ' team' + ((r.count||toSave.length)!==1?'s':''); status.style.color = '#065f46'; }
       const el = document.getElementById('admin-panel-body');
       if (el) _drawWebsiteTab(el);
     })
-    .withFailureHandler(e => {
+    .catch(e => {
       if (status) { status.textContent = '✗ ' + e.message; status.style.color = '#991b1b'; }
-    })
-    .saveAllWebsiteTeams(toSave);
+    });
 }
 
 function wbCopyCode(elId) {
