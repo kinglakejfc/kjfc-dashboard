@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.33</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.34</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9236,6 +9236,16 @@ function _drawWebsiteTab(el) {
                 placeholder="e.g. Kinglake Under 16 Boys" oninput="wbFieldChange(this)" />
             </div>
             <div class="wb-field">
+              <label>Age Group <span style="font-weight:400;color:var(--text-dim);">(e.g. 9, 11, 17.5 — blank for seniors)</span></label>
+              <input type="number" min="5" max="19" step="0.5" data-tid="${t.teamId}" data-field="ageGroup"
+                value="${_escHtml(saved.ageGroup || '')}"
+                placeholder="e.g. 9" oninput="wbFieldChange(this)"
+                style="max-width:120px;" />
+              ${(saved.ageGroup && parseFloat(saved.ageGroup) <= 10)
+                ? `<div style="font-size:11px;color:#d97706;margin-top:4px;">⚠ U10 &amp; below — scoring, ladder &amp; finals sections will show an info note.</div>`
+                : ''}
+            </div>
+            <div class="wb-field">
               <label>Head Coach</label>
               <input type="text" data-tid="${t.teamId}" data-field="coaches"
                 value="${_escHtml(saved.coaches || '')}"
@@ -9428,6 +9438,8 @@ function _buildWidgetCode(team, cfg, apiKey) {
   const manager        = cfg.manager        || '';
   const contact        = cfg.managerContact || '';
   const gameDay        = cfg.gameDay        || '';  // e.g. "Sundays"
+  const ageGroup       = parseFloat(cfg.ageGroup) || 0;  // numeric age group, 0 = seniors
+  const noScore        = ageGroup > 0 && ageGroup <= 10; // U10 and below: no scoring/ladder/finals
 
   // ── CSS ─────────────────────────────────────────────────────────
   // Correct Squarespace yellow: #FBE201
@@ -9562,6 +9574,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     toggleScript + `\n` +
     `<script>\n(function(){\n` +
     `var KEY='${apiKey}',GID='${gradeId}',TID='${teamId}',GAMEDAY='${gameDay.replace(/'/g,"\\'")}',YEL='#FBE201';\n` +
+    `var NOSCORE=${noScore?'true':'false'};\n` +
     `var el=document.getElementById('kjfc-live-${tid}');\n` +
     `\n` +
     `function ord(n){var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}\n` +
@@ -9626,7 +9639,8 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `if(last){var kl=last.competitors.find(function(c){return c.id===TID;});var ol=last.competitors.find(function(c){return c.id!==TID;});\n` +
     `gH+='<div class="kw-opp">'+(ol?ol.name:'')+'</div>';\n` +
     `gH+='<div class="kw-meta">'+last.round.name+'</div>';\n` +
-    `if(kl&&ol){gH+='<div class="kw-scr '+oc(kl.outcome)+'">'+scr(kl)+' <span style="opacity:.45;font-size:.8em;">v</span> '+scr(ol)+'</div>';}\n` +
+    `if(kl&&ol&&!NOSCORE){gH+='<div class="kw-scr '+oc(kl.outcome)+'">'+scr(kl)+' <span style="opacity:.45;font-size:.8em;">v</span> '+scr(ol)+'</div>';}\n` +
+`if(kl&&NOSCORE){gH+='<p style=\"color:rgba(255,255,255,.7);font-size:.9em;margin:4px 0 0;\">&#8505; Scores are not recorded for this age group.</p>';}\n` +
     `if(kl){gH+='<div class="'+oc(kl.outcome)+'">'+ow(kl.outcome)+'</div>';}\n` +
     `}else{gH+='<div class="kw-meta" style="color:rgba(255,255,255,.35);">No results yet</div>';}\n` +
     `gH+='</div></div>';\n` +
@@ -9641,7 +9655,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `var o=g.competitors.find(function(c){return c.id!==TID;});\n` +
     `var fin=g.status==='FINAL';\n` +
     `var drId='${tid}-dr-'+i;\n` +
-    `var res=fin&&k?bdg(k.outcome)+' '+scr(k)+' \u2013 '+(o?scr(o):''):'<span style="color:rgba(255,255,255,.28)">\u2013</span>';\n` +
+    `var res=fin&&k&&!NOSCORE?bdg(k.outcome)+' '+scr(k)+' \u2013 '+(o?scr(o):''):fin&&k&&NOSCORE?bdg(k.outcome):'<span style="color:rgba(255,255,255,.28)">\u2013</span>';\n` +
     `fH+='<tr class="kw-gr" data-dr="'+drId+'">';\n` +
     `fH+='<td style="color:rgba(255,255,255,.38);font-size:.78em;font-weight:700;">'+g.round.abbreviatedName+'</td>';\n` +
     `fH+='<td style="font-weight:600;">'+(o?o.name:'BYE')+'</td>';\n` +
@@ -9653,14 +9667,16 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `if(g.venue)fH+='<div class="kw-di"><span class="kw-lbl">Venue</span><span>'+g.venue.name+'</span></div>';\n` +
     `var ga=vaddr(g.venue);if(ga)fH+='<div class="kw-di"><span class="kw-lbl">Address</span><span>'+ga+'</span></div>';\n` +
     `if(k&&k.isHomeTeam!==undefined)fH+='<div class="kw-di"><span class="kw-lbl">H/A</span><span>'+(k.isHomeTeam?'Home':'Away')+'</span></div>';\n` +
-    `if(fin&&k&&o)fH+='<div class="kw-di"><span class="kw-lbl">Score</span><span class="'+oc(k.outcome)+'">'+scr(k)+' v '+scr(o)+' \u2014 '+ow(k.outcome)+'</span></div>';\n` +
+    `if(fin&&k&&o&&!NOSCORE)fH+='<div class="kw-di"><span class="kw-lbl">Score</span><span class="'+oc(k.outcome)+'">'+scr(k)+' v '+scr(o)+' \u2014 '+ow(k.outcome)+'</span></div>';\n` +
     `fH+='</div></div></td></tr>';\n` +
     `});\n` +
     `fH+='</tbody></table><div class="kw-hint">\u25BC Tap a row to expand full details.</div>';\n` +
     `}else if(!noData){fH='<div class="kw-soon">\uD83D\uDCC5 Fixture not yet released.</div>';}\n` +
     `html+=sec2('${tid}-fix','Fixtures &amp; Results',fH,false);\n` +
     `\n` +
-    // Ladder — KPI strip + full table
+    // Ladder — KPI strip + full table (suppressed for NOSCORE age groups)
+    `if(NOSCORE){html+=sec2('${tid}-lad','Ladder','<p style=\"color:rgba(255,255,255,.7);font-size:.9em;margin:0;\">&#8505; Ladder and points are not used for this age group \u2014 these competitions focus on participation and development.</p>',false);}\n` +
+    `else{\n` +
     `var lH='';\n` +
     `if(myS){\n` +
     `lH+='<div class="kw-kpis">';\n` +
@@ -9680,6 +9696,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `lH+='</tbody></table>';\n` +
     `}else if(!noData){lH='<div class="kw-soon">\uD83C\uDFC6 Ladder not yet available \u2014 check back once the season is underway.</div>';}\n` +
     `html+=sec2('${tid}-lad','Ladder',lH,true);\n` +
+    `}\n` +
     `\n` +
     `if(noData){html='<div class="kw-soon">\uD83D\uDCC5 Season yet to begin \u2014 fixtures and ladder will appear here once the season is underway.</div>';}\n` +
     `el.innerHTML=html;\n` +
@@ -9941,6 +9958,7 @@ function wbSaveConfig() {
       gradeId:        t.gradeId || '',
       displayName:    cfg.displayName    || _wbDeriveTeamName(t.grade ? t.grade.name : '') || t.name || '',
       gradeName:      t.grade ? t.grade.name : '',
+      ageGroup:       cfg.ageGroup       || '',
       gameDay:        cfg.gameDay        || '',
       training:       cfg.training       || '',
       venue:          cfg.venue          || '',
