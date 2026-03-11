@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.36</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.38</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9340,7 +9340,7 @@ function _drawWebsiteTab(el) {
 
     html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
       <span style="font-size:12px;color:var(--text-dim);">
-        💡 Save updates the sheet. Widget pages reflect changes immediately — no code re-paste needed.
+        💡 Save updates the sheet. To update the website, copy and re-paste the widget code into Squarespace.
       </span>
       <div style="display:flex;align-items:center;gap:10px;">
         <span id="wb-save-status" style="font-size:12px;"></span>
@@ -9365,7 +9365,7 @@ function _drawWebsiteTab(el) {
     <div class="wb-body wb-collapsed" id="wb-body-generate">
       <div style="background:rgba(1,60,30,.12);border:1px solid rgba(1,60,30,.25);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--text);margin-bottom:12px;">
         💡 <strong>One-time paste only.</strong> Paste each code block into a Squarespace Code Block on the team's page.
-        After that, updating team info in step 3 auto-propagates to the website — no re-pasting required.
+        After saving, copy and re-paste the updated widget code into the Squarespace code block to update the website.
       </div>
       <div id="wb-widgets-output">${_renderWidgets()}</div>
     </div>
@@ -9446,7 +9446,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
   // h4 inherits Squarespace Heading 4 — no overrides on font-size/weight
   const YEL = '#FBE201';
   const mkCss = (id) => [
-    `#${id}{color:#fff;font-family:inherit;}`,
+    `#${id}{color:#fff;font-family:inherit;display:block;width:100%;contain:layout style;}`,
     `#${id} h4{color:${YEL};margin:0;}`,
     `#${id} p{color:rgba(255,255,255,0.85);}`,
     `#${id} .kw-section{border-top:1px solid rgba(255,255,255,0.18);}`,
@@ -9454,8 +9454,8 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `#${id} .kw-head{display:flex;justify-content:space-between;align-items:center;padding:14px 0;cursor:pointer;user-select:none;}`,
     `#${id} .kw-chev{color:${YEL};font-size:18px;transition:transform .2s;display:inline-block;line-height:1;}`,
     `#${id} .kw-chev.open{transform:rotate(180deg);}`,
-    `#${id} .kw-body{display:none;padding-bottom:16px;}`,
-    `#${id} .kw-body.open{display:block;}`,
+    `#${id} .kw-body{overflow:hidden;max-height:0;padding-bottom:0;transition:max-height .25s ease,padding-bottom .25s ease;}`,
+    `#${id} .kw-body.open{max-height:9999px;padding-bottom:16px;}`,
     `#${id} .kw-row{display:flex;gap:12px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.07);}`,
     `#${id} .kw-row:last-child{border-bottom:none;}`,
     `#${id} .kw-lbl{color:rgba(255,255,255,0.45);font-weight:600;min-width:0;flex-shrink:0;font-size:.85em;}`,
@@ -9484,8 +9484,11 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `#${id} .draw{color:#fbbf24;font-weight:700;}`,
     `#${id} tr.kw-gr{cursor:pointer;}`,
     `#${id} tr.kw-gr:hover td{background:rgba(255,255,255,.04);}`,
+    `#${id} tr.kw-dr{display:table-row;}`,
     `#${id} tr.kw-dr td{padding:0;border-bottom:none;}`,
     `#${id} .kw-det{padding:10px 12px;background:rgba(0,0,0,.2);border-bottom:1px solid rgba(255,255,255,.07);}`,
+    `#${id} .kw-det-wrap{overflow:hidden;max-height:0;transition:max-height .2s ease;}`,
+    `#${id} .kw-det-wrap.open{max-height:600px;}`,
     `#${id} .kw-dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:6px 14px;font-size:.82em;}`,
     `#${id} .kw-di .kw-lbl{min-width:0;font-size:.78em;display:block;margin-bottom:1px;}`,
     `#${id} .kw-badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:.78em;font-weight:700;}`,
@@ -9607,7 +9610,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     // Fixture row expand
     `el.addEventListener('click',function(e){\n` +
     `var gr=e.target.closest('.kw-gr');\n` +
-    `if(gr){var dr=document.getElementById(gr.dataset.dr);if(dr){var isOpen=dr.style.display==='table-row';dr.style.display=isOpen?'none':'table-row';}return;}\n` +
+    `if(gr){var dr=document.getElementById(gr.dataset.dr);if(dr){var dw=dr.querySelector('.kw-det-wrap');if(dw)dw.classList.toggle('open');}return;}\n` +
     `});\n` +
     `\n` +
     `function render(games,ladder){\n` +
@@ -9685,14 +9688,14 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `fH+='<td style="font-weight:600;">'+(o?o.name:'BYE')+'</td>';\n` +
     `fH+='<td style="white-space:nowrap;font-size:.85em;">'+fmtShort(g.schedule&&g.schedule.date)+'</td>';\n` +
     `fH+='<td>'+res+'</td></tr>';\n` +
-    `fH+='<tr class="kw-dr" id="'+drId+'" style="display:none;"><td colspan="4">';\n` +
-    `fH+='<div class="kw-det"><div class="kw-dgrid">';\n` +
+    `fH+='<tr class="kw-dr" id="'+drId+'"><td colspan="4">';\n` +
+    `fH+='<div class="kw-det-wrap"><div class="kw-det"><div class="kw-dgrid">';\n` +
     `if(g.schedule&&g.schedule.date)fH+='<div class="kw-di"><span class="kw-lbl">Date &amp; Time</span><span>'+fmtFull(g.schedule.date,g.schedule.time)+'</span></div>';\n` +
     `if(g.venue)fH+='<div class="kw-di"><span class="kw-lbl">Venue</span><span>'+g.venue.name+'</span></div>';\n` +
     `var ga=vaddr(g.venue);if(ga)fH+='<div class="kw-di"><span class="kw-lbl">Address</span><span>'+ga+'</span></div>';\n` +
     `if(k&&k.isHomeTeam!==undefined)fH+='<div class="kw-di"><span class="kw-lbl">H/A</span><span>'+(k.isHomeTeam?'Home':'Away')+'</span></div>';\n` +
     `if(fin&&k&&o&&!NOSCORE)fH+='<div class="kw-di"><span class="kw-lbl">Score</span><span class="'+oc(k.outcome)+'">'+scr(k)+' v '+scr(o)+' \u2014 '+ow(k.outcome)+'</span></div>';\n` +
-    `fH+='</div></div></td></tr>';\n` +
+    `fH+='</div></div></div></td></tr>';\n` +
     `});\n` +
     `fH+='</tbody></table><div class="kw-hint">\u25BC Tap a row to expand full details.</div>';\n` +
     `}else if(!noData){fH='<div class="kw-soon">\uD83D\uDCC5 Fixture not yet released.</div>';}\n` +
@@ -9977,7 +9980,7 @@ function wbSaveConfig() {
   api('saveAllWebsiteTeams', { teams: toSave })
     .then(r => {
       if (status) {
-        status.textContent = '✓ Saved ' + (r.count||toSave.length) + ' team' + ((r.count||toSave.length)!==1?'s':'') + ' — changes will appear on the website immediately';
+        status.textContent = '✓ Saved ' + (r.count||toSave.length) + ' team' + ((r.count||toSave.length)!==1?'s':'') + ' — re-paste the widget code into Squarespace to update the website';
         status.style.color = '#065f46';
         setTimeout(() => { if (status) status.textContent = ''; }, 5000);
       }
