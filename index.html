@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.22</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.23</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9404,257 +9404,170 @@ function _buildWidgetCode(team, cfg, proxyUrl) {
   const manager      = cfg.manager       || '';
   const contact      = cfg.managerContact || '';
 
-  // Static-only widget for teams without a grade
+  const CSS = `*{box-sizing:border-box;margin:0;padding:0;} .kw-section{border-top:1px solid rgba(255,255,255,0.2);} .kw-section:last-child{border-bottom:1px solid rgba(255,255,255,0.2);} .kw-section-head{display:flex;justify-content:space-between;align-items:center;padding:16px 0;cursor:pointer;user-select:none;} .kw-section-head h3{color:#F5C800;font-size:18px;font-weight:700;margin:0;letter-spacing:.01em;} .kw-chevron{color:#F5C800;font-size:16px;transition:transform .2s;line-height:1;} .kw-chevron.open{transform:rotate(180deg);} .kw-section-body{padding:0 0 16px;display:none;} .kw-section-body.open{display:block;} .kw-row{display:flex;gap:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);font-size:14px;align-items:flex-start;} .kw-row:last-child{border-bottom:none;} .kw-lbl{color:rgba(255,255,255,0.5);font-weight:600;min-width:110px;flex-shrink:0;font-size:13px;padding-top:1px;} .kw-val{color:#fff;} .kw-note{background:rgba(245,200,0,0.12);border-left:3px solid #F5C800;padding:8px 12px;font-size:13px;color:rgba(255,255,255,0.85);margin:8px 0;border-radius:0 4px 4px 0;} .kw-bio{font-size:14px;color:rgba(255,255,255,0.8);line-height:1.6;margin-bottom:10px;} .kw-bio:last-child{margin-bottom:0;} .kw-kpis{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;} .kw-kpi{flex:1;min-width:60px;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:12px 8px;text-align:center;} .kw-kpi-val{font-size:24px;font-weight:800;color:#F5C800;line-height:1;} .kw-kpi-lbl{font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.5px;margin-top:3px;} .kw-games-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;} .kw-game{background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:12px;} .kw-game-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.4);margin-bottom:6px;} .kw-game-opp{font-weight:700;font-size:15px;color:#fff;margin-bottom:4px;} .kw-game-meta{font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:2px;} .kw-outcome-won{color:#4ade80;font-weight:700;} .kw-outcome-lost{color:#f87171;font-weight:700;} .kw-outcome-draw{color:#fbbf24;font-weight:700;} .kw-score{font-size:16px;font-weight:800;} .kw-tabs{display:flex;gap:6px;margin-bottom:14px;} .kw-tab{padding:7px 16px;border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,0.25);background:transparent;color:rgba(255,255,255,0.6);} .kw-tab.act{background:#F5C800;color:#013C1E;border-color:#F5C800;} table{width:100%;border-collapse:collapse;font-size:13px;} thead tr{border-bottom:1px solid rgba(255,255,255,0.2);} th{padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.4);} td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.85);} tr.kjfc-row td{color:#F5C800;font-weight:700;} .kw-fix-opp{font-weight:700;color:#fff;} tr.kjfc-row .kw-fix-opp{color:#F5C800;} .kw-badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:700;} .kw-badge-w{background:#166534;color:#4ade80;} .kw-badge-l{background:#7f1d1d;color:#fca5a5;} .kw-badge-d{background:#78350f;color:#fcd34d;} .kw-badge-f{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);} .kw-loading{text-align:center;padding:24px;color:rgba(255,255,255,0.5);font-size:13px;} .kw-error{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;padding:10px 12px;border-radius:6px;font-size:13px;} .kw-coming{background:rgba(245,200,0,0.1);border:1px solid rgba(245,200,0,0.3);border-radius:6px;padding:14px;font-size:13px;color:#F5C800;text-align:center;margin-top:4px;}`;
+
+  const sec = (id, title, body, open) =>
+    `<div class="kw-section">` +
+    `<div class="kw-section-head" onclick="kjfcSec('${teamId}','${id}')">` +
+    `<h3>${title}</h3><span class="kw-chevron${open?' open':''}" id="kw-chev-${teamId}-${id}">&#8964;</span></div>` +
+    `<div class="kw-section-body${open?' open':''}" id="kw-sec-${teamId}-${id}">${body}</div></div>`;
+
+  const row = (lbl, val) => val
+    ? `<div class="kw-row"><span class="kw-lbl">${lbl}</span><span class="kw-val">${val}</span></div>`
+    : '';
+
+  let infoHtml = '';
+  if (training)       infoHtml += row('Training',   training + (venue ? ' \u00b7 ' + venue : ''));
+  if (training2)      infoHtml += row('2nd Session', training2 + (venue2 ? ' \u00b7 ' + venue2 : ''));
+  if (trainingNote)   infoHtml += `<div class="kw-note">${trainingNote}</div>`;
+  if (coaches)        infoHtml += row('Head Coach',  coaches);
+  if (assistantCoach) infoHtml += row('Asst Coach',  assistantCoach);
+  if (manager)        infoHtml += row('Manager',     manager + (contact ? ' \u00b7 ' + contact : ''));
+
+  let cpHtml = '';
+  if (coachProfile1) cpHtml += `<p class="kw-bio">${coachProfile1}</p>`;
+  if (coachProfile2) cpHtml += `<p class="kw-bio">${coachProfile2}</p>`;
+
+  const toggleFn = `<script>
+function kjfcSec(tid,sid){
+  var b=document.getElementById('kw-sec-'+tid+'-'+sid);
+  var c=document.getElementById('kw-chev-'+tid+'-'+sid);
+  var open=b.classList.toggle('open');
+  if(open)c.classList.add('open');else c.classList.remove('open');
+}
+<\/script>`;
+
   if (!hasGrade) {
-    return `<div id="kjfc-widget-${teamId}" style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;">
-  <style>
-    #kjfc-widget-${teamId} .kw-card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;}
-    #kjfc-widget-${teamId} .kw-title{font-size:20px;font-weight:800;color:#013C1E;margin-bottom:4px;}
-    #kjfc-widget-${teamId} .kw-info-row{display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:4px 0;border-bottom:1px solid #f3f4f6;}
-    #kjfc-widget-${teamId} .kw-info-row:last-child{border-bottom:none;}
-    #kjfc-widget-${teamId} .kw-label{font-weight:600;color:#6b7280;min-width:90px;flex-shrink:0;}
-    #kjfc-widget-${teamId} .kw-coming{background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:12px;font-size:13px;color:#92400e;text-align:center;margin-top:8px;}
-  </style>
-  <div class="kw-card">
-    <div class="kw-title">${name}</div>
-    ${training ? `<div class="kw-info-row"><span class="kw-label">Training</span><span>${training}${venue ? ' &middot; '+venue : ''}</span></div>` : ''}
-    ${training2 ? `<div class="kw-info-row"><span class="kw-label">2nd Session</span><span>${training2}${venue2 ? ' &middot; '+venue2 : ''}</span></div>` : ''}
-    ${trainingNote ? `<div class="kw-info-row" style="background:#fef3c7;border-radius:4px;"><span class="kw-label">Note</span><span style="color:#92400e;">${trainingNote}</span></div>` : ''}
-    ${coaches ? `<div class="kw-info-row"><span class="kw-label">Head Coach</span><span>${coaches}</span></div>` : ''}
-    ${assistantCoach ? `<div class="kw-info-row"><span class="kw-label">Asst Coach</span><span>${assistantCoach}</span></div>` : ''}
-    ${manager ? `<div class="kw-info-row"><span class="kw-label">Manager</span><span>${manager}${contact ? ' &middot; '+contact : ''}</span></div>` : ''}
-  </div>
-  <div class="kw-coming">📅 Fixtures and ladder coming soon — check back once the season draw is released by NFNL.</div>
+    return `<div id="kjfc-w-${teamId}" style="color:#fff;font-family:inherit;"><style>#kjfc-w-${teamId}{${CSS}}</style>
+${infoHtml ? sec(teamId+'-info', 'Team Info', infoHtml, true) : ''}
+${cpHtml   ? sec(teamId+'-coach','About the Coach', cpHtml, false) : ''}
+<div class="kw-coming">&#128197; Fixtures and ladder coming soon &mdash; check back once the season draw is released by NFNL.</div>
+${toggleFn}
 </div>`;
   }
 
-  // Full live widget for teams with a grade
-  return `<div id="kjfc-widget-${teamId}" style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;">
-<style>
-  #kjfc-widget-${teamId} *{box-sizing:border-box;}
-  #kjfc-widget-${teamId} .kw-card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;}
-  #kjfc-widget-${teamId} .kw-title{font-size:20px;font-weight:800;color:#013C1E;margin-bottom:4px;}
-  #kjfc-widget-${teamId} .kw-section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:8px;}
-  #kjfc-widget-${teamId} .kw-info-row{display:flex;gap:8px;font-size:13px;padding:4px 0;border-bottom:1px solid #f3f4f6;}
-  #kjfc-widget-${teamId} .kw-info-row:last-child{border-bottom:none;}
-  #kjfc-widget-${teamId} .kw-label{font-weight:600;color:#6b7280;min-width:90px;flex-shrink:0;}
-  #kjfc-widget-${teamId} .kw-kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
-  #kjfc-widget-${teamId} .kw-kpi{flex:1;min-width:80px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px;text-align:center;}
-  #kjfc-widget-${teamId} .kw-kpi-val{font-size:22px;font-weight:800;color:#013C1E;}
-  #kjfc-widget-${teamId} .kw-kpi-lbl{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;}
-  #kjfc-widget-${teamId} .kw-game-card{border:1px solid #e5e7eb;border-radius:6px;padding:12px;margin-bottom:8px;}
-  #kjfc-widget-${teamId} .kw-game-round{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:4px;}
-  #kjfc-widget-${teamId} .kw-game-teams{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
-  #kjfc-widget-${teamId} .kw-team-name{font-weight:700;font-size:14px;}
-  #kjfc-widget-${teamId} .kw-team-name.kjfc{color:#013C1E;}
-  #kjfc-widget-${teamId} .kw-score{font-size:20px;font-weight:800;color:#013C1E;}
-  #kjfc-widget-${teamId} .kw-score-detail{font-size:11px;color:#6b7280;}
-  #kjfc-widget-${teamId} .kw-vs{font-size:12px;color:#9ca3af;flex-shrink:0;}
-  #kjfc-widget-${teamId} .kw-game-meta{font-size:11px;color:#6b7280;}
-  #kjfc-widget-${teamId} .kw-outcome-won{color:#065f46;font-weight:700;}
-  #kjfc-widget-${teamId} .kw-outcome-lost{color:#991b1b;font-weight:700;}
-  #kjfc-widget-${teamId} .kw-outcome-draw{color:#92400e;font-weight:700;}
-  #kjfc-widget-${teamId} table{width:100%;border-collapse:collapse;font-size:12px;}
-  #kjfc-widget-${teamId} th{padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;border-bottom:2px solid #e5e7eb;background:#f9fafb;}
-  #kjfc-widget-${teamId} td{padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;}
-  #kjfc-widget-${teamId} tr.kjfc-row td{background:#f0fdf4;font-weight:700;}
-  #kjfc-widget-${teamId} tr:hover td{background:#f9fafb;}
-  #kjfc-widget-${teamId} .kw-fix-round{font-size:10px;color:#9ca3af;font-weight:700;}
-  #kjfc-widget-${teamId} .kw-fix-kjfc{color:#013C1E;font-weight:700;}
-  #kjfc-widget-${teamId} .kw-outcome-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;}
-  #kjfc-widget-${teamId} .kw-badge-w{background:#d1fae5;color:#065f46;}
-  #kjfc-widget-${teamId} .kw-badge-l{background:#fee2e2;color:#991b1b;}
-  #kjfc-widget-${teamId} .kw-badge-d{background:#fef3c7;color:#92400e;}
-  #kjfc-widget-${teamId} .kw-badge-f{background:#f3f4f6;color:#6b7280;}
-  #kjfc-widget-${teamId} .kw-loading{text-align:center;padding:20px;color:#6b7280;font-size:13px;}
-  #kjfc-widget-${teamId} .kw-error{background:#fee2e2;color:#991b1b;padding:10px;border-radius:6px;font-size:12px;}
-  #kjfc-widget-${teamId} .kw-tabs{display:flex;gap:4px;margin-bottom:12px;}
-  #kjfc-widget-${teamId} .kw-tab{padding:5px 12px;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid #e5e7eb;background:#fff;color:#6b7280;}
-  #kjfc-widget-${teamId} .kw-tab.act{background:#013C1E;color:#fff;border-color:#013C1E;}
-</style>
-
-<!-- Static info card (always shown) -->
-<div class="kw-card">
-  <div class="kw-title">${name}</div>
-  <div class="kw-info-row"><span class="kw-label">Training</span><span>${training}</span></div>
-  <div class="kw-info-row"><span class="kw-label">Venue</span><span>${venue}</span></div>
-  <div class="kw-info-row"><span class="kw-label">Coach</span><span>${coaches}</span></div>
-  <div class="kw-info-row"><span class="kw-label">Manager</span><span>${manager}${contact ? ' · ' + contact : ''}</span></div>
-</div>
-
-<!-- Dynamic section: populated by JS -->
-<div id="kjfc-live-${teamId}"><div class="kw-loading">Loading live data…</div></div>
-
+  return `<div id="kjfc-w-${teamId}" style="color:#fff;font-family:inherit;"><style>#kjfc-w-${teamId}{${CSS}}</style>
+${infoHtml ? sec(teamId+'-info', 'Team Info', infoHtml, true) : ''}
+${cpHtml   ? sec(teamId+'-coach','About the Coach', cpHtml, false) : ''}
+<div id="kjfc-live-${teamId}"><div class="kw-loading">&#9203; Loading live data&hellip;</div></div>
+${toggleFn}
 <script>
 (function(){
-  var PROXY    = '${proxyUrl}';
-  var GRADE_ID = '${gradeId}';
-  var TEAM_ID  = '${teamId}';
-  var el       = document.getElementById('kjfc-live-${teamId}');
+  var PROXY='${proxyUrl}',GRADE='${gradeId}',TID='${teamId}';
+  var el=document.getElementById('kjfc-live-${teamId}');
 
-  function fmt(d,t){
-    var dt=new Date(d+'T'+t);
-    return dt.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+' · '+dt.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:true});
-  }
-  function goals(sub){ var g=sub.find(function(x){return x.type==='TOTAL_GOALS';}); return g?g.value:0; }
-  function behinds(sub){ var b=sub.find(function(x){return x.type==='TOTAL_BEHINDS';}); return b?b.value:0; }
-  function scoreStr(c){ if(!c.scoreTotal&&c.outcome&&c.outcome.includes('FORFEIT')) return 'FF'; var g=goals(c.scoreSubTotal),b=behinds(c.scoreSubTotal); return g+'.'+b+' ('+c.scoreTotal+')'; }
-  function outcomeBadge(o){ if(!o) return ''; if(o==='WON'||o==='WON_BY_FORFEIT') return '<span class="kw-outcome-badge kw-badge-w">W</span>'; if(o==='LOST'||o==='LOST_BY_FORFEIT') return '<span class="kw-outcome-badge kw-badge-l">L</span>'; if(o==='DRAWN') return '<span class="kw-outcome-badge kw-badge-d">D</span>'; return '<span class="kw-outcome-badge kw-badge-f">-</span>'; }
-
-  function fetchJSON(url, cb) {
-    var x=new XMLHttpRequest(); x.open('GET',url,true);
-    x.onload=function(){ try{ cb(null,JSON.parse(x.responseText)); }catch(e){ cb(e); } };
-    x.onerror=function(){ cb(new Error('Network error')); };
-    x.send();
+  function sec2(id,title,body,open){
+    return '<div class="kw-section">'
+      +'<div class="kw-section-head" onclick="kjfcSec(\'${teamId}\',\'${teamId}-'+id+'\')">'
+      +'<h3>'+title+'</h3>'
+      +'<span class="kw-chevron'+(open?' open':'')+'\" id="kw-chev-${teamId}-${teamId}-'+id+'">&#8964;</span></div>'
+      +'<div class="kw-section-body'+(open?' open':'')+'\" id="kw-sec-${teamId}-${teamId}-'+id+'">'+body+'</div></div>';
   }
 
-  function renderAll(games, ladder) {
-    var now    = new Date();
-    var kjfcGames = games.filter(function(g){ return g.competitors.some(function(c){ return c.id===TEAM_ID; }); });
-    var played    = kjfcGames.filter(function(g){ return g.status==='FINAL'; });
-    var upcoming  = kjfcGames.filter(function(g){ return g.status!=='FINAL'; });
-    var lastGame  = played.length ? played[played.length-1] : null;
-    var nextGame  = upcoming.length ? upcoming[0] : null;
+  function fmt(d,t){var dt=new Date(d+'T'+t);return dt.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+' \u00b7 '+dt.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:true});}
+  function goals(s){var g=s.find(function(x){return x.type==='TOTAL_GOALS';});return g?g.value:0;}
+  function behinds(s){var b=s.find(function(x){return x.type==='TOTAL_BEHINDS';});return b?b.value:0;}
+  function scoreStr(c){if(!c.scoreTotal&&c.outcome&&c.outcome.includes('FORFEIT'))return'FF';return goals(c.scoreSubTotal)+'.'+behinds(c.scoreSubTotal)+' ('+c.scoreTotal+')';}
+  function badge(o){if(!o)return'<span class="kw-badge kw-badge-f">-</span>';if(o==='WON'||o==='WON_BY_FORFEIT')return'<span class="kw-badge kw-badge-w">W</span>';if(o==='LOST'||o==='LOST_BY_FORFEIT')return'<span class="kw-badge kw-badge-l">L</span>';if(o==='DRAWN')return'<span class="kw-badge kw-badge-d">D</span>';return'<span class="kw-badge kw-badge-f">-</span>';}
+  function oc(o){return(o==='WON'||o==='WON_BY_FORFEIT')?'kw-outcome-won':(o==='LOST'||o==='LOST_BY_FORFEIT')?'kw-outcome-lost':'kw-outcome-draw';}
+  function ow(o){return(o==='WON'||o==='WON_BY_FORFEIT')?'WIN':o==='DRAWN'?'DRAW':'LOSS';}
+  function fetchJ(url,cb){var x=new XMLHttpRequest();x.open('GET',url,true);x.onload=function(){try{cb(null,JSON.parse(x.responseText));}catch(e){cb(e);}};x.onerror=function(){cb(new Error('Network error'));};x.send();}
 
-    // Ladder position
-    var myStanding = null;
-    if (ladder && ladder.data && ladder.data[0] && ladder.data[0].ladders && ladder.data[0].ladders[0]) {
-      var standings = ladder.data[0].ladders[0].standings;
-      myStanding = standings.find(function(s){ return s.team && s.team.id===TEAM_ID; });
+  window['kwTab_${teamId}']=function(tab){
+    document.getElementById('kw-fix-${teamId}').style.display=tab==='fix'?'':'none';
+    document.getElementById('kw-lad-${teamId}').style.display=tab==='lad'?'':'none';
+    document.getElementById('kw-tf-${teamId}').classList.toggle('act',tab==='fix');
+    document.getElementById('kw-tl-${teamId}').classList.toggle('act',tab==='lad');
+  };
+
+  function render(games,ladder){
+    var all=games.filter(function(g){return g.competitors.some(function(c){return c.id===TID;});});
+    var played=all.filter(function(g){return g.status==='FINAL';});
+    var upcoming=all.filter(function(g){return g.status!=='FINAL';});
+    var last=played.length?played[played.length-1]:null;
+    var next=upcoming.length?upcoming[0]:null;
+    var myS=null;
+    if(ladder&&ladder.data&&ladder.data[0]&&ladder.data[0].ladders&&ladder.data[0].ladders[0]){
+      myS=ladder.data[0].ladders[0].standings.find(function(s){return s.team&&s.team.id===TID;});
     }
+    var html='';
 
-    var html = '';
+    var kpiH='<div class="kw-kpis">';
+    if(myS){
+      kpiH+='<div class="kw-kpi"><div class="kw-kpi-val">'+myS.ranking+'</div><div class="kw-kpi-lbl">Position</div></div>';
+      kpiH+='<div class="kw-kpi"><div class="kw-kpi-val">'+myS.won+'</div><div class="kw-kpi-lbl">Wins</div></div>';
+      kpiH+='<div class="kw-kpi"><div class="kw-kpi-val">'+myS.lost+'</div><div class="kw-kpi-lbl">Losses</div></div>';
+      kpiH+='<div class="kw-kpi"><div class="kw-kpi-val">'+(myS.percentage?myS.percentage.toFixed(1)+'%':'&mdash;')+'</div><div class="kw-kpi-lbl">%</div></div>';
+      kpiH+='<div class="kw-kpi"><div class="kw-kpi-val">'+myS.competitionPoints+'</div><div class="kw-kpi-lbl">Pts</div></div>';
+    }else{kpiH+='<div style="color:rgba(255,255,255,0.5);font-size:13px;padding:8px 0;">Ladder not yet available</div>';}
+    kpiH+='</div>';
+    html+=sec2('ladder','Ladder',kpiH,true);
 
-    // KPI row
-    if (myStanding) {
-      html += '<div class="kw-card"><div class="kw-section-label">Ladder Position</div><div class="kw-kpis">';
-      html += '<div class="kw-kpi"><div class="kw-kpi-val">' + myStanding.ranking + '</div><div class="kw-kpi-lbl">Position</div></div>';
-      html += '<div class="kw-kpi"><div class="kw-kpi-val">' + myStanding.won + '</div><div class="kw-kpi-lbl">Wins</div></div>';
-      html += '<div class="kw-kpi"><div class="kw-kpi-val">' + myStanding.lost + '</div><div class="kw-kpi-lbl">Losses</div></div>';
-      html += '<div class="kw-kpi"><div class="kw-kpi-val">' + (myStanding.percentage ? myStanding.percentage.toFixed(1)+'%' : '—') + '</div><div class="kw-kpi-lbl">%</div></div>';
-      html += '<div class="kw-kpi"><div class="kw-kpi-val">' + myStanding.competitionPoints + '</div><div class="kw-kpi-lbl">Pts</div></div>';
-      html += '</div></div>';
-    }
+    var gH='<div class="kw-games-grid">';
+    gH+='<div class="kw-game"><div class="kw-game-lbl">Next Game</div>';
+    if(next){var kn=next.competitors.find(function(c){return c.id===TID;});var on=next.competitors.find(function(c){return c.id!==TID;});
+      gH+='<div class="kw-game-opp">'+(on?on.name:'TBC')+'</div>';
+      gH+='<div class="kw-game-meta">'+next.round.name+'</div>';
+      gH+='<div class="kw-game-meta">'+fmt(next.schedule.date,next.schedule.time)+'</div>';
+      gH+='<div class="kw-game-meta">'+(next.venue?next.venue.name:'')+'</div>';
+      gH+='<div class="kw-game-meta">'+(kn&&kn.isHomeTeam?'Home':'Away')+'</div>';
+    }else{gH+='<div style="color:rgba(255,255,255,0.5);font-size:13px;">No upcoming games</div>';}
+    gH+='</div><div class="kw-game"><div class="kw-game-lbl">Last Result</div>';
+    if(last){var kl=last.competitors.find(function(c){return c.id===TID;});var ol=last.competitors.find(function(c){return c.id!==TID;});
+      gH+='<div class="kw-game-opp">'+(ol?ol.name:'')+'</div>';
+      gH+='<div class="kw-game-meta">'+last.round.name+'</div>';
+      if(kl&&ol){gH+='<div class="kw-score '+oc(kl.outcome)+'">'+scoreStr(kl)+' <span style="opacity:.5;font-size:12px;">v</span> '+scoreStr(ol)+'</div>';
+      gH+='<div class="'+oc(kl.outcome)+'" style="font-size:13px;font-weight:700;margin-top:2px;">'+ow(kl.outcome)+'</div>';}
+    }else{gH+='<div style="color:rgba(255,255,255,0.5);font-size:13px;">No results yet</div>';}
+    gH+='</div></div>';
+    html+=sec2('games','Game Day',gH,true);
 
-    // Next game + Last result side by side
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">';
-
-    // Next game
-    html += '<div class="kw-card" style="margin:0;">';
-    html += '<div class="kw-section-label">Next Game</div>';
-    if (nextGame) {
-      var kjfc = nextGame.competitors.find(function(c){ return c.id===TEAM_ID; });
-      var opp  = nextGame.competitors.find(function(c){ return c.id!==TEAM_ID; });
-      html += '<div class="kw-game-round">' + nextGame.round.name + (nextGame.round.isFinalRound?' 🏆':'') + '</div>';
-      html += '<div style="font-weight:700;font-size:14px;color:#013C1E;margin:4px 0;">' + (opp?opp.name:'TBC') + '</div>';
-      html += '<div class="kw-game-meta">' + fmt(nextGame.schedule.date, nextGame.schedule.time) + '</div>';
-      html += '<div class="kw-game-meta">' + (nextGame.venue ? nextGame.venue.name : '') + '</div>';
-      html += '<div class="kw-game-meta">' + (kjfc && kjfc.isHomeTeam ? '🏠 Home' : '✈️ Away') + '</div>';
-    } else {
-      html += '<div style="font-size:13px;color:#6b7280;">No upcoming games scheduled</div>';
-    }
-    html += '</div>';
-
-    // Last result
-    html += '<div class="kw-card" style="margin:0;">';
-    html += '<div class="kw-section-label">Last Result</div>';
-    if (lastGame) {
-      var kjfc2 = lastGame.competitors.find(function(c){ return c.id===TEAM_ID; });
-      var opp2  = lastGame.competitors.find(function(c){ return c.id!==TEAM_ID; });
-      var outcome = kjfc2 ? kjfc2.outcome : null;
-      var outcomeClass = outcome&&(outcome==='WON'||outcome==='WON_BY_FORFEIT') ? 'kw-outcome-won' : outcome&&(outcome==='LOST'||outcome==='LOST_BY_FORFEIT') ? 'kw-outcome-lost' : 'kw-outcome-draw';
-      html += '<div class="kw-game-round">' + lastGame.round.name + (lastGame.round.isFinalRound?' 🏆':'') + '</div>';
-      html += '<div style="font-weight:700;font-size:14px;color:#013C1E;margin:4px 0;">' + (opp2?opp2.name:'') + '</div>';
-      if (kjfc2 && opp2) {
-        html += '<div style="font-size:15px;font-weight:800;"><span class="'+outcomeClass+'">' + scoreStr(kjfc2) + '</span> <span style="color:#9ca3af;font-size:12px;">def. by</span> ' + scoreStr(opp2) + '</div>';
-        html += '<div class="' + outcomeClass + '" style="font-size:12px;margin-top:2px;">' + (outcome==='WON'||outcome==='WON_BY_FORFEIT'?'WIN':outcome==='DRAWN'?'DRAW':'LOSS') + '</div>';
-      }
-    } else {
-      html += '<div style="font-size:13px;color:#6b7280;">No results yet</div>';
-    }
-    html += '</div>';
-    html += '</div>';
-
-    // Tabs: Fixtures | Ladder
-    html += '<div class="kw-card"><div class="kw-tabs">';
-    html += '<button class="kw-tab act" id="kwtab-fix-${teamId}" onclick="kwShowTab(\'${teamId}\',\'fix\')">Fixtures &amp; Results</button>';
-    html += '<button class="kw-tab" id="kwtab-lad-${teamId}" onclick="kwShowTab(\'${teamId}\',\'lad\')">Ladder</button>';
-    html += '</div>';
-
-    // Fixture table
-    html += '<div id="kwpanel-fix-${teamId}">';
-    html += '<table><thead><tr><th>Round</th><th>Opponent</th><th>Date</th><th>Venue</th><th>Result</th></tr></thead><tbody>';
-    kjfcGames.forEach(function(g){
-      var kjfc3 = g.competitors.find(function(c){ return c.id===TEAM_ID; });
-      var opp3  = g.competitors.find(function(c){ return c.id!==TEAM_ID; });
-      var isFinal = g.status==='FINAL';
-      html += '<tr>';
-      html += '<td class="kw-fix-round">' + g.round.abbreviatedName + (g.round.isFinalRound?' 🏆':'') + '</td>';
-      html += '<td class="kw-fix-kjfc">' + (opp3?opp3.name:'BYE') + '</td>';
-      html += '<td>' + (g.schedule.date ? new Date(g.schedule.date).toLocaleDateString('en-AU',{day:'numeric',month:'short'}) : '') + '</td>';
-      html += '<td>' + (g.venue ? g.venue.address.suburb : '') + '</td>';
-      if (isFinal && kjfc3) {
-        html += '<td>' + outcomeBadge(kjfc3.outcome) + ' ' + scoreStr(kjfc3) + ' – ' + (opp3?scoreStr(opp3):'') + '</td>';
-      } else {
-        html += '<td style="color:#9ca3af;">–</td>';
-      }
-      html += '</tr>';
+    var tabH='<div class="kw-tabs">'
+      +'<button class="kw-tab act" id="kw-tf-${teamId}" onclick="kwTab_${teamId}(\'fix\')">Fixtures &amp; Results</button>'
+      +'<button class="kw-tab" id="kw-tl-${teamId}" onclick="kwTab_${teamId}(\'lad\')">Ladder</button>'
+      +'</div>';
+    tabH+='<div id="kw-fix-${teamId}"><table><thead><tr><th>Round</th><th>Opponent</th><th>Date</th><th>Venue</th><th>Result</th></tr></thead><tbody>';
+    all.forEach(function(g){
+      var k=g.competitors.find(function(c){return c.id===TID;});
+      var o=g.competitors.find(function(c){return c.id!==TID;});
+      var fin=g.status==='FINAL';
+      tabH+='<tr><td style="color:rgba(255,255,255,0.4);font-size:11px;font-weight:700;">'+g.round.abbreviatedName+'</td>';
+      tabH+='<td class="kw-fix-opp">'+(o?o.name:'BYE')+'</td>';
+      tabH+='<td>'+(g.schedule.date?new Date(g.schedule.date).toLocaleDateString('en-AU',{day:'numeric',month:'short'}):'')+'</td>';
+      tabH+='<td style="color:rgba(255,255,255,0.6);">'+(g.venue?g.venue.address.suburb:'')+'</td>';
+      if(fin&&k){tabH+='<td>'+badge(k.outcome)+' '+scoreStr(k)+' &ndash; '+(o?scoreStr(o):'')+'</td>';}
+      else{tabH+='<td style="color:rgba(255,255,255,0.3);">&ndash;</td>';}
+      tabH+='</tr>';
     });
-    html += '</tbody></table></div>';
-
-    // Ladder table
-    html += '<div id="kwpanel-lad-${teamId}" style="display:none;">';
-    if (ladder && ladder.data && ladder.data[0] && ladder.data[0].ladders && ladder.data[0].ladders[0]) {
-      var standings2 = ladder.data[0].ladders[0].standings;
-      html += '<table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>D</th><th>%</th><th>Pts</th></tr></thead><tbody>';
-      standings2.forEach(function(s){
-        var isKjfc = s.team && s.team.id===TEAM_ID;
-        html += '<tr' + (isKjfc?' class="kjfc-row"':'') + '>';
-        html += '<td>' + s.ranking + '</td>';
-        html += '<td>' + (s.team?s.team.name:'') + (isKjfc?' ⭐':'') + '</td>';
-        html += '<td>' + s.played + '</td>';
-        html += '<td>' + s.won + '</td>';
-        html += '<td>' + s.lost + '</td>';
-        html += '<td>' + (s.drawn||0) + '</td>';
-        html += '<td>' + (s.percentage?s.percentage.toFixed(1):'0') + '</td>';
-        html += '<td><strong>' + s.competitionPoints + '</strong></td>';
-        html += '</tr>';
+    tabH+='</tbody></table></div>';
+    tabH+='<div id="kw-lad-${teamId}" style="display:none;">';
+    if(ladder&&ladder.data&&ladder.data[0]&&ladder.data[0].ladders&&ladder.data[0].ladders[0]){
+      var st=ladder.data[0].ladders[0].standings;
+      tabH+='<table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>D</th><th>%</th><th>Pts</th></tr></thead><tbody>';
+      st.forEach(function(s){
+        var isK=s.team&&s.team.id===TID;
+        tabH+='<tr'+(isK?' class="kjfc-row"':'')+'>';
+        tabH+='<td>'+s.ranking+'</td><td>'+(s.team?s.team.name:'')+(isK?' *':'')+'</td>';
+        tabH+='<td>'+s.played+'</td><td>'+s.won+'</td><td>'+s.lost+'</td><td>'+(s.drawn||0)+'</td>';
+        tabH+='<td>'+(s.percentage?s.percentage.toFixed(1):'0')+'</td><td><strong>'+s.competitionPoints+'</strong></td></tr>';
       });
-      html += '</tbody></table>';
-    } else {
-      html += '<p style="color:#6b7280;font-size:13px;padding:10px 0;">Ladder data unavailable.</p>';
-    }
-    html += '</div></div>';
-
-    el.innerHTML = html;
+      tabH+='</tbody></table>';
+    }else{tabH+='<p style="color:rgba(255,255,255,0.5);font-size:13px;padding:10px 0;">Ladder data unavailable.</p>';}
+    tabH+='</div>';
+    html+=sec2('fixture','Fixture',tabH,false);
+    el.innerHTML=html;
   }
 
-  // Fetch both in parallel
-  var gamesData=null, ladderData=null, errCount=0;
-  function tryRender(){ if(gamesData!==null && ladderData!==null) renderAll(gamesData, ladderData); }
-  function onErr(e){ errCount++; el.innerHTML='<div class="kw-error">Unable to load live data. '+e.message+'</div>'; }
-
-  fetchJSON(PROXY+'?action=games&gradeId='+GRADE_ID, function(err,data){
-    if(err){ onErr(err); return; }
-    gamesData = data.data || [];
-    tryRender();
-  });
-  fetchJSON(PROXY+'?action=ladder&gradeId='+GRADE_ID, function(err,data){
-    if(err){ ladderData={}; tryRender(); return; }
-    ladderData = data;
-    tryRender();
-  });
+  var gD=null,lD=null;
+  function go(){if(gD!==null&&lD!==null)render(gD,lD);}
+  fetchJ(PROXY+'?action=games&gradeId='+GRADE,function(err,data){if(err){el.innerHTML='<div class="kw-error">Unable to load live data.</div>';return;}gD=data.data||[];go();});
+  fetchJ(PROXY+'?action=ladder&gradeId='+GRADE,function(err,data){if(err){lD={};go();return;}lD=data;go();});
 })();
-
-function kwShowTab(tid, tab){
-  document.getElementById('kwpanel-fix-'+tid).style.display = tab==='fix'?'':'none';
-  document.getElementById('kwpanel-lad-'+tid).style.display = tab==='lad'?'':'none';
-  document.getElementById('kwtab-fix-'+tid).classList.toggle('act', tab==='fix');
-  document.getElementById('kwtab-lad-'+tid).classList.toggle('act', tab==='lad');
-}
 <\/script>
 </div>`;
 }
+
+
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 
