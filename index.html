@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.28</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.29</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9025,7 +9025,8 @@ function renderWebsiteTab(targetEl) {
   const el = targetEl || document.getElementById('admin-panel-body');
   if (!el) return;
 
-  // Render immediately with whatever state we have
+  // Show loading state immediately — avoids flash of "API key not found" warning
+  _websiteState._loading = true;
   _drawWebsiteTab(el);
 
   // Load API key first — guaranteed set before any PlayHQ call
@@ -9044,11 +9045,36 @@ function renderWebsiteTab(targetEl) {
     if (Array.isArray(teams)) {
       _websiteState.savedTeams = {};
       teams.forEach(t => { _websiteState.savedTeams[t.teamId] = t; });
+
+      // Pre-populate teams list from savedTeams so Configure shows without running wbDiscover first
+      if (!_websiteState.teams.length) {
+        _websiteState.teams = teams
+          .filter(t => t.enabled === true || t.enabled === 'true')
+          .map(t => ({
+            teamId:   t.teamId,
+            id:       t.teamId,
+            name:     t.displayName || t.gradeName || t.teamId,
+            gradeId:  t.gradeId || null,
+            grade:    t.gradeName ? { name: t.gradeName, id: t.gradeId } : null,
+            _enabled: true,
+            _fromSaved: true
+          }));
+      } else {
+        // wbDiscover already ran — sync _enabled from saved state
+        _websiteState.teams.forEach(t => {
+          const sv = _websiteState.savedTeams[t.teamId];
+          if (sv) t._enabled = !!(sv.enabled === true || sv.enabled === 'true');
+        });
+      }
     }
+    _websiteState._loading = false;
     const active = document.querySelector('#dash-sub-admin .dtab.act');
     if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
     wbLoadSeasons();
-  }).catch(e => { console.warn('renderWebsiteTab chain error:', e); });
+  }).catch(e => {
+    _websiteState._loading = false;
+    console.warn('renderWebsiteTab chain error:', e);
+  });
 }
 
 function _drawWebsiteTab(el) {
@@ -9098,8 +9124,8 @@ function _drawWebsiteTab(el) {
     @media(max-width:600px){.wb-config-grid{grid-template-columns:1fr;}}
     .wb-code-block{background:#1a1a2e;color:#e2e8f0;padding:14px;border-radius:6px;font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;margin-top:8px;max-height:280px;overflow-y:auto;}
     .wb-copy-btn{padding:3px 10px;font-size:11px;background:var(--yellow);color:var(--green-dark,#012a15);border:none;border-radius:4px;cursor:pointer;font-weight:700;}
-    .wb-info-banner{background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.3);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--text);margin-bottom:12px;}
-    .wb-info-banner strong{color:var(--yellow,#F5C800);}
+    .wb-info-banner{background:rgba(1,60,30,.12);border:1px solid rgba(1,60,30,.3);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--text);margin-bottom:12px;}
+    .wb-info-banner strong{color:var(--green,#013C1E);}
     .wb-arrow{transition:transform .2s;display:inline-block;}
     .wb-arrow.open{transform:rotate(180deg);}
   </style>
@@ -9253,16 +9279,10 @@ function _drawWebsiteTab(el) {
               </div>
               <div class="wb-field">
                 <label>Session 2 — Venue</label>
-                <div style="display:flex;gap:6px;align-items:center;">
-                  <input type="text" data-tid="${t.teamId}" data-field="venue2"
-                    id="venue2-${t.teamId}"
-                    value="${_escHtml(saved.venue2 || '')}"
-                    placeholder="e.g. Kinglake Memorial Oval"
-                    oninput="wbFieldChange(this)" style="flex:1;" />
-                  <button type="button" title="Copy from Session 1 venue"
-                    onclick="(function(){var v=document.querySelector('[data-tid=\\'${t.teamId}\\'][data-field=\\'venue\\']');var v2=document.getElementById('venue2-${t.teamId}');if(v&&v2){v2.value=v.value;wbFieldChange(v2);}})()"
-                    style="flex-shrink:0;padding:4px 8px;font-size:11px;background:var(--bg-alt);border:1px solid var(--border);border-radius:4px;cursor:pointer;">⎘ Copy</button>
-                </div>
+                <input type="text" data-tid="${t.teamId}" data-field="venue2"
+                  value="${_escHtml(saved.venue2 || '')}"
+                  placeholder="e.g. Kinglake Memorial Oval"
+                  oninput="wbFieldChange(this)" />
               </div>
             </div>
             <div class="wb-field" style="margin-top:4px;">
@@ -9318,9 +9338,9 @@ function _drawWebsiteTab(el) {
       <span class="wb-arrow" id="wb-arr-generate">▼</span>
     </div>
     <div class="wb-body wb-collapsed" id="wb-body-generate">
-      <div class="wb-info-banner">
-        💡 <strong>One-time paste:</strong> Paste each code block into a Squarespace Code Block on the team's page.
-        After that, <strong>updating team info here auto-propagates</strong> — no re-pasting required.
+      <div style="background:rgba(1,60,30,.12);border:1px solid rgba(1,60,30,.25);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--text);margin-bottom:12px;">
+        💡 <strong>One-time paste only.</strong> Paste each code block into a Squarespace Code Block on the team's page.
+        After that, updating team info in step 3 auto-propagates to the website — no re-pasting required.
       </div>
       <div id="wb-widgets-output">${_renderWidgets()}</div>
     </div>
@@ -9397,8 +9417,8 @@ function _buildWidgetCode(team, cfg, apiKey) {
   const mkCss = (id) => [
     // Use h4 for section titles (Squarespace Heading 4), p for body (Paragraph 2)
     `#${id}{color:#fff;font-family:inherit;}`,
-    `#${id} h4{color:#F5C800;margin:0;font-size:inherit;font-weight:inherit;letter-spacing:inherit;line-height:inherit;}`,
-    `#${id} p{margin:0 0 6px;color:rgba(255,255,255,0.85);}`,
+    `#${id} h4{color:#F5C800;margin:0;}`,
+    `#${id} p{color:rgba(255,255,255,0.85);}`,
     `#${id} .kw-section{border-top:1px solid rgba(255,255,255,0.18);}`,
     `#${id} .kw-section:last-child{border-bottom:1px solid rgba(255,255,255,0.18);}`,
     `#${id} .kw-head{display:flex;justify-content:space-between;align-items:center;padding:14px 0;cursor:pointer;user-select:none;}`,
@@ -9439,9 +9459,8 @@ function _buildWidgetCode(team, cfg, apiKey) {
     // Expandable fixture rows
     `#${id} tr.kw-gr{cursor:pointer;}`,
     `#${id} tr.kw-gr:hover td{background:rgba(255,255,255,.04);}`,
-    `#${id} tr.kw-dr{display:none;}`,
-    `#${id} tr.kw-dr.open td{padding:0;}`,
-    `#${id} .kw-det{padding:10px 12px;background:rgba(0,0,0,.2);}`,
+    `#${id} tr.kw-dr td{padding:0;border-bottom:none;}`,
+    `#${id} .kw-det{padding:10px 12px;background:rgba(0,0,0,.2);border-bottom:1px solid rgba(255,255,255,.07);}`,
     `#${id} .kw-dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:6px 14px;font-size:.82em;}`,
     `#${id} .kw-di .kw-lbl{min-width:0;font-size:.78em;display:block;margin-bottom:1px;}`,
     `#${id} .kw-badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:.78em;font-weight:700;}`,
@@ -9510,6 +9529,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `var KEY='${apiKey}',GID='${gradeId}',TID='${teamId}';\n` +
     `var el=document.getElementById('kjfc-live-${tid}');\n` +
     `\n` +
+    `function ord(n){var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}\n` +
     `function phq(path,cb){var x=new XMLHttpRequest();x.open('GET','https://api.playhq.com'+path,true);\n` +
     `x.setRequestHeader('x-api-key',KEY);x.setRequestHeader('x-phq-tenant','afl');\n` +
     `x.onload=function(){try{cb(null,JSON.parse(x.responseText));}catch(e){cb(e);}};\n` +
@@ -9539,7 +9559,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     // Game row click → toggle detail row
     `el.addEventListener('click',function(e){\n` +
     `var gr=e.target.closest('.kw-gr');\n` +
-    `if(gr){var dr=document.getElementById(gr.dataset.dr);if(dr){var o=dr.classList.toggle('open');dr.style.display=o?'':'none';}return;}\n` +
+    `if(gr){var dr=document.getElementById(gr.dataset.dr);if(dr){var isOpen=dr.style.display==='table-row';dr.style.display=isOpen?'none':'table-row';}return;}\n` +
     `});\n` +
     `\n` +
     `function render(games,ladder){\n` +
@@ -9579,7 +9599,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `var lH='';\n` +
     `if(myS){\n` +
     `lH+='<div class="kw-kpis">';\n` +
-    `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.ranking+'</div><div class="kw-kl">Position</div></div>';\n` +
+    `lH+='<div class="kw-kpi"><div class="kw-kv">'+ord(myS.ranking)+'</div><div class="kw-kl">Position</div></div>';\n` +
     `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.won+'</div><div class="kw-kl">Wins</div></div>';\n` +
     `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.lost+'</div><div class="kw-kl">Losses</div></div>';\n` +
     `lH+='<div class="kw-kpi"><div class="kw-kv">'+(myS.percentage?myS.percentage.toFixed(1)+'%':'&mdash;')+'</div><div class="kw-kl">%</div></div>';\n` +
@@ -9612,7 +9632,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `fH+='<td style="white-space:nowrap;font-size:.85em;">'+fmtShort(g.schedule&&g.schedule.date)+'</td>';\n` +
     `fH+='<td>'+res+'</td></tr>';\n` +
     // Detail row
-    `fH+='<tr class="kw-dr" id="'+drId+'"><td colspan="4">';\n` +
+    `fH+='<tr class="kw-dr" id="'+drId+'" style="display:none;"><td colspan="4">';\n` +
     `fH+='<div class="kw-det"><div class="kw-dgrid">';\n` +
     `if(g.schedule&&g.schedule.date)fH+='<div class="kw-di"><span class="kw-lbl">Date &amp; Time</span><span>'+fmtFull(g.schedule.date,g.schedule.time)+'</span></div>';\n` +
     `if(g.venue)fH+='<div class="kw-di"><span class="kw-lbl">Venue</span><span>'+g.venue.name+'</span></div>';\n` +
