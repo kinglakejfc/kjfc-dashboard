@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.18</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.19</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9035,7 +9035,7 @@ function renderWebsiteTab(targetEl) {
   }).then(cfg => {
     if (cfg && !cfg.error) {
       _websiteState.proxyUrl   = cfg.proxyUrl   || '';
-      _websiteState.orgId      = cfg.orgId      || _websiteState.orgId;
+      // orgId is always the Kinglake club ID — never load from sheet
       _websiteState.seasonId   = cfg.seasonId   || '';
       _websiteState.seasonName = cfg.seasonName || '';
     }
@@ -9615,7 +9615,7 @@ function _buildSeasonOptions(s) {
 
 function wbLoadSeasons() {
   const apiKey = _websiteState.phqApiKey;
-  const orgId  = _websiteState.orgId;
+  const orgId  = '81d442f4-4d51-4efd-8c7f-e1e0dbe6178f'; // always Kinglake — never from sheet
   if (!apiKey) { console.warn('wbLoadSeasons: no API key yet'); return; }
   const sel = document.getElementById('wb-season-sel');
   if (sel) sel.innerHTML = '<option value="">Loading…</option>';
@@ -9684,7 +9684,7 @@ function wbDiscover() {
   tl.innerHTML = '<div style="font-size:13px;color:var(--text-dim);padding:8px 0;">Discovering teams from PlayHQ…</div>';
 
   const apiKey   = _websiteState.phqApiKey;
-  const orgId    = _websiteState.orgId;
+  const orgId    = '81d442f4-4d51-4efd-8c7f-e1e0dbe6178f'; // always Kinglake — never from sheet
   const seasonId = _websiteState.seasonId;
   fetch('https://api.playhq.com/v1/organisations/' + orgId + '/seasons/' + seasonId + '/teams',
     { headers: { 'x-api-key': apiKey, 'x-phq-tenant': 'afl' } })
@@ -9694,12 +9694,7 @@ function wbDiscover() {
         tl.innerHTML = `<div class="wb-status wb-status-err">${_escHtml(data.error)}</div>`;
         return;
       }
-      const allTeams = data.data || [];
-      // Filter to only this org's teams — API uses t.club.id not t.organisation.id
-      const teams = allTeams.filter(t =>
-        (t.club && t.club.id === _websiteState.orgId) ||
-        (t.name && t.name.toLowerCase().includes('kinglake'))
-      );
+      const teams = data.data || [];  // No filter — API already scopes to our org
       const saved = _websiteState.savedTeams;
       teams.forEach(t => {
         t._enabled = !!(saved[t.id] && (saved[t.id].enabled === true || saved[t.id].enabled === 'true'));
