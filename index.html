@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.4</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.5</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9027,13 +9027,16 @@ function renderWebsiteTab(targetEl) {
   // Render immediately with whatever state we have
   _drawWebsiteTab(el);
 
-  // Load saved config + teams from sheet in background
+  // Track proxy URL from config so we can trigger season load reliably
+  let loadedProxyUrl = '';
+
   api('getWebsiteConfig').then(cfg => {
     if (cfg && !cfg.error) {
       _websiteState.proxyUrl   = cfg.proxyUrl   || '';
       _websiteState.orgId      = cfg.orgId      || _websiteState.orgId;
       _websiteState.seasonId   = cfg.seasonId   || '';
       _websiteState.seasonName = cfg.seasonName || '';
+      loadedProxyUrl = _websiteState.proxyUrl; // capture before async gap
     }
     return api('getWebsiteTeams');
   }).then(teams => {
@@ -9041,14 +9044,12 @@ function renderWebsiteTab(targetEl) {
       _websiteState.savedTeams = {};
       teams.forEach(t => { _websiteState.savedTeams[t.teamId] = t; });
     }
-    // Re-draw with config loaded
     const active = document.querySelector('#dash-sub-admin .dtab.act');
     if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
-
-    // If proxy is configured, also load seasons from PlayHQ
-    if (_websiteState.proxyUrl) {
-      return api('discoverSeasons');
-    }
+    // Always attempt season load if proxy was configured — use loadedProxyUrl
+    // not _websiteState.proxyUrl to avoid losing it across async boundaries
+    if (loadedProxyUrl) return api('discoverSeasons');
+    return null;
   }).then(result => {
     if (result && result.seasons) {
       _websiteState.seasons = result.seasons;
@@ -9605,17 +9606,17 @@ function wbToggle(section) {
 }
 
 function _buildSeasonOptions(s) {
-  // If we have seasons loaded from PlayHQ, use those
   if (s.seasons && s.seasons.length) {
     return s.seasons.map(function(season) {
       const sel = s.seasonId === season.id ? 'selected' : '';
       return `<option value="${season.id}" ${sel}>${_escHtml(season.name)}</option>`;
     }).join('');
   }
-  // Fallback: generate a rolling window (3 years back, 1 ahead) using year names
-  // These won't have real PlayHQ UUIDs — discovery will still need the real IDs.
-  // Show a placeholder prompting the user to load seasons.
-  return '<option value="" disabled>⟳ Loading seasons… (save proxy URL first)</option>';
+  // Seasons not yet loaded — show appropriate message based on proxy state
+  if (s.proxyUrl) {
+    return '<option value="" disabled>⟳ Loading seasons…</option>';
+  }
+  return '<option value="" disabled>Save proxy URL first</option>';
 }
 
 function wbLoadSeasons() {
