@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.31</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.33</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9400,8 +9400,8 @@ function _renderWidgets() {
           ${t.gradeId ? 'Shows live ladder, next game, last result &amp; full fixture.' : '⏳ No grade yet — will show a "season coming soon" message.'}
         </p>
         <div id="preview-${t.teamId}" style="display:none;border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:10px;background:#fff;">
-          <iframe id="preview-frame-${t.teamId}" style="width:100%;border:none;min-height:120px;"
-            sandbox="allow-scripts allow-same-origin" scrolling="no"></iframe>
+          <iframe id="preview-frame-${t.teamId}" style="width:100%;border:none;min-height:120px;max-height:600px;"
+            sandbox="allow-scripts allow-same-origin" scrolling="yes"></iframe>
         </div>
         <pre class="wb-code-block" id="widget-${t.teamId}">${_escHtml(code)}</pre>
       </div>
@@ -9449,7 +9449,6 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `#${id} .kw-lbl{color:rgba(255,255,255,0.45);font-weight:600;min-width:0;flex-shrink:0;font-size:.85em;}`,
     `#${id} .kw-val{color:#fff;}`,
     `#${id} .kw-note{background:rgba(251,226,1,.1);border-left:3px solid ${YEL};padding:7px 12px;margin:8px 0;border-radius:0 4px 4px 0;color:rgba(255,255,255,0.85);}`,
-    `#${id} .kw-gameday-lbl{font-size:.82em;color:rgba(255,255,255,.5);margin-bottom:10px;}`,
     `#${id} .kw-kpis{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}`,
     `#${id} .kw-kpi{flex:1;min-width:52px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:10px 8px;text-align:center;}`,
     `#${id} .kw-kv{font-size:1.5em;font-weight:800;color:${YEL};line-height:1;}`,
@@ -9502,16 +9501,16 @@ function _buildWidgetCode(team, cfg, apiKey) {
   // ── Build individual static sections ─────────────────────────────
   // Coach
   let coachBody = '';
-  if (coaches)       coachBody += `<p>${coaches}</p>`;
+  if (coaches)       coachBody += `<p><strong>${coaches}</strong></p>`;
   if (coachProfile1) coachBody += `<p>${coachProfile1}</p>`;
   if (coachProfile2) coachBody += `<p>${coachProfile2}</p>`;
 
   // Assistant Coach
-  const asstBody = assistantCoach ? `<p>${assistantCoach}</p>` : '';
+  const asstBody = assistantCoach ? `<p><strong>${assistantCoach}</strong></p>` : '';
 
   // Team Manager
   let mgrBody = '';
-  if (manager) mgrBody += `<p>${manager}</p>`;
+  if (manager) mgrBody += `<p><strong>${manager}</strong></p>`;
   if (contact) mgrBody += `<p>${contact}</p>`;
 
   // Training
@@ -9612,7 +9611,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `\n` +
     // Game Day section — gameday label + next/last cards
     `var gH='';\n` +
-    `if(GAMEDAY)gH+='<p class="kw-gameday-lbl">Games played on <strong>'+GAMEDAY+'</strong></p>';\n` +
+    `if(GAMEDAY)gH+='<p style="color:rgba(255,255,255,0.85);margin-bottom:10px;">Games played on <strong>'+GAMEDAY+'</strong></p>';\n` +
     `gH+='<div class="kw-2col">';\n` +
     `gH+='<div class="kw-card"><div class="kw-clbl">Next Game</div>';\n` +
     `if(next){var kn=next.competitors.find(function(c){return c.id===TID;});var on=next.competitors.find(function(c){return c.id!==TID;});\n` +
@@ -10006,7 +10005,7 @@ function wbTogglePreview(previewId, btn, teamId) {
     btn.innerHTML = '✕ Hide Preview';
     try {
       const h = frame.contentDocument.body.scrollHeight;
-      frame.style.height = Math.max(h + 20, 140) + 'px';
+      frame.style.height = Math.min(Math.max(h + 20, 140), 600) + 'px';
     } catch(e) { frame.style.height = '500px'; }
   };
 }
