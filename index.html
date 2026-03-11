@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.13</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.14</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9027,46 +9027,23 @@ function renderWebsiteTab(targetEl) {
   // Render immediately with whatever state we have
   _drawWebsiteTab(el);
 
-  // Track proxy URL from config so we can trigger season load reliably
-  let loadedProxyUrl = '';
-
   api('getWebsiteConfig').then(cfg => {
-    return Promise.all([Promise.resolve(cfg), api('getWebsiteTeams')]);
-  }).then(([cfg, teams]) => {
     if (cfg && !cfg.error) {
       _websiteState.proxyUrl   = cfg.proxyUrl   || '';
       _websiteState.orgId      = cfg.orgId      || _websiteState.orgId;
       _websiteState.seasonId   = cfg.seasonId   || '';
       _websiteState.seasonName = cfg.seasonName || '';
     }
+    return api('getWebsiteTeams');
+  }).then(teams => {
     if (Array.isArray(teams)) {
       _websiteState.savedTeams = {};
       teams.forEach(t => { _websiteState.savedTeams[t.teamId] = t; });
     }
     const active = document.querySelector('#dash-sub-admin .dtab.act');
     if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
-    // Load seasons via proxy (browser -> proxy -> PlayHQ avoids CORS)
-    if (_websiteState.proxyUrl) {
-      const proxyUrl = _websiteState.proxyUrl;
-      const orgId    = _websiteState.orgId;
-      fetch(proxyUrl + '?action=seasons&orgId=' + orgId)
-        .then(r => r.json())
-        .then(data => {
-          if (Array.isArray(data.data)) {
-            _websiteState.seasons = data.data.slice().sort((a,b) => b.name.localeCompare(a.name));
-            _websiteState.seasonsError = '';
-          } else {
-            _websiteState.seasonsError = 'Could not load seasons';
-          }
-          const active = document.querySelector('#dash-sub-admin .dtab.act');
-          if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
-        })
-        .catch(e => {
-          _websiteState.seasonsError = e.message;
-          const active = document.querySelector('#dash-sub-admin .dtab.act');
-          if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
-        });
-    }
+    // Load seasons via proxy now that proxyUrl is set from config
+    wbLoadSeasons();
   }).catch(e => { console.warn('renderWebsiteTab chain error:', e); });
 }
 
@@ -9680,7 +9657,10 @@ function wbSaveProxyUrl() {
   const url = document.getElementById('wb-proxy-url').value.trim();
   _websiteState.proxyUrl = url;
   api('saveWebsiteConfig', { updates: { proxyUrl: url } })
-    .then(() => _wbProxyStatus('✓ Saved', 'ok'))
+    .then(() => {
+      _wbProxyStatus('✓ Saved', 'ok');
+      wbLoadSeasons();
+    })
     .catch(e => _wbProxyStatus('✗ ' + e.message, 'err'));
 }
 
