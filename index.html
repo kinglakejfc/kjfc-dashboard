@@ -910,7 +910,6 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button class="dtab dashboard-tab" id="dash-tab-sponsors" onclick="switchDashboard('sponsors')">🏆 Sponsorship</button>
       <button class="dtab dashboard-tab" id="dash-tab-recruitment" onclick="switchDashboard('recruitment')" style="display:none;">🏉 Recruitment</button>
       <button class="dtab dashboard-tab" id="dash-tab-admin" onclick="switchDashboard('admin-panel')" style="display:none;">⚙️ Admin</button>
-      <button class="dtab dashboard-tab" id="dash-tab-website" onclick="switchDashboard('website')" style="display:none;">🌐 Website</button>
     </div>
     <!-- Row 2a: Sponsor sub-tabs -->
     <div class="dbar-row2 dbar-row2-sponsor" id="dash-sub-sponsors">
@@ -933,6 +932,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <button class="dtab" data-admintab="datahealth" onclick="switchAdminTab(this,'datahealth')"><span class="dtab-icon">🩺</span><span class="dtab-lbl">Data Health</span></button>
       <button class="dtab" data-admintab="about" onclick="switchAdminTab(this,'about')"><span class="dtab-icon">ℹ️</span><span class="dtab-lbl">About</span></button>
       <button class="dtab" data-admintab="messaging" id="admin-tab-messaging" onclick="switchAdminTab(this,'messaging')" style="display:none;"><span class="dtab-icon">💬</span><span class="dtab-lbl">Messaging</span></button>
+      <button class="dtab" data-admintab="website" id="admin-tab-website" onclick="switchAdminTab(this,'website')"><span class="dtab-icon">🌐</span><span class="dtab-lbl">Website</span></button>
     </div>
   </div>
 
@@ -1054,7 +1054,6 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div id="pl-body" style="min-height:calc(100vh - 160px);padding-top:4px;"></div>
     </div>
     <div id="admin-panel-content" style="display:none;"></div>
-    <div id="website-content" style="display:none;padding:16px;max-width:900px;margin:0 auto;"></div>
   </main>
 
 
@@ -1966,9 +1965,6 @@ function renderUserUI() {
 
   const at = document.getElementById('dash-tab-admin');
   if (at) at.style.display = canSeeDash('admin') ? 'flex' : 'none';
-
-  const wt = document.getElementById('dash-tab-website');
-  if (wt) wt.style.display = canSeeDash('admin') ? 'flex' : 'none';
 
   const hma = document.getElementById('hmenu-admin');
   if (hma) hma.style.display = canSeeDash('admin') ? 'block' : 'none';
@@ -5735,7 +5731,15 @@ function renderAdminPanel(tab) {
   document.querySelectorAll('#dash-sub-admin .dtab').forEach(b => {
     b.classList.toggle('act', b.dataset.admintab === activetab);
   });
-  const _tabTitles = { users:'Manage Users', groups:'Access Groups', log:'Activity Log', aliases:'Player ID Aliases', datahealth:'Data Health', about:'About', messaging:'Messaging' };
+  const _tabTitles = { users:'Manage Users', groups:'Access Groups', log:'Activity Log', aliases:'Player ID Aliases', datahealth:'Data Health', about:'About', messaging:'Messaging', website:'Website Integration' };
+
+  // Website tab renders its own content directly
+  if (activetab === 'website') {
+    el.innerHTML = '<div style="max-width:900px;margin:0 auto;padding:16px;" id="admin-panel-body"></div>';
+    renderWebsiteTab(document.getElementById('admin-panel-body'));
+    return;
+  }
+
   el.innerHTML = '<div class="section-head" style="max-width:1440px;margin:0 auto;padding:0 16px;">'
     + '<h2 class="section-title">' + (_tabTitles[activetab] || activetab) + '</h2>'
     + '</div>'
@@ -5844,15 +5848,11 @@ function switchDashboard(which) {
   document.getElementById('dash-tab-recruitment').classList.toggle('act', which === 'recruitment');
   const adminTab = document.getElementById('dash-tab-admin');
   if (adminTab) adminTab.classList.toggle('act', which === 'admin-panel');
-  const websiteTab = document.getElementById('dash-tab-website');
-  if (websiteTab) websiteTab.classList.toggle('act', which === 'website');
 
   // Sub-nav rows
   document.getElementById('dash-sub-sponsors').style.display    = which === 'sponsors'    ? 'flex' : 'none';
   document.getElementById('dash-sub-recruitment').style.display = which === 'recruitment' ? 'flex' : 'none';
   document.getElementById('dash-sub-admin').style.display       = which === 'admin-panel' ? 'flex' : 'none';
-  const websiteSubnav = document.getElementById('dash-sub-website');
-  if (websiteSubnav) websiteSubnav.style.display = which === 'website' ? 'flex' : 'none';
   // Show/hide Messaging tab based on canSMS permission
   const _msgTab = document.getElementById('admin-tab-messaging');
   if (_msgTab) _msgTab.style.display = (me && me.canSMS) ? '' : 'none';
@@ -5862,8 +5862,6 @@ function switchDashboard(which) {
   document.getElementById('recruitment-content').style.display = which === 'recruitment' ? 'block' : 'none';
   const adminContent = document.getElementById('admin-panel-content');
   if (adminContent) adminContent.style.display = which === 'admin-panel' ? 'block' : 'none';
-  const websiteContent = document.getElementById('website-content');
-  if (websiteContent) websiteContent.style.display = which === 'website' ? 'block' : 'none';
 
   if (which === 'sponsors') {
     // Always re-render sponsors overview — clear any sub-panel state
@@ -5893,10 +5891,6 @@ function switchDashboard(which) {
 
   if (which === 'admin-panel') {
     renderAdminPanel();
-  }
-
-  if (which === 'website') {
-    renderWebsiteTab();
   }
 }
 
@@ -9025,30 +9019,37 @@ let _websiteState = {
   section:     'connection' // connection | discover | configure | generate
 };
 
-function renderWebsiteTab() {
-  const el = document.getElementById('website-content');
+function renderWebsiteTab(targetEl) {
+  const el = targetEl || document.getElementById('admin-panel-body');
   if (!el) return;
 
-  // Load saved config first time
-  google.script.run
-    .withSuccessHandler(cfg => {
-      if (cfg && !cfg.error) {
-        _websiteState.proxyUrl   = cfg.proxyUrl   || '';
-        _websiteState.orgId      = cfg.orgId      || _websiteState.orgId;
-        _websiteState.seasonId   = cfg.seasonId   || '';
-        _websiteState.seasonName = cfg.seasonName || '';
-      }
-      google.script.run
-        .withSuccessHandler(teams => {
-          _websiteState.savedTeams = {};
-          (teams || []).forEach(t => { _websiteState.savedTeams[t.teamId] = t; });
-          _drawWebsiteTab(el);
-        })
-        .withFailureHandler(() => _drawWebsiteTab(el))
-        .getWebsiteTeams();
-    })
-    .withFailureHandler(() => _drawWebsiteTab(el))
-    .getWebsiteConfig();
+  // Render immediately with whatever state we have, then load config in background
+  _drawWebsiteTab(el);
+
+  // Load saved config from sheet in background and re-render when ready
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    google.script.run
+      .withSuccessHandler(cfg => {
+        if (cfg && !cfg.error) {
+          _websiteState.proxyUrl   = cfg.proxyUrl   || '';
+          _websiteState.orgId      = cfg.orgId      || _websiteState.orgId;
+          _websiteState.seasonId   = cfg.seasonId   || '';
+          _websiteState.seasonName = cfg.seasonName || '';
+        }
+        google.script.run
+          .withSuccessHandler(teams => {
+            _websiteState.savedTeams = {};
+            (teams || []).forEach(t => { _websiteState.savedTeams[t.teamId] = t; });
+            // Only re-draw if still on website tab
+            const active = document.querySelector('#dash-sub-admin .dtab.act');
+            if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
+          })
+          .withFailureHandler(() => {})
+          .getWebsiteTeams();
+      })
+      .withFailureHandler(() => {})
+      .getWebsiteConfig();
+  }
 }
 
 function _drawWebsiteTab(el) {
@@ -9689,10 +9690,8 @@ function _renderTeamsList() {
 function wbToggleTeam(teamId, enabled) {
   const team = _websiteState.teams.find(t => t.teamId === teamId);
   if (team) team._enabled = enabled;
-  // Refresh configure section
-  const el = document.getElementById('website-content');
+  const el = document.getElementById('admin-panel-body');
   if (el) _drawWebsiteTab(el);
-  // Keep discover section open
   const body = document.getElementById('wb-body-discover');
   if (body) body.classList.remove('collapsed');
 }
@@ -9729,7 +9728,7 @@ function wbSaveConfig() {
     .withSuccessHandler(r => {
       if (status) { status.textContent = '✓ Saved ' + r.count + ' team' + (r.count!==1?'s':''); status.style.color = '#065f46'; }
       // Refresh generate section
-      const el = document.getElementById('website-content');
+      const el = document.getElementById('admin-panel-body');
       if (el) _drawWebsiteTab(el);
     })
     .withFailureHandler(e => {
