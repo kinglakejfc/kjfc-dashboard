@@ -9654,7 +9654,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `var o=g.competitors.find(function(c){return c.id!==TID;});\n` +
     `var fin=g.status==='FINAL';\n` +
     `var drId='${tid}-dr-'+i;\n` +
-    ``var res=fin&&k&&!NOSCORE?bdg(k.outcome)+' '+scr(k)+' \u2013 '+(o?scr(o):''):'<span style=\"color:rgba(255,255,255,.28)\">\u2013</span>';\n` +
+    `var res=fin&&k&&!NOSCORE?bdg(k.outcome)+' '+scr(k)+' \u2013 '+(o?scr(o):''):'<span style=\"color:rgba(255,255,255,.28)\">\u2013</span>';\n` +
     `fH+='<tr class="kw-gr" data-dr="'+drId+'">';\n` +
     `fH+='<td style="color:rgba(255,255,255,.38);font-size:.78em;font-weight:700;">'+g.round.abbreviatedName+'</td>';\n` +
     `fH+='<td style="font-weight:600;">'+(o?o.name:'BYE')+'</td>';\n` +
