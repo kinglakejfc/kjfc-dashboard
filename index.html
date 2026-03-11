@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.23</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.24</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9111,40 +9111,23 @@ function _drawWebsiteTab(el) {
   // ── SECTION 1: Connection ─────────────────────────────────────
   const connBadge = proxyOk
     ? `<span class="wb-head-badge wb-badge-ok">✓ Connected</span>`
-    : `<span class="wb-head-badge wb-badge-warn">Setup required</span>`;
+    : `<span class="wb-head-badge wb-badge-warn">Not connected</span>`;
 
   html += `
     <div class="wb-section">
       <div class="wb-head" onclick="wbToggle('connection')">
-        <div class="wb-head-left">🔌 1 · Proxy Connection ${connBadge}</div>
+        <div class="wb-head-left">🔌 1 · PlayHQ Connection ${connBadge}</div>
         <span id="wb-arrow-connection">▼</span>
       </div>
       <div class="wb-body" id="wb-body-connection">
-        <p style="font-size:12px;color:var(--text-dim);margin:0 0 12px;">
-          The proxy is a separate Google Apps Script project that holds your PlayHQ API key
-          and forwards requests to PlayHQ. Deploy it first, then paste the URL here.
-        </p>
-        <div class="wb-field">
-          <label>Proxy Web App URL</label>
-          <input type="url" id="wb-proxy-url" value="${_escHtml(s.proxyUrl)}"
-            placeholder="https://script.google.com/macros/s/.../exec"
-            oninput="_websiteState.proxyUrl = this.value" />
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <button class="wb-btn wb-btn-primary wb-btn-sm" onclick="wbTestProxy()">Test Connection</button>
-          <button class="wb-btn wb-btn-secondary wb-btn-sm" onclick="wbSaveProxyUrl()">Save URL</button>
-          <span id="wb-proxy-status"></span>
-        </div>
-        <div style="margin-top:14px;padding:12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);">
-          <div style="font-size:12px;font-weight:700;margin-bottom:6px;">📋 How to deploy the proxy</div>
-          <ol style="font-size:12px;color:var(--text-dim);margin:0;padding-left:18px;line-height:1.8;">
-            <li>Create a new Google Apps Script project at <a href="https://script.google.com" target="_blank" style="color:var(--green);">script.google.com</a></li>
-            <li>Paste the contents of <strong>proxy.gs</strong> into Code.gs</li>
-            <li>Go to Project Settings → Script Properties → Add property: <code>PHQ_API_KEY</code> = your PlayHQ key</li>
-            <li>Click Deploy → New deployment → Web app → Execute as: Me → Who has access: Anyone → Deploy</li>
-            <li>Copy the web app URL and paste it above</li>
-          </ol>
-        </div>
+        ${proxyOk
+          ? `<p style="font-size:13px;color:var(--text-dim);margin:0;">
+               ✅ API key loaded from Script Properties. Widgets will call PlayHQ directly from the visitor's browser — no proxy required.
+             </p>`
+          : `<p style="font-size:13px;color:#e53e3e;margin:0 0 10px;">
+               ⚠️ PlayHQ API key not found. Add <code>PHQ_API_KEY</code> to this project's Script Properties (Project Settings → Script Properties), then reload the dashboard.
+             </p>`
+        }
       </div>
     </div>`;
 
@@ -9176,7 +9159,7 @@ function _drawWebsiteTab(el) {
               ${_buildSeasonOptions(s)}
             </select>
           </div>
-          <button class="wb-btn wb-btn-primary wb-btn-sm" onclick="wbDiscover()" ${!proxyOk||!s.seasonId?'disabled title="Save proxy URL and select season first"':''}>Discover Teams</button>
+          <button class="wb-btn wb-btn-primary wb-btn-sm" onclick="wbDiscover()" ${!proxyOk||!s.seasonId?'disabled title="API key not loaded or season not selected"':''}>Discover Teams</button>
         </div>
         <div id="wb-teams-list">${_renderTeamsList()}</div>
       </div>
@@ -9355,7 +9338,7 @@ function _renderWidgets() {
 
   return enabledTeams.map(t => {
     const cfg   = s.savedTeams[t.teamId];
-    const code  = _buildWidgetCode(t, cfg, s.proxyUrl);
+    const code  = _buildWidgetCode(t, cfg, s.phqApiKey);
     const label = cfg.displayName || t.name;
     return `
       <div class="wb-config-card" style="margin-bottom:16px;">
@@ -9387,7 +9370,7 @@ function _renderWidgets() {
   }).join('');
 }
 
-function _buildWidgetCode(team, cfg, proxyUrl) {
+function _buildWidgetCode(team, cfg, apiKey) {
   const hasGrade     = !!team.gradeId;
   const teamId       = team.teamId;
   const gradeId      = team.gradeId || '';
@@ -9453,7 +9436,7 @@ ${cpHtml   ? sec(teamId+'-coach','About the Coach', cpHtml, false) : ''}
 ${toggleFn}
 <script>
 (function(){
-  var PROXY='${proxyUrl}',GRADE='${gradeId}',TID='${teamId}';
+  var API_KEY='${apiKey}',GRADE='${gradeId}',TID='${teamId}';
   var el=document.getElementById('kjfc-live-${teamId}');
 
   function sec2(id,title,body,open){
@@ -9471,7 +9454,7 @@ ${toggleFn}
   function badge(o){if(!o)return'<span class="kw-badge kw-badge-f">-</span>';if(o==='WON'||o==='WON_BY_FORFEIT')return'<span class="kw-badge kw-badge-w">W</span>';if(o==='LOST'||o==='LOST_BY_FORFEIT')return'<span class="kw-badge kw-badge-l">L</span>';if(o==='DRAWN')return'<span class="kw-badge kw-badge-d">D</span>';return'<span class="kw-badge kw-badge-f">-</span>';}
   function oc(o){return(o==='WON'||o==='WON_BY_FORFEIT')?'kw-outcome-won':(o==='LOST'||o==='LOST_BY_FORFEIT')?'kw-outcome-lost':'kw-outcome-draw';}
   function ow(o){return(o==='WON'||o==='WON_BY_FORFEIT')?'WIN':o==='DRAWN'?'DRAW':'LOSS';}
-  function fetchJ(url,cb){var x=new XMLHttpRequest();x.open('GET',url,true);x.onload=function(){try{cb(null,JSON.parse(x.responseText));}catch(e){cb(e);}};x.onerror=function(){cb(new Error('Network error'));};x.send();}
+  function fetchJ(path,cb){var x=new XMLHttpRequest();x.open('GET','https://api.playhq.com'+path,true);x.setRequestHeader('x-api-key',API_KEY);x.setRequestHeader('x-phq-tenant','afl');x.onload=function(){try{cb(null,JSON.parse(x.responseText));}catch(e){cb(e);}};x.onerror=function(){cb(new Error('Network error'));};x.send();}
 
   window['kwTab_${teamId}']=function(tab){
     document.getElementById('kw-fix-${teamId}').style.display=tab==='fix'?'':'none';
@@ -9560,8 +9543,8 @@ ${toggleFn}
 
   var gD=null,lD=null;
   function go(){if(gD!==null&&lD!==null)render(gD,lD);}
-  fetchJ(PROXY+'?action=games&gradeId='+GRADE,function(err,data){if(err){el.innerHTML='<div class="kw-error">Unable to load live data.</div>';return;}gD=data.data||[];go();});
-  fetchJ(PROXY+'?action=ladder&gradeId='+GRADE,function(err,data){if(err){lD={};go();return;}lD=data;go();});
+  fetchJ('/v1/grades/'+GRADE+'/games',function(err,data){if(err){el.innerHTML='<div class="kw-error">Unable to load live data.</div>';return;}gD=data.data||[];go();});
+  fetchJ('/v1/grades/'+GRADE+'/ladder',function(err,data){if(err){lD={};go();return;}lD=data;go();});
 })();
 <\/script>
 </div>`;
@@ -9608,10 +9591,10 @@ function _buildSeasonOptions(s) {
   if (s.seasonsError) {
     return `<option value="" disabled>⚠ ${_escHtml(s.seasonsError)}</option>`;
   }
-  if (s.proxyUrl) {
+  if (s.proxyUrl || s.phqApiKey) {
     return '<option value="" disabled>⟳ Loading seasons…</option>';
   }
-  return '<option value="" disabled>Save proxy URL first</option>';
+  return '<option value="" disabled>⟳ Loading seasons…</option>';
 }
 
 function wbLoadSeasons() {
