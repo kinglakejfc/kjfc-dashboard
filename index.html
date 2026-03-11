@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.8</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.10</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9012,7 +9012,7 @@ document.addEventListener('DOMContentLoaded', init);
 let _websiteState = {
   proxyUrl:    '',
   phqApiKey:   '',
-  orgId:       '862f96f9-42b8-4231-a6e2-02278173f2b8',
+  orgId:       '81d442f4-4d51-4efd-8c7f-e1e0dbe6178f',
   seasonId:    '',
   seasonName:  '',
   seasons:     [],       // loaded from PlayHQ via proxy
@@ -9718,7 +9718,12 @@ function wbDiscover() {
         tl.innerHTML = `<div class="wb-status wb-status-err">${_escHtml(data.error)}</div>`;
         return;
       }
-      const teams = data.data || [];
+      const allTeams = data.data || [];
+      // Filter to only this org's teams — API returns all NFNL teams for the season
+      const teams = allTeams.filter(t =>
+        (t.organisation && t.organisation.id === _websiteState.orgId) ||
+        (t.name && t.name.toLowerCase().includes('kinglake'))
+      );
       const saved = _websiteState.savedTeams;
       teams.forEach(t => {
         t._enabled = !!(saved[t.id] && (saved[t.id].enabled === true || saved[t.id].enabled === 'true'));
