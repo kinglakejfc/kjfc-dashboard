@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.6</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.7</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9048,17 +9048,26 @@ function renderWebsiteTab(targetEl) {
     if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
     // Always attempt season load if proxy was configured — use loadedProxyUrl
     // not _websiteState.proxyUrl to avoid losing it across async boundaries
-    if (loadedProxyUrl) return api('discoverSeasons', { proxyUrl: loadedProxyUrl, orgId: _websiteState.orgId });
-    return null;
-  }).then(result => {
-    if (result && result.seasons) {
-      _websiteState.seasons = result.seasons;
-    } else if (result && result.error) {
-      console.warn('discoverSeasons error:', result.error);
-      _websiteState.seasonsError = result.error;
+    // Seasons: call proxy directly from browser (GAS UrlFetch blocked by PlayHQ WAF)
+    if (loadedProxyUrl) {
+      const orgId = _websiteState.orgId;
+      fetch(loadedProxyUrl + '?action=seasons&orgId=' + orgId)
+        .then(r => r.json())
+        .then(data => {
+          if (data.data) {
+            _websiteState.seasons = data.data.slice().sort((a,b) => b.name.localeCompare(a.name));
+          } else if (data.error) {
+            _websiteState.seasonsError = data.error;
+          }
+          const active = document.querySelector('#dash-sub-admin .dtab.act');
+          if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
+        })
+        .catch(e => {
+          _websiteState.seasonsError = e.message;
+          const active = document.querySelector('#dash-sub-admin .dtab.act');
+          if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
+        });
     }
-    const active = document.querySelector('#dash-sub-admin .dtab.act');
-    if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
   }).catch(e => { console.warn('renderWebsiteTab chain error:', e); });
 }
 
@@ -9625,30 +9634,40 @@ function _buildSeasonOptions(s) {
 }
 
 function wbLoadSeasons() {
+  const proxyUrl = _websiteState.proxyUrl;
+  const orgId    = _websiteState.orgId;
+  if (!proxyUrl) return;
   const sel = document.getElementById('wb-season-sel');
   if (sel) sel.innerHTML = '<option value="">Loading…</option>';
-  api('discoverSeasons').then(result => {
-    if (result && result.seasons) {
-      _websiteState.seasons = result.seasons;
+  fetch(proxyUrl + '?action=seasons&orgId=' + orgId)
+    .then(r => r.json())
+    .then(data => {
+      if (data.data) {
+        _websiteState.seasons = data.data.slice().sort((a,b) => b.name.localeCompare(a.name));
+        _websiteState.seasonsError = '';
+      } else {
+        _websiteState.seasonsError = data.error || 'Could not load seasons';
+      }
       const el = document.getElementById('admin-panel-body');
       if (el) _drawWebsiteTab(el);
-    } else {
-      const msg = result && result.error ? result.error : 'Could not load seasons';
-      if (sel) sel.innerHTML = `<option value="">${_escHtml(msg)}</option>`;
-    }
-  }).catch(e => {
-    if (sel) sel.innerHTML = `<option value="">Error: ${_escHtml(e.message)}</option>`;
-  });
+    })
+    .catch(e => {
+      _websiteState.seasonsError = e.message;
+      if (sel) sel.innerHTML = `<option value="">Error: ${_escHtml(e.message)}</option>`;
+    });
 }
 
 function wbTestProxy() {
   const url = document.getElementById('wb-proxy-url').value.trim();
   if (!url) { _wbProxyStatus('Enter a URL first', 'err'); return; }
   _wbProxyStatus('Testing…', 'info');
-  api('testProxyConnection', { proxyUrl: url }).then(r => {
-    if (r && r.ok) _wbProxyStatus('✓ Connected successfully', 'ok');
-    else           _wbProxyStatus('✗ ' + (r && r.error ? r.error : 'Failed'), 'err');
-  }).catch(e => _wbProxyStatus('✗ ' + e.message, 'err'));
+  fetch(url + '?action=ping')
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) _wbProxyStatus('✓ Connected successfully', 'ok');
+      else         _wbProxyStatus('✗ ' + (data.error || 'Proxy returned unexpected response'), 'err');
+    })
+    .catch(e => _wbProxyStatus('✗ ' + e.message, 'err'));
 }
 
 function _wbProxyStatus(msg, type) {
@@ -9680,23 +9699,29 @@ function wbDiscover() {
   const tl = document.getElementById('wb-teams-list');
   tl.innerHTML = '<div style="font-size:13px;color:var(--text-dim);padding:8px 0;">Discovering teams from PlayHQ…</div>';
 
-  api('discoverTeams', { seasonId: _websiteState.seasonId }).then(result => {
-    if (!result || result.error) {
-      tl.innerHTML = `<div class="wb-status wb-status-err">${_escHtml(result ? result.error : 'Unknown error')}</div>`;
-      return;
-    }
-    const teams = result.teams || [];
-    const saved = _websiteState.savedTeams;
-    teams.forEach(t => {
-      t._enabled = !!(saved[t.id] && (saved[t.id].enabled === true || saved[t.id].enabled === 'true'));
-      t.teamId   = t.id;
-      t.gradeId  = t.grade ? t.grade.id : null;
+  const proxyUrl = _websiteState.proxyUrl;
+  const orgId    = _websiteState.orgId;
+  const seasonId = _websiteState.seasonId;
+  fetch(proxyUrl + '?action=teams&orgId=' + orgId + '&seasonId=' + seasonId)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        tl.innerHTML = `<div class="wb-status wb-status-err">${_escHtml(data.error)}</div>`;
+        return;
+      }
+      const teams = data.data || [];
+      const saved = _websiteState.savedTeams;
+      teams.forEach(t => {
+        t._enabled = !!(saved[t.id] && (saved[t.id].enabled === true || saved[t.id].enabled === 'true'));
+        t.teamId   = t.id;
+        t.gradeId  = t.grade ? t.grade.id : null;
+      });
+      _websiteState.teams = teams;
+      tl.innerHTML = _renderTeamsList();
+    })
+    .catch(e => {
+      tl.innerHTML = `<div class="wb-status wb-status-err">Error: ${_escHtml(e.message)}</div>`;
     });
-    _websiteState.teams = teams;
-    tl.innerHTML = _renderTeamsList();
-  }).catch(e => {
-    tl.innerHTML = `<div class="wb-status wb-status-err">Error: ${_escHtml(e.message)}</div>`;
-  });
 }
 
 function _renderTeamsList() {
