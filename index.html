@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.35</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.36</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9514,8 +9514,8 @@ function _buildWidgetCode(team, cfg, apiKey) {
   // Coach
   let coachBody = '';
   if (coaches)       coachBody += `<p><strong>${coaches}</strong></p>`;
-  if (coachProfile1) coachBody += `<p>${coachProfile1}</p>`;
-  if (coachProfile2) coachBody += `<p>${coachProfile2}</p>`;
+  if (coachProfile1) coachBody += `<p style="font-size:.9em;">${coachProfile1}</p>`;
+  if (coachProfile2) coachBody += `<p style="font-size:.9em;">${coachProfile2}</p>`;
 
   // Assistant Coach
   const asstBody = assistantCoach ? `<p><strong>${assistantCoach}</strong></p>` : '';
@@ -9523,21 +9523,21 @@ function _buildWidgetCode(team, cfg, apiKey) {
   // Team Manager
   let mgrBody = '';
   if (manager) mgrBody += `<p><strong>${manager}</strong></p>`;
-  if (contact) mgrBody += `<p>${contact}</p>`;
+  if (contact) mgrBody += `<p style="font-size:.9em;">${contact}</p>`;
 
   // Training
   let trainBody = '';
   if (training) {
     trainBody += `<p><strong>${training}</strong>`;
-    if (venue) trainBody += `<br>${venue}`;
+    if (venue) trainBody += `<br><span style="font-size:.9em;">${venue}</span>`;
     trainBody += `</p>`;
   }
   if (training2) {
     trainBody += `<p><strong>${training2}</strong>`;
-    if (venue2) trainBody += `<br>${venue2}`;
+    if (venue2) trainBody += `<br><span style="font-size:.9em;">${venue2}</span>`;
     trainBody += `</p>`;
   }
-  if (trainingNote) trainBody += `<div class="kw-note">${trainingNote}</div>`;
+  if (trainingNote) trainBody += `<div class="kw-note" style="font-size:.9em;">${trainingNote}</div>`;
 
   // Delegated toggle script
   const toggleScript =
@@ -9644,6 +9644,31 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `}else{gH+='<div class="kw-meta" style="color:rgba(255,255,255,.35);">No results yet</div>';}\n` +
     `gH+='</div></div>';\n` +
     `html+=sec2('${tid}-gd','Game Day',gH,true);\n` +
+    // Ladder — KPI strip + full table (suppressed for NOSCORE age groups)
+    `if(NOSCORE){html+=sec2('${tid}-lad','Ladder','<p style=\"color:rgba(255,255,255,.7);font-size:.9em;margin:0;\">&#8505; Ladder and points are not used for this age group \u2014 these competitions focus on participation and development.</p>',true);}\n` +
+    `else{\n` +
+    `var lH='';\n` +
+    `if(myS){\n` +
+    `lH+='<div class="kw-kpis">';\n` +
+    `lH+='<div class="kw-kpi"><div class="kw-kv">'+ord(myS.ranking)+'</div><div class="kw-kl">Position</div></div>';\n` +
+    `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.won+'</div><div class="kw-kl">Wins</div></div>';\n` +
+    `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.lost+'</div><div class="kw-kl">Losses</div></div>';\n` +
+    `lH+='<div class="kw-kpi"><div class="kw-kv">'+(myS.percentage?myS.percentage.toFixed(1)+'%':'&mdash;')+'</div><div class="kw-kl">%</div></div>';\n` +
+    `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.competitionPoints+'</div><div class="kw-kl">Pts</div></div>';\n` +
+    `lH+='</div>';}\n` +
+    `if(ladder&&ladder.data&&ladder.data[0]&&ladder.data[0].ladders&&ladder.data[0].ladders[0]){\n` +
+    `var st=ladder.data[0].ladders[0].standings;\n` +
+    `lH+='<table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>D</th><th>%</th><th>Pts</th></tr></thead><tbody>';\n` +
+    `st.forEach(function(s){var isMe=s.team&&s.team.id===TID;\n` +
+    `lH+='<tr'+(isMe?' class="kw-me"':'')+'><td>'+s.ranking+'</td><td>'+(s.team?s.team.name:'')+'</td>';\n` +
+    `lH+='<td>'+s.played+'</td><td>'+s.won+'</td><td>'+s.lost+'</td><td>'+(s.drawn||0)+'</td>';\n` +
+    `lH+='<td>'+(s.percentage?s.percentage.toFixed(1):'0')+'</td><td><strong>'+s.competitionPoints+'</strong></td></tr>';});\n` +
+    `lH+='</tbody></table>';\n` +
+    `}else if(!noData){lH='<div class="kw-soon">\uD83C\uDFC6 Ladder not yet available \u2014 check back once the season is underway.</div>';}\n` +
+    `html+=sec2('${tid}-lad','Ladder',lH,true);\n` +
+    `}\n` +
+    `\n` +
+    `\n` +
     `\n` +
     // Fixtures & Results
     `var fH='';\n` +
@@ -9671,32 +9696,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `});\n` +
     `fH+='</tbody></table><div class="kw-hint">\u25BC Tap a row to expand full details.</div>';\n` +
     `}else if(!noData){fH='<div class="kw-soon">\uD83D\uDCC5 Fixture not yet released.</div>';}\n` +
-    `html+=sec2('${tid}-fix','Fixtures &amp; Results',fH,false);\n` +
-    `\n` +
-    // Ladder — KPI strip + full table (suppressed for NOSCORE age groups)
-    `if(NOSCORE){html+=sec2('${tid}-lad','Ladder','<p style=\"color:rgba(255,255,255,.7);font-size:.9em;margin:0;\">&#8505; Ladder and points are not used for this age group \u2014 these competitions focus on participation and development.</p>',false);}\n` +
-    `else{\n` +
-    `var lH='';\n` +
-    `if(myS){\n` +
-    `lH+='<div class="kw-kpis">';\n` +
-    `lH+='<div class="kw-kpi"><div class="kw-kv">'+ord(myS.ranking)+'</div><div class="kw-kl">Position</div></div>';\n` +
-    `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.won+'</div><div class="kw-kl">Wins</div></div>';\n` +
-    `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.lost+'</div><div class="kw-kl">Losses</div></div>';\n` +
-    `lH+='<div class="kw-kpi"><div class="kw-kv">'+(myS.percentage?myS.percentage.toFixed(1)+'%':'&mdash;')+'</div><div class="kw-kl">%</div></div>';\n` +
-    `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.competitionPoints+'</div><div class="kw-kl">Pts</div></div>';\n` +
-    `lH+='</div>';}\n` +
-    `if(ladder&&ladder.data&&ladder.data[0]&&ladder.data[0].ladders&&ladder.data[0].ladders[0]){\n` +
-    `var st=ladder.data[0].ladders[0].standings;\n` +
-    `lH+='<table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>D</th><th>%</th><th>Pts</th></tr></thead><tbody>';\n` +
-    `st.forEach(function(s){var isMe=s.team&&s.team.id===TID;\n` +
-    `lH+='<tr'+(isMe?' class="kw-me"':'')+'><td>'+s.ranking+'</td><td>'+(s.team?s.team.name:'')+'</td>';\n` +
-    `lH+='<td>'+s.played+'</td><td>'+s.won+'</td><td>'+s.lost+'</td><td>'+(s.drawn||0)+'</td>';\n` +
-    `lH+='<td>'+(s.percentage?s.percentage.toFixed(1):'0')+'</td><td><strong>'+s.competitionPoints+'</strong></td></tr>';});\n` +
-    `lH+='</tbody></table>';\n` +
-    `}else if(!noData){lH='<div class="kw-soon">\uD83C\uDFC6 Ladder not yet available \u2014 check back once the season is underway.</div>';}\n` +
-    `html+=sec2('${tid}-lad','Ladder',lH,true);\n` +
-    `}\n` +
-    `\n` +
+    `html+=sec2('${tid}-fix','Fixtures &amp; Results',fH,true);\n` +
     `if(noData){html='<div class="kw-soon">\uD83D\uDCC5 Season yet to begin \u2014 fixtures and ladder will appear here once the season is underway.</div>';}\n` +
     `el.innerHTML=html;\n` +
     `}\n` +
