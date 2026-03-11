@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.5</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.6</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9048,15 +9048,18 @@ function renderWebsiteTab(targetEl) {
     if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
     // Always attempt season load if proxy was configured — use loadedProxyUrl
     // not _websiteState.proxyUrl to avoid losing it across async boundaries
-    if (loadedProxyUrl) return api('discoverSeasons');
+    if (loadedProxyUrl) return api('discoverSeasons', { proxyUrl: loadedProxyUrl, orgId: _websiteState.orgId });
     return null;
   }).then(result => {
     if (result && result.seasons) {
       _websiteState.seasons = result.seasons;
-      const active = document.querySelector('#dash-sub-admin .dtab.act');
-      if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
+    } else if (result && result.error) {
+      console.warn('discoverSeasons error:', result.error);
+      _websiteState.seasonsError = result.error;
     }
-  }).catch(() => {});
+    const active = document.querySelector('#dash-sub-admin .dtab.act');
+    if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
+  }).catch(e => { console.warn('renderWebsiteTab chain error:', e); });
 }
 
 function _drawWebsiteTab(el) {
@@ -9612,7 +9615,9 @@ function _buildSeasonOptions(s) {
       return `<option value="${season.id}" ${sel}>${_escHtml(season.name)}</option>`;
     }).join('');
   }
-  // Seasons not yet loaded — show appropriate message based on proxy state
+  if (s.seasonsError) {
+    return `<option value="" disabled>⚠ ${_escHtml(s.seasonsError)}</option>`;
+  }
   if (s.proxyUrl) {
     return '<option value="" disabled>⟳ Loading seasons…</option>';
   }
