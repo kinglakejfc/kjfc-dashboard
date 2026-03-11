@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.25</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.26</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9392,9 +9392,9 @@ function _buildWidgetCode(team, cfg, apiKey) {
 
   const sec = (id, title, body, open) =>
     `<div class="kw-section">` +
-    `<div class="kw-section-head" onclick="kjfcSec('${teamId}','${id}')">` +
-    `<h3>${title}</h3><span class="kw-chevron${open?' open':''}" id="kw-chev-${teamId}-${id}">&#8964;</span></div>` +
-    `<div class="kw-section-body${open?' open':''}" id="kw-sec-${teamId}-${id}">${body}</div></div>`;
+    `<div class="kw-section-head kw-toggle" data-sec="${id}">` +
+    `<h3>${title}</h3><span class="kw-chevron${open?' open':''}" id="kw-chev-${id}">&#8964;</span></div>` +
+    `<div class="kw-section-body${open?' open':''}" id="kw-sec-${id}">${body}</div></div>`;
 
   const row = (lbl, val) => val
     ? `<div class="kw-row"><span class="kw-lbl">${lbl}</span><span class="kw-val">${val}</span></div>`
@@ -9413,12 +9413,19 @@ function _buildWidgetCode(team, cfg, apiKey) {
   if (coachProfile2) cpHtml += `<p class="kw-bio">${coachProfile2}</p>`;
 
   const toggleFn = `<script>
-function kjfcSec(tid,sid){
-  var b=document.getElementById('kw-sec-'+tid+'-'+sid);
-  var c=document.getElementById('kw-chev-'+tid+'-'+sid);
-  var open=b.classList.toggle('open');
-  if(open)c.classList.add('open');else c.classList.remove('open');
-}
+(function(){
+  var root=document.getElementById('kjfc-w-${teamId}');
+  if(root&&!root._kwInit){root._kwInit=true;root.addEventListener('click',function(e){
+    var h=e.target.closest('.kw-toggle');
+    if(!h)return;
+    var sid=h.dataset.sec;
+    var b=document.getElementById('kw-sec-'+sid);
+    var c=document.getElementById('kw-chev-'+sid);
+    if(!b)return;
+    var open=b.classList.toggle('open');
+    if(c){if(open)c.classList.add('open');else c.classList.remove('open');}
+  });}
+})();
 <\/script>`;
 
   if (!hasGrade) {
@@ -9441,11 +9448,12 @@ ${toggleFn}
   var el=document.getElementById('kjfc-live-${tid}');
 
   function sec2(id,title,body,open){
+    var fullId='${tid}-'+id;
     return '<div class="kw-section">'
-      +'<div class="kw-section-head" onclick="kjfcSec(\'${teamId}\',\'${teamId}-'+id+'\')">'
+      +'<div class="kw-section-head kw-toggle" data-sec="'+fullId+'">'
       +'<h3>'+title+'</h3>'
-      +'<span class="kw-chevron'+(open?' open':'')+'\" id="kw-chev-${teamId}-${teamId}-'+id+'">&#8964;</span></div>'
-      +'<div class="kw-section-body'+(open?' open':'')+'\" id="kw-sec-${teamId}-${teamId}-'+id+'">'+body+'</div></div>';
+      +'<span class="kw-chevron'+(open?' open':'')+'" id="kw-chev-'+fullId+'">&#8964;</span></div>'
+      +'<div class="kw-section-body'+(open?' open':'')+'" id="kw-sec-'+fullId+'">'+body+'</div></div>';
   }
 
   function fmt(d,t){var dt=new Date(d+'T'+t);return dt.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+' \u00b7 '+dt.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:true});}
@@ -9456,13 +9464,6 @@ ${toggleFn}
   function oc(o){return(o==='WON'||o==='WON_BY_FORFEIT')?'kw-outcome-won':(o==='LOST'||o==='LOST_BY_FORFEIT')?'kw-outcome-lost':'kw-outcome-draw';}
   function ow(o){return(o==='WON'||o==='WON_BY_FORFEIT')?'WIN':o==='DRAWN'?'DRAW':'LOSS';}
   function fetchJ(path,cb){var x=new XMLHttpRequest();x.open('GET','https://api.playhq.com'+path,true);x.setRequestHeader('x-api-key',API_KEY);x.setRequestHeader('x-phq-tenant','afl');x.onload=function(){try{cb(null,JSON.parse(x.responseText));}catch(e){cb(e);}};x.onerror=function(){cb(new Error('Network error'));};x.send();}
-
-  window['kwTab_${tid}']=function(tab){
-    document.getElementById('kw-fix-${tid}').style.display=tab==='fix'?'':'none';
-    document.getElementById('kw-lad-${tid}').style.display=tab==='lad'?'':'none';
-    document.getElementById('kw-tf-${tid}').classList.toggle('act',tab==='fix');
-    document.getElementById('kw-tl-${tid}').classList.toggle('act',tab==='lad');
-  };
 
   function render(games,ladder){
     var all=games.filter(function(g){return g.competitors.some(function(c){return c.id===TID;});});
@@ -9507,8 +9508,8 @@ ${toggleFn}
     html+=sec2('games','Game Day',gH,true);
 
     var tabH='<div class="kw-tabs">'
-      +'<button class="kw-tab act" id="kw-tf-${tid}" onclick="kwTab_${tid}(\'fix\')">Fixtures &amp; Results</button>'
-      +'<button class="kw-tab" id="kw-tl-${tid}" onclick="kwTab_${tid}(\'lad\')">Ladder</button>'
+      +'<button class="kw-tab act kw-tab-btn" data-tab="fix" id="kw-tf-${tid}">Fixtures &amp; Results</button>'
+      +'<button class="kw-tab kw-tab-btn" data-tab="lad" id="kw-tl-${tid}">Ladder</button>'
       +'</div>';
     tabH+='<div id="kw-fix-${tid}"><table><thead><tr><th>Round</th><th>Opponent</th><th>Date</th><th>Venue</th><th>Result</th></tr></thead><tbody>';
     all.forEach(function(g){
@@ -9540,6 +9541,17 @@ ${toggleFn}
     tabH+='</div>';
     html+=sec2('fixture','Fixture',tabH,false);
     el.innerHTML=html;
+
+    // Tab switching via delegation (no onclick needed)
+    el.addEventListener('click',function(e){
+      var btn=e.target.closest('.kw-tab-btn');
+      if(!btn)return;
+      var tab=btn.dataset.tab;
+      document.getElementById('kw-fix-${tid}').style.display=tab==='fix'?'':'none';
+      document.getElementById('kw-lad-${tid}').style.display=tab==='lad'?'':'none';
+      document.getElementById('kw-tf-${tid}').classList.toggle('act',tab==='fix');
+      document.getElementById('kw-tl-${tid}').classList.toggle('act',tab==='lad');
+    });
   }
 
   var gD=null,lD=null;
