@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.10</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.11</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9031,33 +9031,28 @@ function renderWebsiteTab(targetEl) {
   // Track proxy URL from config so we can trigger season load reliably
   let loadedProxyUrl = '';
 
+  // Load API key first, then config+teams in parallel, then seasons
   api('getPhqApiKey').then(r => {
     if (r && r.apiKey) _websiteState.phqApiKey = r.apiKey;
-  });
-
-  api('getWebsiteConfig').then(cfg => {
+    return Promise.all([api('getWebsiteConfig'), api('getWebsiteTeams')]);
+  }).then(([cfg, teams]) => {
     if (cfg && !cfg.error) {
       _websiteState.proxyUrl   = cfg.proxyUrl   || '';
       _websiteState.orgId      = cfg.orgId      || _websiteState.orgId;
       _websiteState.seasonId   = cfg.seasonId   || '';
       _websiteState.seasonName = cfg.seasonName || '';
-      loadedProxyUrl = _websiteState.proxyUrl; // capture before async gap
     }
-    return api('getWebsiteTeams');
-  }).then(teams => {
     if (Array.isArray(teams)) {
       _websiteState.savedTeams = {};
       teams.forEach(t => { _websiteState.savedTeams[t.teamId] = t; });
     }
     const active = document.querySelector('#dash-sub-admin .dtab.act');
     if (active && active.dataset.admintab === 'website') _drawWebsiteTab(el);
-    // Always attempt season load if proxy was configured — use loadedProxyUrl
-    // not _websiteState.proxyUrl to avoid losing it across async boundaries
-    // Seasons: call proxy directly from browser (GAS UrlFetch blocked by PlayHQ WAF)
-    if (loadedProxyUrl || _websiteState.phqApiKey) {
+    // Now key is guaranteed set — load seasons directly from PlayHQ
+    if (_websiteState.phqApiKey) {
       const orgId = _websiteState.orgId;
-      const phqSeasonUrl = 'https://api.playhq.com/v1/organisations/' + orgId + '/seasons';
-      fetch(phqSeasonUrl, { headers: { 'x-api-key': _websiteState.phqApiKey, 'x-phq-tenant': 'afl' } })
+      fetch('https://api.playhq.com/v1/organisations/' + orgId + '/seasons',
+        { headers: { 'x-api-key': _websiteState.phqApiKey, 'x-phq-tenant': 'afl' } })
         .then(r => r.json())
         .then(data => {
           if (Array.isArray(data.data)) {
