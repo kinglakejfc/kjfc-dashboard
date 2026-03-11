@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.36</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.37</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9211,12 +9211,6 @@ function _drawWebsiteTab(el) {
     html += `<p style="font-size:13px;color:var(--text-dim);text-align:center;padding:16px 0;">
       ← Tick teams in step 2 to configure them here.</p>`;
   } else {
-    html += `<div class="wb-info-banner">
-      ℹ️ <strong>Auto-propagation:</strong> Changes saved here update your Google Sheet. When a visitor loads your
-      Squarespace page, the widget reads this saved data live — so <strong>you never need to re-paste widget code</strong>
-      after updating team info. Just save here and it propagates automatically.
-    </div>`;
-
     enabled.forEach(t => {
       const saved = _websiteState.savedTeams[t.teamId] || {};
       html += `
@@ -9340,7 +9334,7 @@ function _drawWebsiteTab(el) {
 
     html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
       <span style="font-size:12px;color:var(--text-dim);">
-        💡 Save updates the sheet. Widget pages reflect changes immediately — no code re-paste needed.
+        💡 Save updates the sheet. Re-paste the widget code into Squarespace to publish any changes.
       </span>
       <div style="display:flex;align-items:center;gap:10px;">
         <span id="wb-save-status" style="font-size:12px;"></span>
@@ -9364,8 +9358,7 @@ function _drawWebsiteTab(el) {
     </div>
     <div class="wb-body wb-collapsed" id="wb-body-generate">
       <div style="background:rgba(1,60,30,.12);border:1px solid rgba(1,60,30,.25);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--text);margin-bottom:12px;">
-        💡 <strong>One-time paste only.</strong> Paste each code block into a Squarespace Code Block on the team's page.
-        After that, updating team info in step 3 auto-propagates to the website — no re-pasting required.
+        💡 Paste each code block into a Squarespace <strong>Code Block</strong> on the team's page. After making changes, re-save and re-paste the updated code.
       </div>
       <div id="wb-widgets-output">${_renderWidgets()}</div>
     </div>
@@ -9497,6 +9490,10 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `#${id} .kw-loading{text-align:center;padding:24px;color:rgba(255,255,255,.4);}`,
     `#${id} .kw-err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:10px 12px;border-radius:6px;}`,
     `#${id} .kw-soon{background:rgba(251,226,1,.07);border:1px solid rgba(251,226,1,.2);border-radius:6px;padding:16px;text-align:center;color:${YEL};margin:8px 0;}`,
+    `#${id} .kw-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;}`,
+    `@media(max-width:660px){#${id} .kw-cols{display:block;}}`,
+    `@media(max-width:540px){#${id} .kw-fix-tbl th:nth-child(3),#${id} .kw-fix-tbl td:nth-child(3){display:none;}}`,
+    `#${id} .kw-fix-tbl td:nth-child(4){white-space:nowrap;}`,
   ].join('');
 
   // ── Static section helpers ───────────────────────────────────────
@@ -9552,25 +9549,29 @@ function _buildWidgetCode(team, cfg, apiKey) {
   // ── No-grade widget ───────────────────────────────────────────────
   if (!hasGrade) {
     return (
-      `<div id="kjfc-w-${teamId}"><style>${mkCss('kjfc-w-'+teamId)}</style>\n` +
+      `<div id="kjfc-w-${teamId}"><style>${mkCss('kjfc-w-'+teamId)}</style><div class="kw-cols">\n` +
+      `<div class="kw-col">` +
       (coachBody ? sec(teamId+'-coach',  'Coach',           coachBody, false) : '') +
       (asstBody  ? sec(teamId+'-asst',   'Assistant Coach', asstBody,  false) : '') +
       (mgrBody   ? sec(teamId+'-mgr',    'Team Manager',    mgrBody,   false) : '') +
       (trainBody ? sec(teamId+'-train',  'Training',        trainBody, false) : '') +
+      `</div><div class="kw-col">` +
       `<div class="kw-soon">\uD83D\uDCC5 Season draw not yet released \u2014 ` +
       `fixtures and ladder will appear here once the NFNL schedule is published.</div>\n` +
+      `</div></div>` +
       toggleScript + `\n</div>`
     );
   }
 
   // ── Full live widget ──────────────────────────────────────────────
   return (
-    `<div id="kjfc-w-${teamId}"><style>${mkCss('kjfc-w-'+teamId)}</style>\n` +
+    `<div id="kjfc-w-${teamId}"><style>${mkCss('kjfc-w-'+teamId)}</style><div class="kw-cols">\n` +
+    `<div class="kw-col">` +
     (coachBody ? sec(teamId+'-coach',  'Coach',           coachBody, false) : '') +
     (asstBody  ? sec(teamId+'-asst',   'Assistant Coach', asstBody,  false) : '') +
     (mgrBody   ? sec(teamId+'-mgr',    'Team Manager',    mgrBody,   false) : '') +
     (trainBody ? sec(teamId+'-train',  'Training',        trainBody, false) : '') +
-    `<div id="kjfc-live-${tid}"><div class="kw-loading">\u23F3 Loading live data\u2026</div></div>\n` +
+    `</div><div class="kw-col"><div id="kjfc-live-${tid}"><div class="kw-loading">\u23F3 Loading live data\u2026</div></div></div></div>\n` +
     toggleScript + `\n` +
     `<script>\n(function(){\n` +
     `var KEY='${apiKey}',GID='${gradeId}',TID='${teamId}',GAMEDAY='${gameDay.replace(/'/g,"\\'")}',YEL='#FBE201';\n` +
@@ -9673,7 +9674,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     // Fixtures & Results
     `var fH='';\n` +
     `if(all.length){\n` +
-    `fH='<table><thead><tr><th>Rnd</th><th>Opponent</th><th>Date</th><th>Result</th></tr></thead><tbody>';\n` +
+    `fH='<table class=\"kw-fix-tbl\"><thead><tr><th>Rnd</th><th>Opponent</th><th>Date</th><th>Result</th></tr></thead><tbody>';\n` +
     `all.forEach(function(g,i){\n` +
     `var k=g.competitors.find(function(c){return c.id===TID;});\n` +
     `var o=g.competitors.find(function(c){return c.id!==TID;});\n` +
@@ -9977,7 +9978,7 @@ function wbSaveConfig() {
   api('saveAllWebsiteTeams', { teams: toSave })
     .then(r => {
       if (status) {
-        status.textContent = '✓ Saved ' + (r.count||toSave.length) + ' team' + ((r.count||toSave.length)!==1?'s':'') + ' — changes will appear on the website immediately';
+        status.textContent = '✓ Saved ' + (r.count||toSave.length) + ' team' + ((r.count||toSave.length)!==1?'s':'') + ' — re-paste the widget code in Squarespace to publish';
         status.style.color = '#065f46';
         setTimeout(() => { if (status) status.textContent = ''; }, 5000);
       }
