@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.40</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.42</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9439,15 +9439,15 @@ function _buildWidgetCode(team, cfg, apiKey) {
   // h4 inherits Squarespace Heading 4 — no overrides on font-size/weight
   const YEL = '#FBE201';
   const mkCss = (id) => [
-    `#${id}{color:#fff;font-family:inherit;}`,
+    `#${id}{color:#fff;font-family:inherit;padding-top:0;margin-top:0;}`,
     `#${id} h4{color:${YEL};margin:0;}`,
     `#${id} p{color:rgba(255,255,255,0.85);}`,
     `#${id} .kw-section{border-top:1px solid rgba(255,255,255,0.18);}`,
     `#${id} .kw-section:last-child{border-bottom:1px solid rgba(255,255,255,0.18);}`,
-    `#${id} .kw-head{display:flex;justify-content:space-between;align-items:center;padding:14px 0;cursor:pointer;user-select:none;}`,
+    `#${id} .kw-head{display:flex;justify-content:space-between;align-items:center;padding:18px 0 14px;cursor:pointer;user-select:none;}`,
     `#${id} .kw-chev{color:${YEL};font-size:18px;transition:transform .2s;display:inline-block;line-height:1;}`,
     `#${id} .kw-chev.open{transform:rotate(180deg);}`,
-    `#${id} .kw-body{display:none;padding-bottom:16px;}`,
+    `#${id} .kw-body{display:none;padding-bottom:24px;}`,
     `#${id} .kw-body.open{display:block;}`,
     `#${id} .kw-row{display:flex;gap:12px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.07);}`,
     `#${id} .kw-row:last-child{border-bottom:none;}`,
@@ -9455,17 +9455,17 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `#${id} .kw-val{color:#fff;}`,
     `#${id} .kw-note{background:rgba(251,226,1,.1);border-left:3px solid ${YEL};padding:7px 12px;margin:8px 0;border-radius:0 4px 4px 0;color:rgba(255,255,255,0.85);}`,
     `#${id} .kw-kpis{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}`,
-    `#${id} .kw-kpi{flex:1;min-width:52px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:10px 8px;text-align:center;}`,
-    `#${id} .kw-kv{font-size:1.5em;font-weight:800;color:${YEL};line-height:1;}`,
+    `#${id} .kw-kpi{flex:1;min-width:52px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:14px 8px;text-align:center;}`,
+    `#${id} .kw-kv{font-size:1.6em;font-weight:800;color:${YEL};line-height:1;}`,
     `#${id} .kw-kl{font-size:.68em;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;margin-top:3px;}`,
     `#${id} table{width:100%;border-collapse:collapse;margin-bottom:8px;}`,
     `#${id} thead tr{border-bottom:1px solid rgba(255,255,255,.2);}`,
     `#${id} th{padding:5px 8px;text-align:left;font-size:.68em;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.4);}`,
-    `#${id} td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.07);color:rgba(255,255,255,.85);font-size:.9em;}`,
+    `#${id} td{padding:9px 8px;border-bottom:1px solid rgba(255,255,255,.07);color:rgba(255,255,255,.85);font-size:.9em;}`,
     `#${id} tr.kw-me td{color:${YEL};font-weight:700;}`,
-    `#${id} .kw-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}`,
+    `#${id} .kw-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}`,
     `@media(max-width:480px){#${id} .kw-2col{grid-template-columns:1fr;}}`,
-    `#${id} .kw-card{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:12px;}`,
+    `#${id} .kw-card{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:16px;}`,
     `#${id} .kw-clbl{font-size:.68em;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.35);margin-bottom:6px;}`,
     `#${id} .kw-opp{font-weight:700;color:#fff;margin-bottom:3px;}`,
     `#${id} .kw-meta{font-size:.82em;color:rgba(255,255,255,.55);margin-bottom:2px;}`,
@@ -9490,7 +9490,11 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `#${id} .kw-loading{text-align:center;padding:24px;color:rgba(255,255,255,.4);}`,
     `#${id} .kw-err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:10px 12px;border-radius:6px;}`,
     `#${id} .kw-soon{background:rgba(251,226,1,.07);border:1px solid rgba(251,226,1,.2);border-radius:6px;padding:16px;text-align:center;color:${YEL};margin:8px 0;}`,
-    `#${id} .kw-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;}`,
+    `#${id} .kw-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 0;}`,
+    `#${id} .kw-col:first-child{padding-right:28px;border-right:1px solid rgba(255,255,255,.1);}`,
+    `#${id} .kw-col:last-child{padding-left:28px;}`,
+    `@media(max-width:660px){#${id} .kw-col:first-child{padding-right:0;border-right:none;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:8px;margin-bottom:8px;}}`,
+    `@media(max-width:660px){#${id} .kw-col:last-child{padding-left:0;}}`,
     `#${id} .kw-skel{background:rgba(255,255,255,.07);border-radius:4px;animation:kw-pulse 1.6s ease-in-out infinite;}`,
     `#${id} .kw-skel-line{height:12px;margin-bottom:8px;}`,
     `#${id} .kw-skel-line.wide{width:75%;}`,
@@ -9573,17 +9577,23 @@ function _buildWidgetCode(team, cfg, apiKey) {
 
   // ── Full live widget ──────────────────────────────────────────────
   return (
-    `<div id="kjfc-w-${teamId}"><style>${mkCss('kjfc-w-'+teamId)}</style><div class="kw-cols">\n` +
+    `<style>`+
+    `/* Squarespace section top-padding reset */`+
+    `.fe-block:has(#kjfc-w-${teamId}){padding-top:0!important;margin-top:0!important;}`+
+    `.sqs-block-code:has(#kjfc-w-${teamId}){padding-top:0!important;}`+
+    `section:has(#kjfc-w-${teamId}) .section-background+*{padding-top:0!important;}`+
+    `section:has(#kjfc-w-${teamId}) [data-section-theme]{padding-top:24px!important;}`+
+    `</style>`+
+`<div id="kjfc-w-${teamId}"><style>${mkCss('kjfc-w-'+teamId)}</style><div class="kw-cols">\n` +
     `<div class="kw-col"><div id="kjfc-live-L-${tid}">`+
     '<div class="kw-section"><div class="kw-head"><h4>Game Day</h4><span class="kw-chev open">\u2304</span></div><div class="kw-body open"><div class="kw-2col"><div class="kw-skel-card"><div class="kw-skel kw-skel-line short" style="margin-bottom:10px;"></div><div class="kw-skel kw-skel-box"></div></div><div class="kw-skel-card"><div class="kw-skel kw-skel-line short" style="margin-bottom:10px;"></div><div class="kw-skel kw-skel-box"></div></div></div></div></div><div class="kw-section"><div class="kw-head"><h4>Fixtures &amp; Results</h4><span class="kw-chev open">\u2304</span></div><div class="kw-body open"><div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;"><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div></div></div></div>'+
     `</div></div>` +
-    `<div class="kw-col"><div id="kjfc-live-R-${tid}">`+
-    '<div class="kw-section"><div class="kw-head"><h4>Ladder</h4><span class="kw-chev open">\u2304</span></div><div class="kw-body open"><div class="kw-kpis"><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div></div><div style="display:flex;flex-direction:column;gap:8px;"><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div></div></div></div>'+
-    `</div>` +
+    `<div class="kw-col"><div id="kjfc-live-R-${tid}"></div>` +
     (coachBody ? sec(teamId+'-coach',  'Coach',           coachBody, false) : '') +
     (asstBody  ? sec(teamId+'-asst',   'Assistant Coach', asstBody,  false) : '') +
     (mgrBody   ? sec(teamId+'-mgr',    'Team Manager',    mgrBody,   false) : '') +
     (trainBody ? sec(teamId+'-train',  'Training',        trainBody, false) : '') +
+    '<div class="kw-section"><div class="kw-head"><h4>Ladder</h4><span class="kw-chev open">\u2304</span></div><div class="kw-body open"><div class="kw-kpis"><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div></div><div style="display:flex;flex-direction:column;gap:8px;"><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div></div></div></div>'+
     `</div></div>\n` +
     toggleScript + `\n` +
     `<script>\n(function(){\n` +
