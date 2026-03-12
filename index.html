@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.43</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.45</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9370,74 +9370,87 @@ function _drawWebsiteTab(el) {
 // ── Widget listing ─────────────────────────────────────────────────────────────
 
 function _renderWidgets() {
-  const s      = _websiteState;
-  const teams  = s.teams.filter(t => t._enabled);
+  const s     = _websiteState;
+  const teams = s.teams.filter(t => t._enabled);
 
   if (!teams.length) {
     return `<p style="font-size:13px;color:var(--text-dim);text-align:center;padding:20px 0;">
       No teams selected — tick teams in step 2 first.</p>`;
   }
 
-  // Ensure all enabled teams have a savedTeams entry (even if not yet saved to sheet)
-  // so the widget code uses live form values
   teams.forEach(t => {
     if (!s.savedTeams[t.teamId]) s.savedTeams[t.teamId] = { teamId: t.teamId };
   });
 
   return teams.map(t => {
-    const cfg   = s.savedTeams[t.teamId] || {};
-    const label = cfg.displayName || _wbDeriveTeamName(t.grade ? t.grade.name : '') || t.name;
-    const code  = _buildWidgetCode(t, cfg, s.phqApiKey);
+    const cfg    = s.savedTeams[t.teamId] || {};
+    const label  = cfg.displayName || _wbDeriveTeamName(t.grade ? t.grade.name : '') || t.name;
+    const blocks = _buildWidgetBlocks(t, cfg, s.phqApiKey);
+
+    const blockRow = (key, title, desc) => {
+      const id = `widget-${t.teamId}-${key}`;
+      return `
+      <div style="margin-bottom:8px;border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+        <div style="padding:8px 12px;background:var(--green-light);display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:12px;font-weight:700;">${title}</span>
+          <button class="wb-copy-btn" onclick="wbCopyCode('${id}')">📋 Copy</button>
+        </div>
+        <div style="padding:6px 12px 4px;">
+          <p style="font-size:11px;color:var(--text-dim);margin:0 0 4px;">${desc}</p>
+          <pre class="wb-code-block" id="${id}" style="font-size:10px;max-height:80px;">${_escHtml(blocks[key])}</pre>
+        </div>
+      </div>`;
+    };
+
     return `
-    <div style="margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+    <div style="margin-bottom:20px;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
       <div style="padding:10px 14px;background:var(--green-light);display:flex;align-items:center;justify-content:space-between;">
         <strong>${_escHtml(label)}</strong>
-        <div style="display:flex;gap:6px;">
-          <button class="wb-copy-btn" onclick="wbTogglePreview('preview-${t.teamId}',this,'${t.teamId}')">👁 Preview</button>
-          <button class="wb-copy-btn" onclick="wbCopyCode('widget-${t.teamId}')">📋 Copy Code</button>
-        </div>
+        <button class="wb-copy-btn" onclick="wbTogglePreview('preview-${t.teamId}',this,'${t.teamId}')">👁 Preview</button>
       </div>
       <div style="padding:10px 14px;">
-        <p style="font-size:12px;color:var(--text-dim);margin:0 0 8px;">
-          Paste into a <strong>Code Block</strong> on the ${_escHtml(label)} page.
-          ${t.gradeId ? 'Shows live ladder, next game, last result &amp; full fixture.' : '⏳ No grade yet — will show a "season coming soon" message.'}
+        <p style="font-size:12px;color:var(--text-dim);margin:0 0 10px;">
+          Paste each block into a separate <strong>Code Block</strong> in Squarespace — place them anywhere in your layout.
+          ${t.gradeId ? '' : '⏳ No grade yet — live blocks will show a season coming soon message.'}
         </p>
         <div id="preview-${t.teamId}" style="display:none;border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:10px;background:#fff;">
           <iframe id="preview-frame-${t.teamId}" style="width:100%;border:none;min-height:120px;max-height:600px;"
             sandbox="allow-scripts allow-same-origin" scrolling="yes"></iframe>
         </div>
-        <pre class="wb-code-block" id="widget-${t.teamId}">${_escHtml(code)}</pre>
+        ${blockRow('gameday',  '📅 Game Day',            'Next game &amp; last result. Paste first on page — fetches live data for all blocks.')}
+        ${blockRow('fixtures', '📋 Fixtures &amp; Results', 'Full season fixture with scores.')}
+        ${blockRow('ladder',   '🏆 Ladder',              'Season ladder with KPI stats.')}
+        ${blockRow('coaches',  '👥 Coach / Manager / Training', 'Static info — no API call needed.')}
       </div>
     </div>`;
   }).join('');
 }
 
-// ── Widget code builder ────────────────────────────────────────────────────────
 
-function _buildWidgetCode(team, cfg, apiKey) {
-  const hasGrade       = !!team.gradeId;
-  const teamId         = team.teamId;
-  const tid            = teamId.replace(/-/g, '');
-  const gradeId        = team.gradeId || '';
-  const training       = cfg.training       || '';
-  const venue          = cfg.venue          || '';
-  const training2      = cfg.training2      || '';
-  const venue2         = cfg.venue2         || '';
-  const trainingNote   = cfg.trainingNote   || '';
-  const coaches        = cfg.coaches        || '';
+// ── Widget code builder (multi-block) ─────────────────────────────────────────
+
+function _buildWidgetBlocks(team, cfg, apiKey) {
+  const hasGrade    = !!team.gradeId;
+  const teamId      = team.teamId;
+  const tid         = teamId.replace(/-/g, '');
+  const gradeId     = team.gradeId || '';
+  const training    = cfg.training       || '';
+  const venue       = cfg.venue          || '';
+  const training2   = cfg.training2      || '';
+  const venue2      = cfg.venue2         || '';
+  const trainingNote= cfg.trainingNote   || '';
+  const coaches     = cfg.coaches        || '';
   const assistantCoach = cfg.assistantCoach || '';
   const coachProfile1  = cfg.coachProfile1  || '';
   const coachProfile2  = cfg.coachProfile2  || '';
-  const manager        = cfg.manager        || '';
-  const contact        = cfg.managerContact || '';
-  const gameDay        = cfg.gameDay        || '';  // e.g. "Sundays"
-  const ageGroup       = parseFloat(cfg.ageGroup) || 0;  // numeric age group, 0 = seniors
-  const noScore        = ageGroup > 0 && ageGroup <= 10; // U10 and below: no scoring/ladder/finals
-
-  // ── CSS ─────────────────────────────────────────────────────────
-  // Correct Squarespace yellow: #FBE201
-  // h4 inherits Squarespace Heading 4 — no overrides on font-size/weight
+  const manager     = cfg.manager        || '';
+  const contact     = cfg.managerContact || '';
+  const gameDay     = cfg.gameDay        || '';
+  const ageGroup    = parseFloat(cfg.ageGroup) || 0;
+  const noScore     = ageGroup > 0 && ageGroup <= 10;
   const YEL = '#FBE201';
+
+  // ── Shared CSS (each block gets its own prefixed copy) ──────────────────────
   const mkCss = (id) => [
     `#${id}{color:#fff;font-family:inherit;padding-top:0;margin-top:0;}`,
     `#${id} h4{color:${YEL};margin:0;}`,
@@ -9487,70 +9500,24 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `#${id} .bd{background:#78350f;color:#fcd34d;}`,
     `#${id} .bf{background:rgba(255,255,255,.08);color:rgba(255,255,255,.4);}`,
     `#${id} .kw-hint{font-size:.72em;color:rgba(255,255,255,.3);margin-top:6px;}`,
+    `#${id} .kw-fix-tbl td:nth-child(4){white-space:nowrap;}`,
+    `@media(max-width:540px){#${id} .kw-fix-tbl th:nth-child(3),#${id} .kw-fix-tbl td:nth-child(3){display:none;}}`,
     `#${id} .kw-loading{text-align:center;padding:24px;color:rgba(255,255,255,.4);}`,
     `#${id} .kw-err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:10px 12px;border-radius:6px;}`,
     `#${id} .kw-soon{background:rgba(251,226,1,.07);border:1px solid rgba(251,226,1,.2);border-radius:6px;padding:16px;text-align:center;color:${YEL};margin:8px 0;}`,
-    `#${id} .kw-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 0;}`,
-    `#${id} .kw-col:first-child{padding-right:28px;border-right:1px solid rgba(255,255,255,.1);}`,
-    `#${id} .kw-col:last-child{padding-left:28px;}`,
-    `@media(max-width:660px){#${id} .kw-col:first-child{padding-right:0;border-right:none;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:8px;margin-bottom:8px;}}`,
-    `@media(max-width:660px){#${id} .kw-col:last-child{padding-left:0;}}`,
     `#${id} .kw-skel{background:rgba(255,255,255,.07);border-radius:4px;animation:kw-pulse 1.6s ease-in-out infinite;}`,
     `#${id} .kw-skel-line{height:12px;margin-bottom:8px;}`,
     `#${id} .kw-skel-line.wide{width:75%;}`,
     `#${id} .kw-skel-line.mid{width:50%;}`,
     `#${id} .kw-skel-line.short{width:30%;}`,
-    `#${id} .kw-skel-card{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:14px;flex:1;}`,
+    `#${id} .kw-skel-card{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:14px;}`,
     `#${id} .kw-skel-box{height:48px;background:rgba(255,255,255,.07);border-radius:6px;animation:kw-pulse 1.6s ease-in-out infinite;}`,
     `@keyframes kw-pulse{0%,100%{opacity:.4;}50%{opacity:.9;}}`,
-    `@media(max-width:660px){#${id} .kw-cols{display:block;}}`,
-    `@media(max-width:540px){#${id} .kw-fix-tbl th:nth-child(3),#${id} .kw-fix-tbl td:nth-child(3){display:none;}}`,
-    `#${id} .kw-fix-tbl td:nth-child(4){white-space:nowrap;}`,
   ].join('');
 
-  // ── Static section helpers ───────────────────────────────────────
-  const row = (lbl, val) => val
-    ? `<div class="kw-row"><span class="kw-lbl">${lbl}</span><span class="kw-val">${val}</span></div>`
-    : '';
-
-  // sec() uses h4 so Squarespace Heading 4 font cascades automatically
-  const sec = (id, title, body, open) =>
-    '<div class="kw-section"><div class="kw-head kw-toggle" data-sec="' + id + '">' +
-    '<h4>' + title + '</h4><span class="kw-chev' + (open?' open':'') + '" id="kw-c-' + id + '">⌄</span></div>' +
-    '<div class="kw-body' + (open?' open':'') + '" id="kw-b-' + id + '">' + body + '</div></div>';
-
-  // ── Build individual static sections ─────────────────────────────
-  // Coach
-  let coachBody = '';
-  if (coaches)       coachBody += `<p><strong>${coaches}</strong></p>`;
-  if (coachProfile1) coachBody += `<p style="font-size:.9em;">${coachProfile1}</p>`;
-  if (coachProfile2) coachBody += `<p style="font-size:.9em;">${coachProfile2}</p>`;
-
-  // Assistant Coach
-  const asstBody = assistantCoach ? `<p><strong>${assistantCoach}</strong></p>` : '';
-
-  // Team Manager
-  let mgrBody = '';
-  if (manager) mgrBody += `<p><strong>${manager}</strong></p>`;
-  if (contact) mgrBody += `<p style="font-size:.9em;">${contact}</p>`;
-
-  // Training
-  let trainBody = '';
-  if (training) {
-    trainBody += `<p><strong>${training}</strong>`;
-    if (venue) trainBody += `<br><span style="font-size:.9em;">${venue}</span>`;
-    trainBody += `</p>`;
-  }
-  if (training2) {
-    trainBody += `<p><strong>${training2}</strong>`;
-    if (venue2) trainBody += `<br><span style="font-size:.9em;">${venue2}</span>`;
-    trainBody += `</p>`;
-  }
-  if (trainingNote) trainBody += `<div class="kw-note" style="font-size:.9em;">${trainingNote}</div>`;
-
-  // Delegated toggle script
-  const toggleScript =
-    `<script>(function(){var r=document.getElementById('kjfc-w-${teamId}');` +
+  // ── Toggle script (per block, targets its own root id) ──────────────────────
+  const toggleScript = (rootId) =>
+    `<script>(function(){var r=document.getElementById('${rootId}');` +
     `if(r&&!r._ki){r._ki=true;r.addEventListener('click',function(e){` +
     `var h=e.target.closest('.kw-toggle');` +
     `if(h){var s=h.dataset.sec;var b=document.getElementById('kw-b-'+s);` +
@@ -9558,56 +9525,9 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `var o=b.classList.toggle('open');if(c)c.classList.toggle('open',o);}` +
     `});}})()` + `\u003C/script>`;
 
-  // ── No-grade widget ───────────────────────────────────────────────
-  if (!hasGrade) {
-    return (
-      `<div id="kjfc-w-${teamId}"><style>${mkCss('kjfc-w-'+teamId)}</style><div class="kw-cols">\n` +
-      `<div class="kw-col">` +
-      `<div class="kw-soon">\uD83D\uDCC5 Season draw not yet released \u2014 ` +
-      `fixtures and ladder will appear here once the NFNL schedule is published.</div>\n` +
-      `</div><div class="kw-col">` +
-      (coachBody ? sec(teamId+'-coach',  'Coach',           coachBody, false) : '') +
-      (asstBody  ? sec(teamId+'-asst',   'Assistant Coach', asstBody,  false) : '') +
-      (mgrBody   ? sec(teamId+'-mgr',    'Team Manager',    mgrBody,   false) : '') +
-      (trainBody ? sec(teamId+'-train',  'Training',        trainBody, false) : '') +
-      `</div></div>` +
-      toggleScript + `\n</div>`
-    );
-  }
-
-  // ── Full live widget ──────────────────────────────────────────────
-  return (
-    `<style>`+
-    `/* Squarespace section top-padding reset */`+
-    `.fe-block:has(#kjfc-w-${teamId}){padding-top:0!important;margin-top:0!important;}`+
-    `.sqs-block-code:has(#kjfc-w-${teamId}){padding-top:0!important;}`+
-    `section:has(#kjfc-w-${teamId}) .section-background+*{padding-top:0!important;}`+
-    `section:has(#kjfc-w-${teamId}) [data-section-theme]{padding-top:24px!important;}`+
-    `</style>`+
-`<div id="kjfc-w-${teamId}"><style>${mkCss('kjfc-w-'+teamId)}</style><div class="kw-cols">\n` +
-    `<div class="kw-col"><div id="kjfc-live-L-${tid}">`+
-    '<div class="kw-section"><div class="kw-head"><h4>Game Day</h4><span class="kw-chev open">\u2304</span></div><div class="kw-body open"><div class="kw-2col"><div class="kw-skel-card"><div class="kw-skel kw-skel-line short" style="margin-bottom:10px;"></div><div class="kw-skel kw-skel-box"></div></div><div class="kw-skel-card"><div class="kw-skel kw-skel-line short" style="margin-bottom:10px;"></div><div class="kw-skel kw-skel-box"></div></div></div></div></div><div class="kw-section"><div class="kw-head"><h4>Fixtures &amp; Results</h4><span class="kw-chev open">\u2304</span></div><div class="kw-body open"><div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;"><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div></div></div></div>'+
-    `</div></div>` +
-    `<div class="kw-col">` +
-    (coachBody ? sec(teamId+'-coach',  'Coach',           coachBody, false) : '') +
-    (asstBody  ? sec(teamId+'-asst',   'Assistant Coach', asstBody,  false) : '') +
-    (mgrBody   ? sec(teamId+'-mgr',    'Team Manager',    mgrBody,   false) : '') +
-    (trainBody ? sec(teamId+'-train',  'Training',        trainBody, false) : '') +
-    `<div id="kjfc-live-R-${tid}">`+'<div class="kw-section"><div class="kw-head"><h4>Ladder</h4><span class="kw-chev open">\u2304</span></div><div class="kw-body open"><div class="kw-kpis"><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div></div><div style="display:flex;flex-direction:column;gap:8px;"><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div></div></div></div></div>'+
-    `</div></div>\n` +
-    toggleScript + `\n` +
-    `<script>\n(function(){\n` +
-    `var KEY='${apiKey}',GID='${gradeId}',TID='${teamId}',GAMEDAY='${gameDay.replace(/'/g,"\\'")}',YEL='#FBE201';\n` +
-    `var NOSCORE=${noScore?'true':'false'};\n` +
-    `var elL=document.getElementById('kjfc-live-L-${tid}');\n` +
-    `var elR=document.getElementById('kjfc-live-R-${tid}');\n` +
-    `\n` +
+  // ── Shared helper JS (inlined into each live block) ─────────────────────────
+  const sharedHelpers =
     `function ord(n){var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}\n` +
-    `function phq(path,cb){var x=new XMLHttpRequest();x.open('GET','https://api.playhq.com'+path,true);\n` +
-    `x.setRequestHeader('x-api-key',KEY);x.setRequestHeader('x-phq-tenant','afl');\n` +
-    `x.onload=function(){try{cb(null,JSON.parse(x.responseText));}catch(e){cb(e);}};\n` +
-    `x.onerror=function(){cb(new Error('Network error'));};x.send();}\n` +
-    `\n` +
     `function fmtFull(d,t){if(!d)return'TBC';var s=d+'T'+(t||'00:00');var dt=new Date(s);\n` +
     `return dt.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})+(t?' \u00b7 '+dt.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:true}):'');}\n` +
     `function fmtShort(d){return d?new Date(d).toLocaleDateString('en-AU',{day:'numeric',month:'short'}):''}\n` +
@@ -9621,96 +9541,187 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `if(o==='LOST'||o==='LOST_BY_FORFEIT')return'<span class="kw-badge bl">L</span>';\n` +
     `if(o==='DRAWN')return'<span class="kw-badge bd">D</span>';\n` +
     `return'<span class="kw-badge bf">\u2013</span>';}\n` +
-    `function vaddr(v){if(!v)return'';var a=v.address||{};return[a.street,a.suburb,a.state].filter(Boolean).join(', ');}\n` +
-    `\n` +
-    // sec2 — same h4 pattern as static sec()
-    `function sec2(id,title,body,open){\n` +
-    `return '<div class="kw-section"><div class="kw-head kw-toggle" data-sec="'+id+'"><h4>'+title+'</h4>'\n` +
-    `+'<span class="kw-chev'+(open?' open':'')+'" id="kw-c-'+id+'">\u2304</span></div>'\n` +
-    `+'<div class="kw-body'+(open?' open':'')+'" id="kw-b-'+id+'">'+body+'</div></div>';}\n` +
-    `\n` +
-    // Fixture row expand
-    `elL.addEventListener('click',function(e){\n` +
-    `var gr=e.target.closest('.kw-gr');\n` +
-    `if(gr){var dr=document.getElementById(gr.dataset.dr);if(dr){var isOpen=dr.style.display==='table-row';dr.style.display=isOpen?'none':'table-row';}return;}\n` +
-    `});\n` +
-    `\n` +
-    `function render(games,ladder){\n` +
+    `function vaddr(v){if(!v)return'';var a=v.address||{};return[a.street,a.suburb,a.state].filter(Boolean).join(', ');}\n`;
+
+  // ── Shared data fetcher — lives in Game Day block, caches to window._kjfc_TID ─
+  // Other blocks read cache or wait for 'kjfc-data-TID' event
+  const fetcherJs =
+    `var KEY='${apiKey}',GID='${gradeId}',TID='${teamId}',GAMEDAY='${gameDay.replace(/'/g,"\\'")}',YEL='#FBE201';\n` +
+    `var NOSCORE=${noScore?'true':'false'};\n` +
+    `var CACHE_KEY='_kjfc_${tid}';\n` +
+    `function phq(path,cb){var x=new XMLHttpRequest();x.open('GET','https://api.playhq.com'+path,true);\n` +
+    `x.setRequestHeader('x-api-key',KEY);x.setRequestHeader('x-phq-tenant','afl');\n` +
+    `x.onload=function(){try{cb(null,JSON.parse(x.responseText));}catch(e){cb(e);}};` +
+    `x.onerror=function(){cb(new Error('net'));};x.send();}\n` +
+    `if(!window[CACHE_KEY]){window[CACHE_KEY]={games:null,ladder:null};\n` +
+    `function _kjfcFire(){var c=window[CACHE_KEY];if(c.games!==null&&c.ladder!==null){document.dispatchEvent(new CustomEvent('kjfc-data-${tid}',{detail:c}));}}\n` +
+    `phq('/v1/grades/'+GID+'/games',function(err,d){window[CACHE_KEY].games=err?[]:d.data||[];_kjfcFire();});\n` +
+    `phq('/v1/grades/'+GID+'/ladder',function(err,d){window[CACHE_KEY].ladder=err?{}:d;_kjfcFire();});}\n`;
+
+  // Subscribe pattern — used by each live block
+  // Passes cache if ready, otherwise waits for event
+  const subscribeJs = (renderFnName) =>
+    `(function(){\n` +
+    `var CACHE_KEY='_kjfc_${tid}';\n` +
+    `function run(c){${renderFnName}(c.games,c.ladder);}\n` +
+    `if(window[CACHE_KEY]&&window[CACHE_KEY].games!==null&&window[CACHE_KEY].ladder!==null){run(window[CACHE_KEY]);}\n` +
+    `else{document.addEventListener('kjfc-data-${tid}',function h(e){document.removeEventListener('kjfc-data-${tid}',h);run(e.detail);});}\n` +
+    `})();\n`;
+
+  // ── Skeleton helpers ──────────────────────────────────────────────────────────
+  const skelRows = (n) => Array(n).fill(
+    '<div style="display:flex;gap:12px;">' +
+    '<div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div>' +
+    '<div class="kw-skel kw-skel-line wide" style="flex:1;"></div>' +
+    '<div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div>' +
+    '</div>'
+  ).join('');
+
+  const skelKpis = (n) => Array(n).fill(
+    '<div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div>'
+  ).join('');
+
+  const skelLadderRows = (n) => Array(n).fill(
+    '<div style="display:flex;gap:10px;">' +
+    '<div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div>' +
+    '<div class="kw-skel kw-skel-line" style="flex:1;"></div>' +
+    '<div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div>' +
+    '</div>'
+  ).join('');
+
+  // ── Static section helpers ────────────────────────────────────────────────────
+  const row = (lbl, val) => val
+    ? `<div class="kw-row"><span class="kw-lbl">${lbl}</span><span class="kw-val">${val}</span></div>`
+    : '';
+
+  const sec = (id, title, body, open) =>
+    '<div class="kw-section"><div class="kw-head kw-toggle" data-sec="' + id + '">' +
+    '<h4>' + title + '</h4><span class="kw-chev' + (open?' open':'') + '" id="kw-c-' + id + '">\u2304</span></div>' +
+    '<div class="kw-body' + (open?' open':'') + '" id="kw-b-' + id + '">' + body + '</div></div>';
+
+  // ── Build static coach/mgr/training content ───────────────────────────────────
+  let coachBody = '';
+  if (coaches)       coachBody += `<p><strong>${coaches}</strong></p>`;
+  if (coachProfile1) coachBody += `<p style="font-size:.9em;">${coachProfile1}</p>`;
+  if (coachProfile2) coachBody += `<p style="font-size:.9em;">${coachProfile2}</p>`;
+  const asstBody  = assistantCoach ? `<p><strong>${assistantCoach}</strong></p>` : '';
+  let mgrBody = '';
+  if (manager) mgrBody += `<p><strong>${manager}</strong></p>`;
+  if (contact) mgrBody += `<p style="font-size:.9em;">${contact}</p>`;
+  let trainBody = '';
+  if (training) {
+    trainBody += `<p><strong>${training}</strong>`;
+    if (venue) trainBody += `<br><span style="font-size:.9em;">${venue}</span>`;
+    trainBody += `</p>`;
+  }
+  if (training2) {
+    trainBody += `<p><strong>${training2}</strong>`;
+    if (venue2) trainBody += `<br><span style="font-size:.9em;">${venue2}</span>`;
+    trainBody += `</p>`;
+  }
+  if (trainingNote) trainBody += `<div class="kw-note" style="font-size:.9em;">${trainingNote}</div>`;
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // BLOCK 1 — GAME DAY
+  // Contains the shared data fetcher. Renders next game + last result.
+  // ════════════════════════════════════════════════════════════════════════════
+  const gdId   = `kjfc-gd-${tid}`;
+  const gdSkel =
+    '<div class="kw-2col">' +
+    '<div class="kw-skel-card"><div class="kw-skel kw-skel-line short" style="margin-bottom:10px;"></div><div class="kw-skel kw-skel-box"></div></div>' +
+    '<div class="kw-skel-card"><div class="kw-skel kw-skel-line short" style="margin-bottom:10px;"></div><div class="kw-skel kw-skel-box"></div></div>' +
+    '</div>';
+
+  const gdRenderJs =
+    `function renderGD(games,ladder){\n` +
     `var all=games.filter(function(g){return g.competitors.some(function(c){return c.id===TID;});});\n` +
     `var played=all.filter(function(g){return g.status==='FINAL';});\n` +
     `var upcoming=all.filter(function(g){return g.status!=='FINAL';});\n` +
-    `var next=upcoming.length?upcoming[0]:null;\n` +
-    `var last=played.length?played[played.length-1]:null;\n` +
-    `var myS=null;\n` +
-    `if(ladder&&ladder.data&&ladder.data[0]&&ladder.data[0].ladders&&ladder.data[0].ladders[0]){\n` +
-    `myS=ladder.data[0].ladders[0].standings.find(function(s){return s.team&&s.team.id===TID;});}\n` +
-    `var htmlL='',htmlR='';\n` +
-    `var noData=!all.length&&!myS;\n` +
-    `\n` +
-    // Game Day section — gameday label + next/last cards
+    `var next=upcoming[0]||null,last=played[played.length-1]||null;\n` +
+    `var el=document.getElementById('${gdId}-live');\n` +
+    `if(!el)return;\n` +
     `var gH='';\n` +
-    `/* gameday line removed */\n` +
     `gH+='<div class="kw-2col">';\n` +
+    // Next game card
     `gH+='<div class="kw-card"><div class="kw-clbl">Next Game</div>';\n` +
     `if(next){var kn=next.competitors.find(function(c){return c.id===TID;});var on=next.competitors.find(function(c){return c.id!==TID;});\n` +
-    `gH+='<div class="kw-opp">'+(on?on.name:'TBC')+'</div>';\n` +
+    `gH+='<div class="kw-opp">'+(on?on.name:'BYE')+'</div>';\n` +
     `gH+='<div class="kw-meta">'+next.round.name+'</div>';\n` +
     `if(next.schedule&&next.schedule.date)gH+='<div class="kw-meta">'+fmtFull(next.schedule.date,next.schedule.time)+'</div>';\n` +
-    `if(next.venue)gH+='<div class="kw-meta">'+next.venue.name+'</div>';\n` +
-    `var na=vaddr(next.venue);if(na)gH+='<div class="kw-addr">'+na+'</div>';\n` +
-    `gH+='<div class="kw-ha">'+(kn&&kn.isHomeTeam?'\uD83C\uDFE0 Home':'\u2708\uFE0F Away')+'</div>';\n` +
+    `if(next.venue)gH+='<div class="kw-addr">'+next.venue.name+'</div>';\n` +
+    `var ha=kn&&kn.isHomeTeam!==undefined?(kn.isHomeTeam?'\u2302 Home':'\u2708 Away'):'';\n` +
+    `if(ha)gH+='<div class="kw-ha">'+ha+'</div>';\n` +
     `}else{gH+='<div class="kw-meta" style="color:rgba(255,255,255,.35);">No upcoming games</div>';}\n` +
-    `gH+='</div><div class="kw-card"><div class="kw-clbl">Last Result</div>';\n` +
+    `gH+='</div>';\n` +
+    // Last result card
+    `gH+='<div class="kw-card"><div class="kw-clbl">Last Result</div>';\n` +
     `if(last){var kl=last.competitors.find(function(c){return c.id===TID;});var ol=last.competitors.find(function(c){return c.id!==TID;});\n` +
-    `gH+='<div class="kw-opp">'+(ol?ol.name:'')+'</div>';\n` +
+    `gH+='<div class="kw-opp">'+(ol?ol.name:'BYE')+'</div>';\n` +
     `gH+='<div class="kw-meta">'+last.round.name+'</div>';\n` +
-    `if(kl&&ol&&!NOSCORE){gH+='<div class="kw-scr '+oc(kl.outcome)+'">'+scr(kl)+' <span style="opacity:.45;font-size:.8em;">v</span> '+scr(ol)+'</div>';}\n` +
-    `if(kl&&!NOSCORE){gH+='<div class="'+oc(kl.outcome)+'">'+ow(kl.outcome)+'</div>';}\n` +
+    `if(!NOSCORE&&kl&&ol){gH+='<div class="kw-scr '+oc(kl.outcome)+'">'+scr(kl)+' v '+scr(ol)+'</div>';}\n` +
+    `if(!NOSCORE&&kl){gH+='<div class="'+oc(kl.outcome)+'">'+ow(kl.outcome)+'</div>';}\n` +
     `}else{gH+='<div class="kw-meta" style="color:rgba(255,255,255,.35);">No results yet</div>';}\n` +
     `gH+='</div></div>';\n` +
-    `htmlL+=sec2('${tid}-gd','Game Day',gH,true);\n` +
-    // Ladder — KPI strip + full table (suppressed for NOSCORE age groups)
-    `if(NOSCORE){htmlR+=sec2('${tid}-lad','Ladder','<p style=\"color:rgba(255,255,255,.7);font-size:.9em;margin:0;\">&#8505; Ladder and points are not used for this age group \u2014 these competitions focus on participation and development.</p>',true);}\n` +
-    `else{\n` +
-    `var lH='';\n` +
-    `if(myS){\n` +
-    `lH+='<div class="kw-kpis">';\n` +
-    `lH+='<div class="kw-kpi"><div class="kw-kv">'+ord(myS.ranking)+'</div><div class="kw-kl">Position</div></div>';\n` +
-    `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.won+'</div><div class="kw-kl">Wins</div></div>';\n` +
-    `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.lost+'</div><div class="kw-kl">Losses</div></div>';\n` +
-    `lH+='<div class="kw-kpi"><div class="kw-kv">'+(myS.percentage?myS.percentage.toFixed(1)+'%':'&mdash;')+'</div><div class="kw-kl">%</div></div>';\n` +
-    `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.competitionPoints+'</div><div class="kw-kl">Pts</div></div>';\n` +
-    `lH+='</div>';}\n` +
-    `if(ladder&&ladder.data&&ladder.data[0]&&ladder.data[0].ladders&&ladder.data[0].ladders[0]){\n` +
-    `var st=ladder.data[0].ladders[0].standings;\n` +
-    `lH+='<table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>D</th><th>%</th><th>Pts</th></tr></thead><tbody>';\n` +
-    `st.forEach(function(s){var isMe=s.team&&s.team.id===TID;\n` +
-    `lH+='<tr'+(isMe?' class="kw-me"':'')+'><td>'+s.ranking+'</td><td>'+(s.team?s.team.name:'')+'</td>';\n` +
-    `lH+='<td>'+s.played+'</td><td>'+s.won+'</td><td>'+s.lost+'</td><td>'+(s.drawn||0)+'</td>';\n` +
-    `lH+='<td>'+(s.percentage?s.percentage.toFixed(1):'0')+'</td><td><strong>'+s.competitionPoints+'</strong></td></tr>';});\n` +
-    `lH+='</tbody></table>';\n` +
-    `}else if(!noData){lH='<div class="kw-soon">\uD83C\uDFC6 Ladder not yet available \u2014 check back once the season is underway.</div>';}\n` +
-    `htmlR+=sec2('${tid}-lad','Ladder',lH,true);\n` +
-    `}\n` +
-    `\n` +
-    `\n` +
-    `\n` +
-    // Fixtures & Results
-    `var fH='';\n` +
-    `if(all.length){\n` +
-    `fH='<table class=\"kw-fix-tbl\"><thead><tr><th>Rnd</th><th>Opponent</th><th>Date</th><th>Result</th></tr></thead><tbody>';\n` +
+    `el.innerHTML=gH;}\n`;
+
+  const gameDayBlock = hasGrade
+    ? `<div id="${gdId}"><style>${mkCss(gdId)}</style>\n` +
+      sec(`${tid}-gd`, 'Game Day',
+        `<div id="${gdId}-live">${gdSkel}</div>`,
+        true) +
+      toggleScript(gdId) + '\n' +
+      `<script>\n(function(){\n` +
+      `var KEY='${apiKey}',GID='${gradeId}',TID='${teamId}',GAMEDAY='${gameDay.replace(/'/g,"\\'")}',YEL='#FBE201';\n` +
+      `var NOSCORE=${noScore?'true':'false'};\n` +
+      sharedHelpers +
+      gdRenderJs +
+      // Fetcher lives here
+      `var _cache='_kjfc_${tid}';\n` +
+      `if(!window[_cache]){window[_cache]={games:null,ladder:null};\n` +
+      `function _phq(path,cb){var x=new XMLHttpRequest();x.open('GET','https://api.playhq.com'+path,true);\n` +
+      `x.setRequestHeader('x-api-key',KEY);x.setRequestHeader('x-phq-tenant','afl');\n` +
+      `x.onload=function(){try{cb(null,JSON.parse(x.responseText));}catch(e){cb(e);}};` +
+      `x.onerror=function(){cb(new Error('net'));};x.send();}\n` +
+      `function _fire(){var c=window[_cache];if(c.games!==null&&c.ladder!==null){document.dispatchEvent(new CustomEvent('kjfc-data-${tid}',{detail:c}));}}\n` +
+      `_phq('/v1/grades/'+GID+'/games',function(err,d){window[_cache].games=err?[]:d.data||[];_fire();});\n` +
+      `_phq('/v1/grades/'+GID+'/ladder',function(err,d){window[_cache].ladder=err?{}:d;_fire();});}\n` +
+      // Subscribe
+      `(function(){var c=window[_cache];function run(c){renderGD(c.games,c.ladder);}\n` +
+      `if(c.games!==null&&c.ladder!==null){run(c);}\n` +
+      `else{document.addEventListener('kjfc-data-${tid}',function h(e){document.removeEventListener('kjfc-data-${tid}',h);run(e.detail);});}})()\n` +
+      `})();\n\u003C/script>\n</div>`
+    : `<div id="${gdId}"><style>${mkCss(gdId)}</style>\n` +
+      `<div class="kw-soon">\uD83D\uDCC5 Season draw not yet released \u2014 fixtures and ladder will appear here once the NFNL schedule is published.</div>\n` +
+      `</div>`;
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // BLOCK 2 — FIXTURES & RESULTS
+  // ════════════════════════════════════════════════════════════════════════════
+  const fixId   = `kjfc-fix-${tid}`;
+  const fixSkel =
+    '<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">' +
+    skelRows(6) +
+    '</div>';
+
+  const fixRenderJs =
+    `function renderFix(games,ladder){\n` +
+    `var all=games.filter(function(g){return g.competitors.some(function(c){return c.id===TID;});});\n` +
+    `var el=document.getElementById('${fixId}-live');\n` +
+    `if(!el)return;\n` +
+    `if(!all.length){el.innerHTML='<div class="kw-soon">\uD83D\uDCC5 Fixture not yet released.</div>';return;}\n` +
+    `var fH='<table class="kw-fix-tbl"><thead><tr><th>Rnd</th><th>Opponent</th><th>Date</th><th>Result</th></tr></thead><tbody>';\n` +
     `all.forEach(function(g,i){\n` +
     `var k=g.competitors.find(function(c){return c.id===TID;});\n` +
     `var o=g.competitors.find(function(c){return c.id!==TID;});\n` +
     `var fin=g.status==='FINAL';\n` +
     `var drId='${tid}-dr-'+i;\n` +
-    `var res=fin&&k&&!NOSCORE?bdg(k.outcome)+' '+scr(k)+' \u2013 '+(o?scr(o):''):'<span style=\"color:rgba(255,255,255,.28)\">\u2013</span>';\n` +
+    `var res=fin&&k&&!NOSCORE?bdg(k.outcome)+' '+scr(k)+' \u2013 '+(o?scr(o):''):'<span style="color:rgba(255,255,255,.28)">\u2013</span>';\n` +
     `fH+='<tr class="kw-gr" data-dr="'+drId+'">';\n` +
     `fH+='<td style="color:rgba(255,255,255,.38);font-size:.78em;font-weight:700;">'+g.round.abbreviatedName+'</td>';\n` +
     `fH+='<td style="font-weight:600;">'+(o?o.name:'BYE')+'</td>';\n` +
     `fH+='<td style="white-space:nowrap;font-size:.85em;">'+fmtShort(g.schedule&&g.schedule.date)+'</td>';\n` +
     `fH+='<td>'+res+'</td></tr>';\n` +
-    `fH+='<tr class="kw-dr" id="'+drId+'" style="display:none;"><td colspan="4">';\n` +
+    `fH+='<tr class="kw-dr" id="'+drId+'"><td colspan="4" style="padding:0;border-bottom:none;">';\n` +
     `fH+='<div class="kw-det"><div class="kw-dgrid">';\n` +
     `if(g.schedule&&g.schedule.date)fH+='<div class="kw-di"><span class="kw-lbl">Date &amp; Time</span><span>'+fmtFull(g.schedule.date,g.schedule.time)+'</span></div>';\n` +
     `if(g.venue)fH+='<div class="kw-di"><span class="kw-lbl">Venue</span><span>'+g.venue.name+'</span></div>';\n` +
@@ -9720,23 +9731,111 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `fH+='</div></div></td></tr>';\n` +
     `});\n` +
     `fH+='</tbody></table><div class="kw-hint">\u25BC Tap a row to expand full details.</div>';\n` +
-    `}else if(!noData){fH='<div class="kw-soon">\uD83D\uDCC5 Fixture not yet released.</div>';}\n` +
-    `htmlL+=sec2('${tid}-fix','Fixtures &amp; Results',fH,true);\n` +
-    `if(noData){htmlL='<div class="kw-soon">\uD83D\uDCC5 Season yet to begin \u2014 fixtures and ladder will appear here once the season is underway.</div>';}\n` +
-    `elL.innerHTML=htmlL;elR.innerHTML=htmlR;\n` +
-    `}\n` +
-    `\n` +
-    `var gD=null,lD=null;\n` +
-    `function go(){if(gD!==null&&lD!==null)render(gD,lD);}\n` +
-    `phq('/v1/grades/'+GID+'/games',function(err,data){\n` +
-    `if(err){elL.innerHTML='<div class="kw-err">Unable to load live data. Please try again later.</div>';elR.innerHTML='';return;}\n` +
-    `gD=data.data||[];go();});\n` +
-    `phq('/v1/grades/'+GID+'/ladder',function(err,data){lD=err?{}:data;go();});\n` +
-    `})();\n` +
-    `\u003C/script>\n` +
-    `</div>`
-  );
+    `el.innerHTML=fH;\n` +
+    // Expand row click
+    `el.addEventListener('click',function(e){\n` +
+    `var gr=e.target.closest('.kw-gr');\n` +
+    `if(gr){var dr=document.getElementById(gr.dataset.dr);if(dr){var isOpen=dr.style.display==='table-row';dr.style.display=isOpen?'none':'table-row';}return;}\n` +
+    `});}\n`;
+
+  const fixturesBlock = hasGrade
+    ? `<div id="${fixId}"><style>${mkCss(fixId)}</style>\n` +
+      sec(`${tid}-fix`, 'Fixtures &amp; Results',
+        `<div id="${fixId}-live">${fixSkel}</div>`,
+        true) +
+      toggleScript(fixId) + '\n' +
+      `<script>\n(function(){\n` +
+      `var TID='${teamId}',GID='${gradeId}',NOSCORE=${noScore?'true':'false'};\n` +
+      sharedHelpers +
+      fixRenderJs +
+      `var _cache='_kjfc_${tid}';\n` +
+      `(function(){function run(c){renderFix(c.games,c.ladder);}\n` +
+      `if(window[_cache]&&window[_cache].games!==null&&window[_cache].ladder!==null){run(window[_cache]);}\n` +
+      `else{document.addEventListener('kjfc-data-${tid}',function h(e){document.removeEventListener('kjfc-data-${tid}',h);run(e.detail);});}})()\n` +
+      `})();\n\u003C/script>\n</div>`
+    : `<div id="${fixId}"><style>${mkCss(fixId)}</style>\n` +
+      `<div class="kw-soon">\uD83D\uDCC5 Season draw not yet released.</div>\n` +
+      `</div>`;
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // BLOCK 3 — LADDER
+  // ════════════════════════════════════════════════════════════════════════════
+  const ladId   = `kjfc-lad-${tid}`;
+  const ladSkel =
+    `<div class="kw-kpis">${skelKpis(5)}</div>` +
+    `<div style="display:flex;flex-direction:column;gap:8px;">${skelLadderRows(7)}</div>`;
+
+  const ladRenderJs =
+    `function renderLad(games,ladder){\n` +
+    `var el=document.getElementById('${ladId}-live');\n` +
+    `if(!el)return;\n` +
+    `if(NOSCORE){el.innerHTML='<p style="color:rgba(255,255,255,.7);font-size:.9em;margin:0;">&#8505; Ladder and points are not used for this age group \u2014 these competitions focus on participation and development.</p>';return;}\n` +
+    `var all=games.filter(function(g){return g.competitors.some(function(c){return c.id===TID;});});\n` +
+    `var played=all.filter(function(g){return g.status==='FINAL';});\n` +
+    `var myS=null,st=[];\n` +
+    `if(ladder&&ladder.data&&ladder.data[0]&&ladder.data[0].ladders&&ladder.data[0].ladders[0]){\n` +
+    `st=ladder.data[0].ladders[0].standings||[];\n` +
+    `myS=st.find(function(s){return s.team&&s.team.id===TID;})||null;}\n` +
+    `var noData=!played.length&&!myS;\n` +
+    `var lH='';\n` +
+    `if(noData){el.innerHTML='<div class="kw-soon">\uD83C\uDFC6 Season yet to begin \u2014 ladder will appear once the season is underway.</div>';return;}\n` +
+    `if(myS){\n` +
+    `lH+='<div class="kw-kpis">';\n` +
+    `lH+='<div class="kw-kpi"><div class="kw-kv">'+ord(myS.ranking)+'</div><div class="kw-kl">Position</div></div>';\n` +
+    `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.won+'</div><div class="kw-kl">Wins</div></div>';\n` +
+    `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.lost+'</div><div class="kw-kl">Losses</div></div>';\n` +
+    `lH+='<div class="kw-kpi"><div class="kw-kv">'+(myS.percentage?myS.percentage.toFixed(1)+'%':'&mdash;')+'</div><div class="kw-kl">%</div></div>';\n` +
+    `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.competitionPoints+'</div><div class="kw-kl">Pts</div></div>';\n` +
+    `lH+='</div>';}\n` +
+    `if(st.length){\n` +
+    `lH+='<table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>D</th><th>%</th><th>Pts</th></tr></thead><tbody>';\n` +
+    `st.forEach(function(s){var isMe=s.team&&s.team.id===TID;\n` +
+    `lH+='<tr'+(isMe?' class="kw-me"':'')+'>'+\`<td>\${s.ranking}</td><td>\${s.team?s.team.name:''}</td>\`;\n` +
+    `lH+=\`<td>\${s.played}</td><td>\${s.won}</td><td>\${s.lost}</td><td>\${s.drawn||0}</td>\`;\n` +
+    `lH+=\`<td>\${s.percentage?s.percentage.toFixed(1):'0'}</td><td><strong>\${s.competitionPoints}</strong></td></tr>\`;});\n` +
+    `lH+='</tbody></table>';}\n` +
+    `el.innerHTML=lH;}\n`;
+
+  const ladderBlock = hasGrade
+    ? `<div id="${ladId}"><style>${mkCss(ladId)}</style>\n` +
+      sec(`${tid}-lad`, 'Ladder',
+        `<div id="${ladId}-live">${ladSkel}</div>`,
+        true) +
+      toggleScript(ladId) + '\n' +
+      `<script>\n(function(){\n` +
+      `var TID='${teamId}',GID='${gradeId}',NOSCORE=${noScore?'true':'false'};\n` +
+      sharedHelpers +
+      ladRenderJs +
+      `var _cache='_kjfc_${tid}';\n` +
+      `(function(){function run(c){renderLad(c.games,c.ladder);}\n` +
+      `if(window[_cache]&&window[_cache].games!==null&&window[_cache].ladder!==null){run(window[_cache]);}\n` +
+      `else{document.addEventListener('kjfc-data-${tid}',function h(e){document.removeEventListener('kjfc-data-${tid}',h);run(e.detail);});}})()\n` +
+      `})();\n\u003C/script>\n</div>`
+    : `<div id="${ladId}"><style>${mkCss(ladId)}</style>\n` +
+      `<div class="kw-soon">\uD83C\uDFC6 Season draw not yet released.</div>\n` +
+      `</div>`;
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // BLOCK 4 — COACHES / MANAGER / TRAINING  (fully static, no API)
+  // ════════════════════════════════════════════════════════════════════════════
+  const coachId = `kjfc-cmt-${tid}`;
+  const coachToggle = toggleScript(coachId);
+
+  const coachesBlock =
+    `<div id="${coachId}"><style>${mkCss(coachId)}</style>\n` +
+    (coachBody ? sec(`${tid}-coach`,  'Coach',           coachBody, false) : '') +
+    (asstBody  ? sec(`${tid}-asst`,   'Assistant Coach', asstBody,  false) : '') +
+    (mgrBody   ? sec(`${tid}-mgr`,    'Team Manager',    mgrBody,   false) : '') +
+    (trainBody ? sec(`${tid}-train`,  'Training',        trainBody, false) : '') +
+    (!coachBody && !asstBody && !mgrBody && !trainBody
+      ? '<div class="kw-soon">No coach or training info set yet.</div>'
+      : '') +
+    coachToggle + '\n</div>';
+
+  return { gameday: gameDayBlock, fixtures: fixturesBlock, ladder: ladderBlock, coaches: coachesBlock };
 }
+
+
 
 
 
@@ -10055,7 +10154,8 @@ function wbTogglePreview(previewId, btn, teamId) {
 function _buildLivePreviewDoc(team, cfg, apiKey, gradeId) {
   // Generate the exact same widget code that gets pasted into Squarespace —
   // wrap it in a dark-background page so the preview matches the live widget precisely.
-  const widgetHtml = _buildWidgetCode(team, cfg, apiKey);
+  const blocks = _buildWidgetBlocks(team, cfg, apiKey);
+  const widgetHtml = blocks.gameday + '\n' + blocks.coaches + '\n' + blocks.fixtures + '\n' + blocks.ladder;
   return (
     '<!DOCTYPE html><html><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
