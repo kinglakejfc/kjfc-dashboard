@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.45</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.46</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9721,7 +9721,7 @@ function _buildWidgetBlocks(team, cfg, apiKey) {
     `fH+='<td style="font-weight:600;">'+(o?o.name:'BYE')+'</td>';\n` +
     `fH+='<td style="white-space:nowrap;font-size:.85em;">'+fmtShort(g.schedule&&g.schedule.date)+'</td>';\n` +
     `fH+='<td>'+res+'</td></tr>';\n` +
-    `fH+='<tr class="kw-dr" id="'+drId+'"><td colspan="4" style="padding:0;border-bottom:none;">';\n` +
+    `fH+='<tr class="kw-dr" id="'+drId+'" style="display:none;"><td colspan="4" style="padding:0;border-bottom:none;">';\n` +
     `fH+='<div class="kw-det"><div class="kw-dgrid">';\n` +
     `if(g.schedule&&g.schedule.date)fH+='<div class="kw-di"><span class="kw-lbl">Date &amp; Time</span><span>'+fmtFull(g.schedule.date,g.schedule.time)+'</span></div>';\n` +
     `if(g.venue)fH+='<div class="kw-di"><span class="kw-lbl">Venue</span><span>'+g.venue.name+'</span></div>';\n` +
