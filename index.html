@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.38</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.40</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9491,6 +9491,14 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `#${id} .kw-err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:10px 12px;border-radius:6px;}`,
     `#${id} .kw-soon{background:rgba(251,226,1,.07);border:1px solid rgba(251,226,1,.2);border-radius:6px;padding:16px;text-align:center;color:${YEL};margin:8px 0;}`,
     `#${id} .kw-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;}`,
+    `#${id} .kw-skel{background:rgba(255,255,255,.07);border-radius:4px;animation:kw-pulse 1.6s ease-in-out infinite;}`,
+    `#${id} .kw-skel-line{height:12px;margin-bottom:8px;}`,
+    `#${id} .kw-skel-line.wide{width:75%;}`,
+    `#${id} .kw-skel-line.mid{width:50%;}`,
+    `#${id} .kw-skel-line.short{width:30%;}`,
+    `#${id} .kw-skel-card{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:14px;flex:1;}`,
+    `#${id} .kw-skel-box{height:48px;background:rgba(255,255,255,.07);border-radius:6px;animation:kw-pulse 1.6s ease-in-out infinite;}`,
+    `@keyframes kw-pulse{0%,100%{opacity:.4;}50%{opacity:.9;}}`,
     `@media(max-width:660px){#${id} .kw-cols{display:block;}}`,
     `@media(max-width:540px){#${id} .kw-fix-tbl th:nth-child(3),#${id} .kw-fix-tbl td:nth-child(3){display:none;}}`,
     `#${id} .kw-fix-tbl td:nth-child(4){white-space:nowrap;}`,
@@ -9566,8 +9574,12 @@ function _buildWidgetCode(team, cfg, apiKey) {
   // ── Full live widget ──────────────────────────────────────────────
   return (
     `<div id="kjfc-w-${teamId}"><style>${mkCss('kjfc-w-'+teamId)}</style><div class="kw-cols">\n` +
-    `<div class="kw-col"><div id="kjfc-live-L-${tid}"><div class="kw-loading">\u23F3 Loading\u2026</div></div></div>` +
-    `<div class="kw-col"><div id="kjfc-live-R-${tid}"></div>` +
+    `<div class="kw-col"><div id="kjfc-live-L-${tid}">`+
+    '<div class="kw-section"><div class="kw-head"><h4>Game Day</h4><span class="kw-chev open">\u2304</span></div><div class="kw-body open"><div class="kw-2col"><div class="kw-skel-card"><div class="kw-skel kw-skel-line short" style="margin-bottom:10px;"></div><div class="kw-skel kw-skel-box"></div></div><div class="kw-skel-card"><div class="kw-skel kw-skel-line short" style="margin-bottom:10px;"></div><div class="kw-skel kw-skel-box"></div></div></div></div></div><div class="kw-section"><div class="kw-head"><h4>Fixtures &amp; Results</h4><span class="kw-chev open">\u2304</span></div><div class="kw-body open"><div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;"><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div><div style="display:flex;gap:12px;"><div class="kw-skel kw-skel-line short" style="flex-shrink:0;width:28px;"></div><div class="kw-skel kw-skel-line wide" style="flex:1;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:60px;"></div><div class="kw-skel kw-skel-line mid" style="flex-shrink:0;width:80px;"></div></div></div></div></div>'+
+    `</div></div>` +
+    `<div class="kw-col"><div id="kjfc-live-R-${tid}">`+
+    '<div class="kw-section"><div class="kw-head"><h4>Ladder</h4><span class="kw-chev open">\u2304</span></div><div class="kw-body open"><div class="kw-kpis"><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div><div class="kw-kpi"><div class="kw-skel kw-skel-box" style="height:32px;"></div></div></div><div style="display:flex;flex-direction:column;gap:8px;"><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div><div style="display:flex;gap:10px;"><div class="kw-skel kw-skel-line short" style="width:18px;flex-shrink:0;"></div><div class="kw-skel kw-skel-line" style="flex:1;"></div><div class="kw-skel kw-skel-line short" style="width:70px;flex-shrink:0;"></div></div></div></div></div>'+
+    `</div>` +
     (coachBody ? sec(teamId+'-coach',  'Coach',           coachBody, false) : '') +
     (asstBody  ? sec(teamId+'-asst',   'Assistant Coach', asstBody,  false) : '') +
     (mgrBody   ? sec(teamId+'-mgr',    'Team Manager',    mgrBody,   false) : '') +
@@ -9608,7 +9620,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `+'<div class="kw-body'+(open?' open':'')+'" id="kw-b-'+id+'">'+body+'</div></div>';}\n` +
     `\n` +
     // Fixture row expand
-    `el.addEventListener('click',function(e){\n` +
+    `elL.addEventListener('click',function(e){\n` +
     `var gr=e.target.closest('.kw-gr');\n` +
     `if(gr){var dr=document.getElementById(gr.dataset.dr);if(dr){var isOpen=dr.style.display==='table-row';dr.style.display=isOpen?'none':'table-row';}return;}\n` +
     `});\n` +
@@ -9707,7 +9719,7 @@ function _buildWidgetCode(team, cfg, apiKey) {
     `var gD=null,lD=null;\n` +
     `function go(){if(gD!==null&&lD!==null)render(gD,lD);}\n` +
     `phq('/v1/grades/'+GID+'/games',function(err,data){\n` +
-    `if(err){elL.innerHTML='<div class="kw-err">Unable to load live data. Please try again later.</div>';return;}\n` +
+    `if(err){elL.innerHTML='<div class="kw-err">Unable to load live data. Please try again later.</div>';elR.innerHTML='';return;}\n` +
     `gD=data.data||[];go();});\n` +
     `phq('/v1/grades/'+GID+'/ladder',function(err,data){lD=err?{}:data;go();});\n` +
     `})();\n` +
