@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.57</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.58</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9048,8 +9048,9 @@ function renderWebsiteTab(targetEl) {
 
       // Pre-populate teams list from savedTeams so Configure shows without running wbDiscover first
       if (!_websiteState.teams.length) {
+        const curSeason = _websiteState.seasonId;
         _websiteState.teams = teams
-          .filter(t => t.enabled === true || t.enabled === 'true')
+          .filter(t => (t.enabled === true || t.enabled === 'true') && (!t.seasonId || !curSeason || t.seasonId === curSeason))
           .map(t => ({
             teamId:   t.teamId,
             id:       t.teamId,
@@ -9941,7 +9942,7 @@ function wbSaveProxyUrl() {
 function wbSeasonChanged(sel) {
   _websiteState.seasonId   = sel.value;
   _websiteState.seasonName = sel.options[sel.selectedIndex].text;
-  _websiteState.teams      = [];
+  _websiteState.teams      = [];  // clear so pre-populate re-filters to new season
   api('saveWebsiteConfig', { updates: { seasonId: sel.value, seasonName: sel.options[sel.selectedIndex].text } }).catch(() => {});
   // Re-render so Discover button becomes enabled
   const el = document.getElementById('admin-panel-body');
@@ -9968,6 +9969,7 @@ function wbDiscover() {
       teams.forEach(t => {
         t._enabled = !!(saved[t.id] && (saved[t.id].enabled === true || saved[t.id].enabled === 'true'));
         t.teamId   = t.id;
+        t.seasonId = seasonId;
         t.gradeId  = t.grade ? t.grade.id : null;
       });
       _websiteState.teams = teams;
@@ -10078,6 +10080,7 @@ function wbSaveConfig() {
     const cfg = _websiteState.savedTeams[t.teamId] || {};
     return {
       teamId:         t.teamId,
+      seasonId:       _websiteState.seasonId || '',
       gradeId:        t.gradeId || '',
       displayName:    cfg.displayName    || _wbDeriveTeamName(t.grade ? t.grade.name : '') || t.name || '',
       gradeName:      t.grade ? t.grade.name : '',
