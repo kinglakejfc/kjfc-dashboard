@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.46</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.49</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9226,7 +9226,7 @@ function _drawWebsiteTab(el) {
             <div class="wb-field">
               <label>Display Name</label>
               <input type="text" data-tid="${t.teamId}" data-field="displayName"
-                value="${_escHtml(saved.displayName || _wbDeriveTeamName(t.grade ? t.grade.name : '') || '')}"
+                value="${_escHtml(saved.displayName || _wbDeriveTeamName(t.grade ? t.grade.name : '') || t.name || '')}"
                 placeholder="e.g. Kinglake Under 16 Boys" oninput="wbFieldChange(this)" />
             </div>
             <div class="wb-field">
@@ -9542,22 +9542,6 @@ function _buildWidgetBlocks(team, cfg, apiKey) {
     `if(o==='DRAWN')return'<span class="kw-badge bd">D</span>';\n` +
     `return'<span class="kw-badge bf">\u2013</span>';}\n` +
     `function vaddr(v){if(!v)return'';var a=v.address||{};return[a.street,a.suburb,a.state].filter(Boolean).join(', ');}\n`;
-
-  // ── Shared data fetcher — lives in Game Day block, caches to window._kjfc_TID ─
-  // Other blocks read cache or wait for 'kjfc-data-TID' event
-  const fetcherJs =
-    `var KEY='${apiKey}',GID='${gradeId}',TID='${teamId}',GAMEDAY='${gameDay.replace(/'/g,"\\'")}',YEL='#FBE201';\n` +
-    `var NOSCORE=${noScore?'true':'false'};\n` +
-    `var CACHE_KEY='_kjfc_${tid}';\n` +
-    `function phq(path,cb){var x=new XMLHttpRequest();x.open('GET','https://api.playhq.com'+path,true);\n` +
-    `x.setRequestHeader('x-api-key',KEY);x.setRequestHeader('x-phq-tenant','afl');\n` +
-    `x.onload=function(){try{cb(null,JSON.parse(x.responseText));}catch(e){cb(e);}};` +
-    `x.onerror=function(){cb(new Error('net'));};x.send();}\n` +
-    `if(!window[CACHE_KEY]){window[CACHE_KEY]={games:null,ladder:null};\n` +
-    `function _kjfcFire(){var c=window[CACHE_KEY];if(c.games!==null&&c.ladder!==null){document.dispatchEvent(new CustomEvent('kjfc-data-${tid}',{detail:c}));}}\n` +
-    `phq('/v1/grades/'+GID+'/games',function(err,d){window[CACHE_KEY].games=err?[]:d.data||[];_kjfcFire();});\n` +
-    `phq('/v1/grades/'+GID+'/ladder',function(err,d){window[CACHE_KEY].ladder=err?{}:d;_kjfcFire();});}\n`;
-
   // Subscribe pattern — used by each live block
   // Passes cache if ready, otherwise waits for event
   const subscribeJs = (renderFnName) =>
@@ -9640,6 +9624,7 @@ function _buildWidgetBlocks(team, cfg, apiKey) {
     `var next=upcoming[0]||null,last=played[played.length-1]||null;\n` +
     `var el=document.getElementById('${gdId}-live');\n` +
     `if(!el)return;\n` +
+    `var _gc0=window['_kjfc_${tid}'];if(_gc0&&_gc0.gradeId===null){el.innerHTML='<div class="kw-2col"><div class="kw-card"><div class="kw-clbl">Next Game</div><div class="kw-meta" style="color:rgba(255,255,255,.35);">Draw pending</div></div><div class="kw-card"><div class="kw-clbl">Last Result</div><div class="kw-meta" style="color:rgba(255,255,255,.35);">Draw pending</div></div></div>';return;}\n` +
     `var gH='';\n` +
     `gH+='<div class="kw-2col">';\n` +
     // Next game card
@@ -9664,35 +9649,42 @@ function _buildWidgetBlocks(team, cfg, apiKey) {
     `gH+='</div></div>';\n` +
     `el.innerHTML=gH;}\n`;
 
-  const gameDayBlock = hasGrade
+  const gameDayBlock = (
     ? `<div id="${gdId}"><style>${mkCss(gdId)}</style>\n` +
       sec(`${tid}-gd`, 'Game Day',
         `<div id="${gdId}-live">${gdSkel}</div>`,
         true) +
       toggleScript(gdId) + '\n' +
       `<script>\n(function(){\n` +
-      `var KEY='${apiKey}',GID='${gradeId}',TID='${teamId}',GAMEDAY='${gameDay.replace(/'/g,"\\'")}',YEL='#FBE201';\n` +
+      `var KEY='${apiKey}',SID='${seasonId}',TID='${teamId}',GAMEDAY='${gameDay.replace(/'/g,"\\'")}',YEL='#FBE201';\n` +
       `var NOSCORE=${noScore?'true':'false'};\n` +
       sharedHelpers +
       gdRenderJs +
       // Fetcher lives here
       `var _cache='_kjfc_${tid}';\n` +
-      `if(!window[_cache]){window[_cache]={games:null,ladder:null};\n` +
+      `if(!window[_cache]){window[_cache]={games:null,ladder:null,gradeId:undefined};\n` +
       `function _phq(path,cb){var x=new XMLHttpRequest();x.open('GET','https://api.playhq.com'+path,true);\n` +
       `x.setRequestHeader('x-api-key',KEY);x.setRequestHeader('x-phq-tenant','afl');\n` +
       `x.onload=function(){try{cb(null,JSON.parse(x.responseText));}catch(e){cb(e);}};` +
       `x.onerror=function(){cb(new Error('net'));};x.send();}\n` +
       `function _fire(){var c=window[_cache];if(c.games!==null&&c.ladder!==null){document.dispatchEvent(new CustomEvent('kjfc-data-${tid}',{detail:c}));}}\n` +
-      `_phq('/v1/grades/'+GID+'/games',function(err,d){window[_cache].games=err?[]:d.data||[];_fire();});\n` +
-      `_phq('/v1/grades/'+GID+'/ladder',function(err,d){window[_cache].ladder=err?{}:d;_fire();});}\n` +
+      `_phq('/v1/organisations/81d442f4-4d51-4efd-8c7f-e1e0dbe6178f/seasons/'+SID+'/teams',function(err,d){\\n` +
+      `if(err||!d||!d.data){window[_cache].gradeId=null;window[_cache].games=[];window[_cache].ladder={};_fire();return;}\\n` +
+      `var tm=d.data.find(function(t){return t.id===TID;});\\n` +
+      `var gid=tm&&tm.grade?tm.grade.id:null;\\n` +
+      `window[_cache].gradeId=gid;\\n` +
+      `if(!gid){window[_cache].games=[];window[_cache].ladder={};_fire();return;}\\n` +
+      `_phq('/v1/grades/'+gid+'/games',function(err2,d2){window[_cache].games=err2?[]:d2.data||[];_fire();});\\n` +
+      `_phq('/v1/grades/'+gid+'/ladder',function(err3,d3){window[_cache].ladder=err3?{}:d3;_fire();});\\n` +
+      `});\\n` +
       // Subscribe
       `(function(){var c=window[_cache];function run(c){renderGD(c.games,c.ladder);}\n` +
       `if(c.games!==null&&c.ladder!==null){run(c);}\n` +
       `else{document.addEventListener('kjfc-data-${tid}',function h(e){document.removeEventListener('kjfc-data-${tid}',h);run(e.detail);});}})()\n` +
       `})();\n\u003C/script>\n</div>`
-    : `<div id="${gdId}"><style>${mkCss(gdId)}</style>\n` +
-      `<div class="kw-soon">\uD83D\uDCC5 Season draw not yet released \u2014 fixtures and ladder will appear here once the NFNL schedule is published.</div>\n` +
-      `</div>`;
+  );
+
+
 
   // ════════════════════════════════════════════════════════════════════════════
   // BLOCK 2 — FIXTURES & RESULTS
@@ -9708,6 +9700,7 @@ function _buildWidgetBlocks(team, cfg, apiKey) {
     `var all=games.filter(function(g){return g.competitors.some(function(c){return c.id===TID;});});\n` +
     `var el=document.getElementById('${fixId}-live');\n` +
     `if(!el)return;\n` +
+    `var _gc=window['_kjfc_${tid}'];if(_gc&&_gc.gradeId===null){el.innerHTML='<div class="kw-soon">\u23F3 Draw not yet released \u2014 this block will update automatically once your team is allocated a grade in PlayHQ.</div>';return;}\n` +
     `if(!all.length){el.innerHTML='<div class="kw-soon">\uD83D\uDCC5 Fixture not yet released.</div>';return;}\n` +
     `var fH='<table class="kw-fix-tbl"><thead><tr><th>Rnd</th><th>Opponent</th><th>Date</th><th>Result</th></tr></thead><tbody>';\n` +
     `all.forEach(function(g,i){\n` +
@@ -9738,14 +9731,14 @@ function _buildWidgetBlocks(team, cfg, apiKey) {
     `if(gr){var dr=document.getElementById(gr.dataset.dr);if(dr){var isOpen=dr.style.display==='table-row';dr.style.display=isOpen?'none':'table-row';}return;}\n` +
     `});}\n`;
 
-  const fixturesBlock = hasGrade
+  const fixturesBlock = (
     ? `<div id="${fixId}"><style>${mkCss(fixId)}</style>\n` +
       sec(`${tid}-fix`, 'Fixtures &amp; Results',
         `<div id="${fixId}-live">${fixSkel}</div>`,
         true) +
       toggleScript(fixId) + '\n' +
       `<script>\n(function(){\n` +
-      `var TID='${teamId}',GID='${gradeId}',NOSCORE=${noScore?'true':'false'};\n` +
+      `var TID='${teamId}',NOSCORE=${noScore?'true':'false'};\n` +
       sharedHelpers +
       fixRenderJs +
       `var _cache='_kjfc_${tid}';\n` +
@@ -9753,9 +9746,9 @@ function _buildWidgetBlocks(team, cfg, apiKey) {
       `if(window[_cache]&&window[_cache].games!==null&&window[_cache].ladder!==null){run(window[_cache]);}\n` +
       `else{document.addEventListener('kjfc-data-${tid}',function h(e){document.removeEventListener('kjfc-data-${tid}',h);run(e.detail);});}})()\n` +
       `})();\n\u003C/script>\n</div>`
-    : `<div id="${fixId}"><style>${mkCss(fixId)}</style>\n` +
-      `<div class="kw-soon">\uD83D\uDCC5 Season draw not yet released.</div>\n` +
-      `</div>`;
+  );
+
+
 
   // ════════════════════════════════════════════════════════════════════════════
   // BLOCK 3 — LADDER
@@ -9769,6 +9762,7 @@ function _buildWidgetBlocks(team, cfg, apiKey) {
     `function renderLad(games,ladder){\n` +
     `var el=document.getElementById('${ladId}-live');\n` +
     `if(!el)return;\n` +
+    `var _gc2=window['_kjfc_${tid}'];if(_gc2&&_gc2.gradeId===null){el.innerHTML='<div class="kw-soon">\u23F3 Draw not yet released \u2014 this block will update automatically once your team is allocated a grade in PlayHQ.</div>';return;}\n` +
     `if(NOSCORE){el.innerHTML='<p style="color:rgba(255,255,255,.7);font-size:.9em;margin:0;">&#8505; Ladder and points are not used for this age group \u2014 these competitions focus on participation and development.</p>';return;}\n` +
     `var all=games.filter(function(g){return g.competitors.some(function(c){return c.id===TID;});});\n` +
     `var played=all.filter(function(g){return g.status==='FINAL';});\n` +
@@ -9790,20 +9784,20 @@ function _buildWidgetBlocks(team, cfg, apiKey) {
     `if(st.length){\n` +
     `lH+='<table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>D</th><th>%</th><th>Pts</th></tr></thead><tbody>';\n` +
     `st.forEach(function(s){var isMe=s.team&&s.team.id===TID;\n` +
-    `lH+='<tr'+(isMe?' class="kw-me"':'')+'>'+\`<td>\${s.ranking}</td><td>\${s.team?s.team.name:''}</td>\`;\n` +
+    `lH+='<tr'+(isMe?' class="kw-me"':'')+'>'+\`<td>\${s.ranking+1}</td><td>\${s.team?s.team.name:''}</td>\`;\n` +
     `lH+=\`<td>\${s.played}</td><td>\${s.won}</td><td>\${s.lost}</td><td>\${s.drawn||0}</td>\`;\n` +
     `lH+=\`<td>\${s.percentage?s.percentage.toFixed(1):'0'}</td><td><strong>\${s.competitionPoints}</strong></td></tr>\`;});\n` +
     `lH+='</tbody></table>';}\n` +
     `el.innerHTML=lH;}\n`;
 
-  const ladderBlock = hasGrade
+  const ladderBlock = (
     ? `<div id="${ladId}"><style>${mkCss(ladId)}</style>\n` +
       sec(`${tid}-lad`, 'Ladder',
         `<div id="${ladId}-live">${ladSkel}</div>`,
         true) +
       toggleScript(ladId) + '\n' +
       `<script>\n(function(){\n` +
-      `var TID='${teamId}',GID='${gradeId}',NOSCORE=${noScore?'true':'false'};\n` +
+      `var TID='${teamId}',NOSCORE=${noScore?'true':'false'};\n` +
       sharedHelpers +
       ladRenderJs +
       `var _cache='_kjfc_${tid}';\n` +
@@ -9811,9 +9805,9 @@ function _buildWidgetBlocks(team, cfg, apiKey) {
       `if(window[_cache]&&window[_cache].games!==null&&window[_cache].ladder!==null){run(window[_cache]);}\n` +
       `else{document.addEventListener('kjfc-data-${tid}',function h(e){document.removeEventListener('kjfc-data-${tid}',h);run(e.detail);});}})()\n` +
       `})();\n\u003C/script>\n</div>`
-    : `<div id="${ladId}"><style>${mkCss(ladId)}</style>\n` +
-      `<div class="kw-soon">\uD83C\uDFC6 Season draw not yet released.</div>\n` +
-      `</div>`;
+  );
+
+
 
   // ════════════════════════════════════════════════════════════════════════════
   // BLOCK 4 — COACHES / MANAGER / TRAINING  (fully static, no API)
@@ -9991,8 +9985,13 @@ function _renderTeamsList() {
     const saved       = _websiteState.savedTeams[t.teamId] || {};
     const displayName = saved.displayName || '';
     const gradeName   = t.grade ? t.grade.name : '';
-    // Primary label: saved display name if set, otherwise derive from grade
-    const primaryLabel = displayName || _wbDeriveTeamName(gradeName);
+    // Primary label: saved display name → derive from grade → use PlayHQ team name directly
+    const primaryLabel = displayName || _wbDeriveTeamName(gradeName) || t.name || t.teamId;
+    // Sub-label: show grade name if it adds info, otherwise show age group + gender from PlayHQ
+    const ageGenderTag = [t.ageGroup, t.gender].filter(Boolean).join(' · ');
+    const subLabel = gradeName
+      ? (primaryLabel !== gradeName ? gradeName : '')
+      : ageGenderTag;
     const gradeLabel   = gradeName
       ? `<span class="wb-grade-ok">✓ ${_escHtml(gradeName)}</span>`
       : `<span class="wb-grade-pending">⏳ Grade not yet assigned</span>`;
@@ -10003,7 +10002,7 @@ function _renderTeamsList() {
           onchange="wbToggleTeam('${t.teamId}', this.checked)" />
         <div style="flex:1;min-width:0;cursor:pointer;" onclick="document.getElementById('wt-${t.teamId}').click()">
           <div class="wb-team-name">${_escHtml(primaryLabel)}</div>
-          ${gradeName && primaryLabel !== gradeName ? `<div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${_escHtml(gradeName)}</div>` : ''}
+          ${subLabel ? `<div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${_escHtml(subLabel)}</div>` : ''}
         </div>
         <span class="wb-team-grade">${gradeLabel}</span>
       </div>`;
@@ -10015,7 +10014,7 @@ function _renderTeamsList() {
 // "Under 16 Division 2" → "Kinglake Under 16"
 // "Division 3 Reserves" → "Kinglake Reserves"
 function _wbDeriveTeamName(gradeName) {
-  if (!gradeName) return 'Kinglake';
+  if (!gradeName) return '';  // caller falls back to t.name (PlayHQ team name e.g. "Kinglake U14 Mixed")
   const g = gradeName;
   // Seniors
   if (/seniors/i.test(g) && !/reserves/i.test(g)) return 'Kinglake Seniors';
