@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.54</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.55</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9434,6 +9434,7 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
   seasonId = seasonId || '';
   const teamId      = team.teamId;
   const tid         = teamId.replace(/-/g, '');
+  const gradeId     = team.gradeId || '';
   const training    = cfg.training       || '';
   const venue       = cfg.venue          || '';
   const training2   = cfg.training2      || '';
@@ -9656,7 +9657,7 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
         true) +
       toggleScript(gdId) + '\n' +
       `<script>\n(function(){\n` +
-      `var KEY='${apiKey}',SID='${seasonId}',TID='${teamId}',GAMEDAY='${gameDay.replace(/'/g,"\\'")}',YEL='#FBE201';\n` +
+      `var KEY='${apiKey}',GID='${gradeId}',SID='${seasonId}',TID='${teamId}',GAMEDAY='${gameDay.replace(/'/g,"\\'")}',YEL='#FBE201';\n` +
       `var NOSCORE=${noScore?'true':'false'};\n` +
       sharedHelpers +
       gdRenderJs +
@@ -9668,15 +9669,15 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
       `x.onload=function(){try{cb(null,JSON.parse(x.responseText));}catch(e){cb(e);}};` +
       `x.onerror=function(){cb(new Error('net'));};x.send();}\n` +
       `function _fire(){var c=window[_cache];if(c.games!==null&&c.ladder!==null){document.dispatchEvent(new CustomEvent('kjfc-data-${tid}',{detail:c}));}}\n` +
-      `_phq('/v1/organisations/81d442f4-4d51-4efd-8c7f-e1e0dbe6178f/seasons/'+SID+'/teams',function(err,d){\n` +
-      `if(err||!d||!d.data){window[_cache].gradeId=null;window[_cache].games=[];window[_cache].ladder={};_fire();return;}\n` +
-      `var tm=d.data.find(function(t){return t.id===TID;});\n` +
-      `var gid=tm&&tm.grade?tm.grade.id:null;\n` +
+      `function _fetchGrade(gid){\n` +
       `window[_cache].gradeId=gid;\n` +
       `if(!gid){window[_cache].games=[];window[_cache].ladder={};_fire();return;}\n` +
       `_phq('/v1/grades/'+gid+'/games',function(err2,d2){window[_cache].games=err2?[]:d2.data||[];_fire();});\n` +
-      `_phq('/v1/grades/'+gid+'/ladder',function(err3,d3){window[_cache].ladder=err3?{}:d3;_fire();});\n` +
-      `});}\n` +
+      `_phq('/v1/grades/'+gid+'/ladder',function(err3,d3){window[_cache].ladder=err3?{}:d3;_fire();});}\n` +
+      `if(GID){_fetchGrade(GID);}else{\n` +
+      `_phq('/v1/organisations/${orgId}/seasons/'+SID+'/teams',function(err,d){\n` +
+      `var tm=d&&d.data?d.data.find(function(t){return t.id===TID;}):null;\n` +
+      `_fetchGrade(tm&&tm.grade?tm.grade.id:null);});}}\n` +
       // Subscribe
       `(function(){var c=window[_cache];function run(c){renderGD(c.games,c.ladder);}\n` +
       `if(c.games!==null&&c.ladder!==null){run(c);}\n` +
