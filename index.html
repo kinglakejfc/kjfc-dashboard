@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.55</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.57</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9505,7 +9505,7 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
     `@media(max-width:540px){#${id} .kw-fix-tbl th:nth-child(3),#${id} .kw-fix-tbl td:nth-child(3){display:none;}}`,
     `#${id} .kw-loading{text-align:center;padding:24px;color:rgba(255,255,255,.4);}`,
     `#${id} .kw-err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:10px 12px;border-radius:6px;}`,
-    `#${id} .kw-soon{background:rgba(251,226,1,.07);border:1px solid rgba(251,226,1,.2);border-radius:6px;padding:16px;text-align:center;color:${YEL};margin:8px 0;}`,
+    `#${id} .kw-soon{background:rgba(251,226,1,.07);border:1px solid rgba(251,226,1,.18);border-radius:8px;padding:18px 20px;text-align:center;color:rgba(251,226,1,.8);margin:8px 0;font-size:.9em;line-height:1.5;}`,
     `#${id} .kw-skel{background:rgba(255,255,255,.07);border-radius:4px;animation:kw-pulse 1.6s ease-in-out infinite;}`,
     `#${id} .kw-skel-line{height:12px;margin-bottom:8px;}`,
     `#${id} .kw-skel-line.wide{width:75%;}`,
@@ -9625,7 +9625,7 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
     `var next=upcoming[0]||null,last=played[played.length-1]||null;\n` +
     `var el=document.getElementById('${gdId}-live');\n` +
     `if(!el)return;\n` +
-    `var _gc0=window['_kjfc_${tid}'];if(_gc0&&_gc0.gradeId===null){el.innerHTML='<div class="kw-2col"><div class="kw-card"><div class="kw-clbl">Next Game</div><div class="kw-meta" style="color:rgba(255,255,255,.35);">Draw pending</div></div><div class="kw-card"><div class="kw-clbl">Last Result</div><div class="kw-meta" style="color:rgba(255,255,255,.35);">Draw pending</div></div></div>';return;}\n` +
+    `var _gc0=window['_kjfc_${tid}'];if(_gc0&&_gc0.gradeId===null){el.innerHTML='<div class="kw-soon" style="font-size:.9em;">\u23F3 Season draw not yet released \u2014 fixtures will appear here once grades are published.</div>';return;}\n` +
     `var gH='';\n` +
     `gH+='<div class="kw-2col">';\n` +
     // Next game card
@@ -9701,8 +9701,8 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
     `var all=games.filter(function(g){return g.competitors.some(function(c){return c.id===TID;});});\n` +
     `var el=document.getElementById('${fixId}-live');\n` +
     `if(!el)return;\n` +
-    `var _gc=window['_kjfc_${tid}'];if(_gc&&_gc.gradeId===null){el.innerHTML='<div class="kw-soon">\u23F3 Draw not yet released \u2014 this block will update automatically once your team is allocated a grade in PlayHQ.</div>';return;}\n` +
-    `if(!all.length){el.innerHTML='<div class="kw-soon">\uD83D\uDCC5 Fixture not yet released.</div>';return;}\n` +
+    `var _gc=window['_kjfc_${tid}'];if(_gc&&_gc.gradeId===null){el.innerHTML='<div class="kw-soon">\u23F3 Draw not yet released \u2014 fixtures will appear automatically once the season draw is published.</div>';return;}\n` +
+    `if(!all.length){el.innerHTML='<div class="kw-soon">\uD83D\uDCC5 No fixtures found yet \u2014 check back soon.</div>';return;}\n` +
     `var fH='<table class="kw-fix-tbl"><thead><tr><th>Rnd</th><th>Opponent</th><th>Date</th><th>Result</th></tr></thead><tbody>';\n` +
     `all.forEach(function(g,i){\n` +
     `var k=g.competitors.find(function(c){return c.id===TID;});\n` +
@@ -9763,7 +9763,7 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
     `function renderLad(games,ladder){\n` +
     `var el=document.getElementById('${ladId}-live');\n` +
     `if(!el)return;\n` +
-    `var _gc2=window['_kjfc_${tid}'];if(_gc2&&_gc2.gradeId===null){el.innerHTML='<div class="kw-soon">\u23F3 Draw not yet released \u2014 this block will update automatically once your team is allocated a grade in PlayHQ.</div>';return;}\n` +
+    `var _gc2=window['_kjfc_${tid}'];if(_gc2&&_gc2.gradeId===null){el.innerHTML='<div class="kw-soon">\u23F3 Draw not yet released \u2014 the ladder will appear automatically once the season draw is published.</div>';return;}\n` +
     `if(NOSCORE){el.innerHTML='<p style="color:rgba(255,255,255,.7);font-size:.9em;margin:0;">&#8505; Ladder and points are not used for this age group \u2014 these competitions focus on participation and development.</p>';return;}\n` +
     `var all=games.filter(function(g){return g.competitors.some(function(c){return c.id===TID;});});\n` +
     `var played=all.filter(function(g){return g.status==='FINAL';});\n` +
@@ -9773,10 +9773,10 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
     `myS=st.find(function(s){return s.team&&s.team.id===TID;})||null;}\n` +
     `var noData=!played.length&&!myS;\n` +
     `var lH='';\n` +
-    `if(noData){el.innerHTML='<div class="kw-soon">\uD83C\uDFC6 Season yet to begin \u2014 ladder will appear once the season is underway.</div>';return;}\n` +
+    `if(noData){el.innerHTML='<div class="kw-soon">\uD83C\uDFC6 Season yet to begin \u2014 the ladder will appear once games are underway.</div>';return;}\n` +
     `if(myS){\n` +
     `lH+='<div class="kw-kpis">';\n` +
-    `lH+='<div class="kw-kpi"><div class="kw-kv">'+ord(myS.ranking)+'</div><div class="kw-kl">Position</div></div>';\n` +
+    `lH+='<div class="kw-kpi"><div class="kw-kv">'+ord(myS.ranking+1)+'</div><div class="kw-kl">Position</div></div>';\n` +
     `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.won+'</div><div class="kw-kl">Wins</div></div>';\n` +
     `lH+='<div class="kw-kpi"><div class="kw-kv">'+myS.lost+'</div><div class="kw-kl">Losses</div></div>';\n` +
     `lH+='<div class="kw-kpi"><div class="kw-kv">'+(myS.percentage?myS.percentage.toFixed(1)+'%':'&mdash;')+'</div><div class="kw-kl">%</div></div>';\n` +
