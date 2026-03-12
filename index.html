@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.49</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.50</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9649,8 +9649,8 @@ function _buildWidgetBlocks(team, cfg, apiKey) {
     `gH+='</div></div>';\n` +
     `el.innerHTML=gH;}\n`;
 
-  const gameDayBlock = (
-    ? `<div id="${gdId}"><style>${mkCss(gdId)}</style>\n` +
+  const gameDayBlock =
+    `<div id="${gdId}"><style>${mkCss(gdId)}</style>\n` +
       sec(`${tid}-gd`, 'Game Day',
         `<div id="${gdId}-live">${gdSkel}</div>`,
         true) +
@@ -9731,8 +9731,8 @@ function _buildWidgetBlocks(team, cfg, apiKey) {
     `if(gr){var dr=document.getElementById(gr.dataset.dr);if(dr){var isOpen=dr.style.display==='table-row';dr.style.display=isOpen?'none':'table-row';}return;}\n` +
     `});}\n`;
 
-  const fixturesBlock = (
-    ? `<div id="${fixId}"><style>${mkCss(fixId)}</style>\n` +
+  const fixturesBlock =
+    `<div id="${fixId}"><style>${mkCss(fixId)}</style>\n` +
       sec(`${tid}-fix`, 'Fixtures &amp; Results',
         `<div id="${fixId}-live">${fixSkel}</div>`,
         true) +
@@ -9790,8 +9790,8 @@ function _buildWidgetBlocks(team, cfg, apiKey) {
     `lH+='</tbody></table>';}\n` +
     `el.innerHTML=lH;}\n`;
 
-  const ladderBlock = (
-    ? `<div id="${ladId}"><style>${mkCss(ladId)}</style>\n` +
+  const ladderBlock =
+    `<div id="${ladId}"><style>${mkCss(ladId)}</style>\n` +
       sec(`${tid}-lad`, 'Ladder',
         `<div id="${ladId}-live">${ladSkel}</div>`,
         true) +
