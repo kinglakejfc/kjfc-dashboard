@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.52</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.53</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9385,7 +9385,7 @@ function _renderWidgets() {
   return teams.map(t => {
     const cfg    = s.savedTeams[t.teamId] || {};
     const label  = cfg.displayName || _wbDeriveTeamName(t.grade ? t.grade.name : '') || t.name;
-    const blocks = _buildWidgetBlocks(t, cfg, s.phqApiKey);
+    const blocks = _buildWidgetBlocks(t, cfg, s.phqApiKey, '81d442f4-4d51-4efd-8c7f-e1e0dbe6178f', s.seasonId || '');
 
     const blockRow = (key, title, desc) => {
       const id = `widget-${t.teamId}-${key}`;
