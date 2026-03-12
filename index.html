@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.53</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.54</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9429,11 +9429,11 @@ function _renderWidgets() {
 
 // ── Widget code builder (multi-block) ─────────────────────────────────────────
 
-function _buildWidgetBlocks(team, cfg, apiKey) {
-  const hasGrade    = !!team.gradeId;
+function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
+  orgId    = orgId    || '81d442f4-4d51-4efd-8c7f-e1e0dbe6178f';
+  seasonId = seasonId || '';
   const teamId      = team.teamId;
   const tid         = teamId.replace(/-/g, '');
-  const gradeId     = team.gradeId || '';
   const training    = cfg.training       || '';
   const venue       = cfg.venue          || '';
   const training2   = cfg.training2      || '';
