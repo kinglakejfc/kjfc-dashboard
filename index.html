@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.61</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.62</span></small>
       </div>
     </div>
     <div class="hright">
@@ -8588,15 +8588,29 @@ function handleImportFile(file) {
         // Cancelled registrations: only flag if there's a season row to remove.
         // If no season row exists, this player was already cancelled (or never imported) — skip silently.
         if (isCancelled) {
-          dupType = existingSeasonIds.has(profileId) ? 'cancelled' : 'already_cancelled';
-        } else {
-          // CSV duplicate check — must run first, before any other classification.
-          // If this exact player already appeared earlier in the CSV, mark as excluded.
-          const csvDup = allRows.slice(0, idx).find(prev =>
+          // If there's an Active registration for the same player elsewhere in this CSV,
+          // don't cancel — the active record takes precedence.
+          const hasActiveCounterpart = allRows.some((prev, pi) => pi !== idx &&
+            (prev['Status']||'').trim().toLowerCase() !== 'cancelled' &&
             (prev['First Name']||'').trim().toLowerCase() === firstName.toLowerCase() &&
             (prev['Last Name']||'').trim().toLowerCase()  === lastName.toLowerCase()  &&
             (normaliseDobFE((prev['Date of Birth']||'').trim()) || (prev['Date of Birth']||'').trim()) === dob
           );
+          if (hasActiveCounterpart) {
+            dupType = 'already_cancelled'; // treat as no-op — active counterpart handles import
+          } else {
+            dupType = existingSeasonIds.has(profileId) ? 'cancelled' : 'already_cancelled';
+          }
+        } else {
+          // CSV duplicate check — must run first, before any other classification.
+          // If this exact player already appeared earlier in the CSV, mark as excluded.
+          const csvDup = allRows.slice(0, idx).find(prev => {
+            const prevStatus = (prev['Status']||'').trim().toLowerCase();
+            if (prevStatus === 'cancelled') return false; // don't dedupe Active against a Cancelled row
+            return (prev['First Name']||'').trim().toLowerCase() === firstName.toLowerCase() &&
+                   (prev['Last Name']||'').trim().toLowerCase()  === lastName.toLowerCase()  &&
+                   (normaliseDobFE((prev['Date of Birth']||'').trim()) || (prev['Date of Birth']||'').trim()) === dob;
+          });
           if (csvDup) {
             excludeReason = 'Duplicate in file';
           } else {
