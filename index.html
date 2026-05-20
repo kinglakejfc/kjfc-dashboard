@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.62</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.63</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9684,15 +9684,20 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
       `x.onload=function(){try{cb(null,JSON.parse(x.responseText));}catch(e){cb(e);}};` +
       `x.onerror=function(){cb(new Error('net'));};x.send();}\n` +
       `function _fire(){var c=window[_cache];if(c.games!==null&&c.ladder!==null){document.dispatchEvent(new CustomEvent('kjfc-data-${tid}',{detail:c}));}}\n` +
-      `function _fetchGrade(gid){\n` +
+      // Sort games chronologically (dated first, ascending; undated/TBC rounds last).
+      // Required because the team fixture spans multiple grades after a mid-season regrade.
+      `function _sortG(a,b){var da=(a.schedule&&a.schedule.date)||'',db=(b.schedule&&b.schedule.date)||'';if(da&&db)return da<db?-1:da>db?1:0;if(da)return -1;if(db)return 1;return 0;}\n` +
+      `function _load(gid){\n` +
       `window[_cache].gradeId=gid;\n` +
       `if(!gid){window[_cache].games=[];window[_cache].ladder={};_fire();return;}\n` +
-      `_phq('/v1/grades/'+gid+'/games',function(err2,d2){window[_cache].games=err2?[]:d2.data||[];_fire();});\n` +
+      // Games: full team fixture across ALL grades — covers teams regraded mid-season
+      `_phq('/v1/teams/'+TID+'/fixture',function(err2,d2){window[_cache].games=err2?[]:(d2.data||[]).slice().sort(_sortG);_fire();});\n` +
+      // Ladder: current grade only (PlayHQ ladders are per-grade)
       `_phq('/v1/grades/'+gid+'/ladder',function(err3,d3){window[_cache].ladder=err3?{}:d3;_fire();});}\n` +
-      `if(GID){_fetchGrade(GID);}else{\n` +
+      `if(GID){_load(GID);}else{\n` +
       `_phq('/v1/organisations/${orgId}/seasons/'+SID+'/teams',function(err,d){\n` +
       `var tm=d&&d.data?d.data.find(function(t){return t.id===TID;}):null;\n` +
-      `_fetchGrade(tm&&tm.grade?tm.grade.id:null);});}}\n` +
+      `_load(tm&&tm.grade?tm.grade.id:null);});}}\n` +
       // Subscribe
       `(function(){var c=window[_cache];function run(c){renderGD(c.games,c.ladder);}\n` +
       `if(c.games!==null&&c.ladder!==null){run(c);}\n` +
