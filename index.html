@@ -873,7 +873,7 @@ input:disabled,select:disabled{background:var(--bg);color:var(--text-dim);cursor
       <div class="logo-badge">KJFC</div>
       <div class="logo-text">
         <h1>Kinglake JFC</h1>
-        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.63</span></small>
+        <small>Executive Dashboard <span style="opacity:.45;font-size:9px;letter-spacing:.5px;">v1.9.64</span></small>
       </div>
     </div>
     <div class="hright">
@@ -9557,7 +9557,11 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
     `if(o==='LOST'||o==='LOST_BY_FORFEIT')return'<span class="kw-badge bl">L</span>';\n` +
     `if(o==='DRAWN')return'<span class="kw-badge bd">D</span>';\n` +
     `return'<span class="kw-badge bf">\u2013</span>';}\n` +
-    `function vaddr(v){if(!v)return'';var a=v.address||{};return[a.street,a.suburb,a.state].filter(Boolean).join(', ');}\n`;
+    `function vaddr(v){if(!v)return'';var a=v.address||{};return[a.street,a.suburb,a.state].filter(Boolean).join(', ');}\n` +
+    // Round label: numbered rounds use the game's chronological position (o) so a mid-season
+    // regrade that resets PlayHQ's per-grade numbering still reads as one continuous season.
+    // Finals/special rounds (non-numeric) keep their PlayHQ name. a=true → abbreviated ("R5").
+    `function rlbl(g,o,a){var n=g.round&&g.round.abbreviatedName?g.round.abbreviatedName:'';if(/^R?\\d+$/i.test(n))return(a?'R':'Round ')+o;return a?n:(g.round&&g.round.name?g.round.name:'');}\n`;
   // Subscribe pattern — used by each live block
   // Passes cache if ready, otherwise waits for event
   const subscribeJs = (renderFnName) =>
@@ -9638,6 +9642,7 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
     `var played=all.filter(function(g){return g.status==='FINAL';});\n` +
     `var upcoming=all.filter(function(g){return g.status!=='FINAL';});\n` +
     `var next=upcoming[0]||null,last=played[played.length-1]||null;\n` +
+    `var nextOrd=next?all.indexOf(next)+1:0,lastOrd=last?all.indexOf(last)+1:0;\n` +
     `var el=document.getElementById('${gdId}-live');\n` +
     `if(!el)return;\n` +
     `var _gc0=window['_kjfc_${tid}'];if(_gc0&&_gc0.gradeId===null){el.innerHTML='<div class="kw-2col" style="opacity:.3;"><div class="kw-card"><div class="kw-clbl">Next Game</div><div class="kw-skel kw-skel-line" style="width:65%;margin:10px 0 7px;"></div><div class="kw-skel kw-skel-line" style="width:45%;margin-bottom:6px;"></div><div class="kw-skel kw-skel-line" style="width:55%;"></div></div><div class="kw-card"><div class="kw-clbl">Last Result</div><div class="kw-skel kw-skel-line" style="width:65%;margin:10px 0 7px;"></div><div class="kw-skel kw-skel-line" style="width:45%;margin-bottom:6px;"></div><div class="kw-skel kw-skel-line" style="width:55%;"></div></div></div><div style="font-size:.8em;color:rgba(255,255,255,.4);text-align:center;margin-top:16px;letter-spacing:.06em;text-transform:uppercase;font-weight:500;">Draw pending</div>';return;}\n` +
@@ -9647,7 +9652,7 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
     `gH+='<div class="kw-card"><div class="kw-clbl">Next Game</div>';\n` +
     `if(next){var kn=next.competitors.find(function(c){return c.id===TID;});var on=next.competitors.find(function(c){return c.id!==TID;});\n` +
     `gH+='<div class="kw-opp">'+(on?on.name:'BYE')+'</div>';\n` +
-    `gH+='<div class="kw-meta">'+next.round.name+'</div>';\n` +
+    `gH+='<div class="kw-meta">'+rlbl(next,nextOrd,false)+'</div>';\n` +
     `if(next.schedule&&next.schedule.date)gH+='<div class="kw-meta">'+fmtFull(next.schedule.date,next.schedule.time)+'</div>';\n` +
     `if(next.venue)gH+='<div class="kw-addr">'+next.venue.name+'</div>';\n` +
     `var ha=kn&&kn.isHomeTeam!==undefined?(kn.isHomeTeam?'\u2302 Home':'\u2708 Away'):'';\n` +
@@ -9658,7 +9663,7 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
     `gH+='<div class="kw-card"><div class="kw-clbl">Last Result</div>';\n` +
     `if(last){var kl=last.competitors.find(function(c){return c.id===TID;});var ol=last.competitors.find(function(c){return c.id!==TID;});\n` +
     `gH+='<div class="kw-opp">'+(ol?ol.name:'BYE')+'</div>';\n` +
-    `gH+='<div class="kw-meta">'+last.round.name+'</div>';\n` +
+    `gH+='<div class="kw-meta">'+rlbl(last,lastOrd,false)+'</div>';\n` +
     `if(!NOSCORE&&kl&&ol){gH+='<div class="kw-scr '+oc(kl.outcome)+'">'+scr(kl)+' v '+scr(ol)+'</div>';}\n` +
     `if(!NOSCORE&&kl){gH+='<div class="'+oc(kl.outcome)+'">'+ow(kl.outcome)+'</div>';}\n` +
     `}else{gH+='<div class="kw-meta" style="color:rgba(255,255,255,.35);">No results yet</div>';}\n` +
@@ -9731,12 +9736,13 @@ function _buildWidgetBlocks(team, cfg, apiKey, orgId, seasonId) {
     `var drId='${tid}-dr-'+i;\n` +
     `var res=fin&&k&&!NOSCORE?bdg(k.outcome)+' '+scr(k)+' \u2013 '+(o?scr(o):''):'<span style="color:rgba(255,255,255,.28)">\u2013</span>';\n` +
     `fH+='<tr class="kw-gr" data-dr="'+drId+'">';\n` +
-    `fH+='<td style="color:rgba(255,255,255,.38);font-size:.78em;font-weight:700;">'+g.round.abbreviatedName+'</td>';\n` +
+    `fH+='<td style="color:rgba(255,255,255,.38);font-size:.78em;font-weight:700;">'+rlbl(g,i+1,true)+'</td>';\n` +
     `fH+='<td style="font-weight:600;">'+(o?o.name:'BYE')+'</td>';\n` +
     `fH+='<td style="white-space:nowrap;font-size:.85em;">'+fmtShort(g.schedule&&g.schedule.date)+'</td>';\n` +
     `fH+='<td>'+res+'</td></tr>';\n` +
     `fH+='<tr class="kw-dr" id="'+drId+'" style="display:none;"><td colspan="4" style="padding:0;border-bottom:none;">';\n` +
     `fH+='<div class="kw-det"><div class="kw-dgrid">';\n` +
+    `if(g.round&&g.round.name)fH+='<div class="kw-di"><span class="kw-lbl">Round</span><span>'+g.round.name+(g.grade&&g.grade.name?' · '+g.grade.name:'')+'</span></div>';\n` +
     `if(g.schedule&&g.schedule.date)fH+='<div class="kw-di"><span class="kw-lbl">Date &amp; Time</span><span>'+fmtFull(g.schedule.date,g.schedule.time)+'</span></div>';\n` +
     `if(g.venue)fH+='<div class="kw-di"><span class="kw-lbl">Venue</span><span>'+g.venue.name+'</span></div>';\n` +
     `var ga=vaddr(g.venue);if(ga)fH+='<div class="kw-di"><span class="kw-lbl">Address</span><span>'+ga+'</span></div>';\n` +
